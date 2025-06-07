@@ -1,328 +1,407 @@
-# Phase 1 MVP: Issue Tracking
+# Phase 1 MVP: Issue Tracking - Simplified "Skateboard First" Approach
 
-## Issue Template
+**Updated**: January 2025  
+**Strategy**: Build minimal working demo first, add complexity later
 
-Each issue follows this structure:
-```markdown
-**ID**: [Milestone.Issue]
-**Title**: [Short descriptive title]
-**Priority**: P0 (Critical) | P1 (High) | P2 (Medium) | P3 (Low)
-**Estimate**: [Days]
-**Dependencies**: [List of prerequisite issues]
-**Assignee**: [TBD]
-```
+## Issue Priorities
+
+- **P0**: MVP blockers - Required for basic demo
+- **P1**: Essential features - Important but not blocking
+- **P2**: Nice to have - Post-MVP enhancements  
+- **P3**: Future vision - Long-term features
 
 ---
 
-## Critical Path Issues (P0)
+## Week 1: MVP Core (P0 Issues)
 
-These must be completed in order for the MVP to function.
-
-### 🔴 M1.1: Project Setup
-**Priority**: P0  
+### 🔴 ISSUE-001: Mock Claude Implementation
+**Priority**: P0 - MVP Blocker  
 **Estimate**: 2 days  
-**Dependencies**: None  
+**Milestone**: M1  
+**Labels**: `P0-critical`, `comp-claude`, `type-feature`
 
-```toml
-# Cargo.toml structure
-[workspace]
-members = ["2hal9-server", "2hal9-cli", "2hal9-core"]
+**Description**:
+Implement a mock Claude interface with deterministic responses for testing.
 
-[workspace.dependencies]
-tokio = { version = "1.36", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-anyhow = "1.0"
-tracing = "0.1"
-```
+**Acceptance Criteria**:
+- [ ] ClaudeInterface trait defined
+- [ ] MockClaude struct with hardcoded responses
+- [ ] Layer-specific mock responses for L4, L3, L2
+- [ ] Unit tests for mock behavior
 
-**Definition of Done**:
-- [ ] Workspace created with 3 crates
-- [ ] All dependencies added
-- [ ] `cargo check` passes
-- [ ] GitHub Actions CI/CD configured
-
----
-
-### 🔴 M1.2: Core Type Definitions
-**Priority**: P0  
-**Estimate**: 3 days  
-**Dependencies**: M1.1  
-
+**Example Implementation**:
 ```rust
-// 2hal9-core/src/types.rs
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NeuronSignal {
-    pub signal_id: Uuid,
-    pub from_neuron: String,
-    pub to_neuron: String,
-    // ... rest of fields
+pub struct MockClaude {
+    layer: Layer,
+    responses: HashMap<String, String>,
+}
+
+impl MockClaude {
+    pub fn new_l4() -> Self {
+        let mut responses = HashMap::new();
+        responses.insert("build".into(), "DIRECTIVE: Create component".into());
+        responses.insert("fix".into(), "DIRECTIVE: Debug and repair".into());
+        Self { layer: Layer::L4, responses }
+    }
 }
 ```
 
-**Definition of Done**:
-- [ ] All types from draft implemented
-- [ ] Serialization tests pass
-- [ ] Documentation complete
-- [ ] Example JSON files created
+---
+
+### 🔴 ISSUE-002: 3-Neuron Local Orchestrator  
+**Priority**: P0 - MVP Blocker  
+**Estimate**: 3 days  
+**Milestone**: M1  
+**Labels**: `P0-critical`, `comp-server`, `type-feature`  
+**Dependencies**: ISSUE-001
+
+**Description**:
+Create a simple 3-neuron pipeline (L4→L3→L2) using async tasks, not processes.
+
+**Acceptance Criteria**:
+- [ ] ManagedNeuron as tokio task
+- [ ] Hardcoded pipeline: L4→L3→L2
+- [ ] Each neuron transforms input appropriately
+- [ ] No dynamic routing needed for MVP
+
+**Example Flow**:
+```
+Input: "build a web server"
+L4: "DIRECTIVE: Create HTTP server with routing"
+L3: "DESIGN: Use async framework, modular handlers"  
+L2: "IMPLEMENTATION: async fn main() { ... }"
+```
 
 ---
 
-### 🔴 M2.1: Claude Process Wrapper
-**Priority**: P0  
-**Estimate**: 4 days  
-**Dependencies**: M1.2  
+### 🔴 ISSUE-003: Local Channel Router
+**Priority**: P0 - MVP Blocker  
+**Estimate**: 2 days  
+**Milestone**: M1  
+**Labels**: `P0-critical`, `comp-router`, `type-feature`
 
-**Implementation Tasks**:
+**Description**:
+Implement mpsc channel-based routing for local signal passing.
+
+**Acceptance Criteria**:
+- [ ] Simple HashMap of neuron_id → mpsc::Sender
+- [ ] Route signals based on `to_neuron` field
+- [ ] No TCP, no remote routing
+- [ ] Forward propagation only
+
+**Implementation**:
 ```rust
-pub struct ClaudeNeuron {
-    pub id: String,
-    pub layer: String,
-    pub process: Child,
-    pub stdin_tx: mpsc::Sender<String>,
-    pub stdout_rx: mpsc::Receiver<String>,
+pub struct LocalRouter {
+    neurons: HashMap<String, mpsc::Sender<NeuronSignal>>,
+}
+
+impl LocalRouter {
+    pub async fn route(&self, signal: NeuronSignal) -> Result<()> {
+        if let Some(sender) = self.neurons.get(&signal.to_neuron) {
+            sender.send(signal).await?;
+        }
+        Ok(())
+    }
 }
 ```
 
-**Test Scenarios**:
-1. Spawn process successfully
-2. Handle process crash
-3. Graceful shutdown
-4. Timeout handling
+---
+
+### 🔴 ISSUE-004: Basic Signal Processing
+**Priority**: P0 - MVP Blocker  
+**Estimate**: 1 day  
+**Milestone**: M1  
+**Labels**: `P0-critical`, `comp-core`, `type-feature`
+
+**Description**:
+Implement signal creation, serialization, and basic flow.
+
+**Acceptance Criteria**:
+- [ ] NeuronSignal with Activation payload only
+- [ ] JSON serialization/deserialization
+- [ ] Signal flow logging
+- [ ] Timestamp tracking
 
 ---
 
-### 🔴 M2.2: Neuron-CLI Testing Module
-**Priority**: P0  
-**Estimate**: 3 days  
-**Dependencies**: M2.1  
+## Week 2: MVP Demo (P0 Issues)
 
-**Description**: Create a neuron-cli using Claude Process Wrapper for testing and as a fun side project module
+### 🔴 ISSUE-005: CLI Interface
+**Priority**: P0 - MVP Blocker  
+**Estimate**: 2 days  
+**Milestone**: M2  
+**Labels**: `P0-critical`, `comp-cli`, `type-feature`
 
-**Implementation Tasks**:
-- Create `neuron-cli` crate in workspace
-- Implement Claude Process Wrapper integration
-- Add testing commands and utilities
-- Create interactive REPL for neuron testing
-- Support direct signal injection and monitoring
-
-**Features**:
-```rust
-// neuron-cli commands
-neuron-cli spawn --layer L4 --id test-neuron
-neuron-cli signal --to test-neuron --content "test signal"
-neuron-cli monitor --neuron test-neuron
-neuron-cli test --scenario forward-propagation
-```
-
-**Test Scenarios**:
-1. Spawn test neurons with Claude wrapper
-2. Send test signals and verify responses
-3. Monitor neuron health and performance
-4. Run automated test suites
-
-**Definition of Done**:
-- [ ] neuron-cli crate created and integrated
-- [ ] Claude Process Wrapper fully functional
-- [ ] Test commands implemented
-- [ ] Documentation and examples provided
-- [ ] Integration tests pass
-
----
-
-### 🔴 M3.1: Signal Queue
-**Priority**: P0  
-**Estimate**: 3 days  
-**Dependencies**: M2.1  
-
-**Key Components**:
-- Bounded mpsc channel (1000 capacity)
-- Signal processor task
-- Dead letter queue for failed signals
-- Metrics collection
-
----
-
-## High Priority Issues (P1)
-
-Important for full functionality but not blocking.
-
-### 🟡 M1.3: Configuration System
-**Priority**: P1  
-**Estimate**: 3 days  
-**Dependencies**: M1.2  
-
-**Config Example**:
-```yaml
-server_id: "hal9-0"
-listen_addr: "127.0.0.1"
-listen_port: 8080
-neurons:
-  - id: "neuron-1"
-    layer: "L4"
-    claude_command: "claude"
-    forward_connections: ["neuron-2", "neuron-3"]
-```
-
----
-
-### 🟡 M2.3: Neuron Registry
-**Priority**: P1  
-**Estimate**: 3 days  
-**Dependencies**: M2.1  
-
-**Features**:
-- Thread-safe neuron tracking
-- Health check every 30s
-- Automatic restart (max 3 attempts)
-- Graceful shutdown coordination
-
----
-
-### 🟡 M3.3: Forward Propagation
-**Priority**: P1  
-**Estimate**: 4 days  
-**Dependencies**: M3.1, M2.3  
-
-**Signal Flow**:
-```
-User Input → L4 (Strategy) → L3 (Design) → L2 (Implementation) → L1 (Execution)
-```
-
----
-
-## Medium Priority Issues (P2)
-
-Enhance usability and observability.
-
-### 🟢 M4.1: CLI Interface
-**Priority**: P2  
-**Estimate**: 3 days  
-**Dependencies**: M3.3  
+**Description**:
+Create minimal CLI for demo purposes.
 
 **Commands**:
 ```bash
-2hal9 start --config config.yaml
-2hal9 status
-2hal9 signal --from user --to neuron-1 --content "Create a web server"
-2hal9 logs --follow
+2hal9 start              # Start server with 3 neurons
+2hal9 signal <message>   # Send user signal to L4
+2hal9 logs               # Show signal flow
+```
+
+**Acceptance Criteria**:
+- [ ] Server starts and initializes 3 neurons
+- [ ] Can send test signals
+- [ ] Logs show hierarchical processing
+- [ ] Clean shutdown
+
+---
+
+### 🔴 ISSUE-006: Demo Scenarios
+**Priority**: P0 - MVP Blocker  
+**Estimate**: 2 days  
+**Milestone**: M2  
+**Labels**: `P0-critical`, `type-feature`, `type-docs`
+
+**Description**:
+Create 3-5 compelling demo scenarios that showcase hierarchical processing.
+
+**Scenarios**:
+1. "Build a web server" → Shows decomposition
+2. "Design a database schema" → Shows abstraction layers  
+3. "Fix this bug: undefined variable" → Shows analysis
+4. "Optimize this algorithm" → Shows strategic thinking
+
+**Demo Output Example**:
+```
+> 2hal9 signal "Build a web server"
+
+[L4-Strategic] Processing...
+Output: "DIRECTIVE: Create HTTP server with REST API"
+
+[L3-Design] Processing...
+Output: "DESIGN: Use Tokio, Axum framework, modular routes"
+
+[L2-Implementation] Processing...
+Output: "IMPLEMENTATION: 
+use axum::{Router, routing::get};
+async fn main() {
+    let app = Router::new().route("/", get(handler));
+    // ...
+}"
 ```
 
 ---
 
-### 🟢 M4.3: Basic Monitoring
-**Priority**: P2  
+### 🟡 ISSUE-007: Basic Error Handling
+**Priority**: P1 - Essential  
+**Estimate**: 1 day  
+**Milestone**: M2  
+**Labels**: `P1-essential`, `type-feature`
+
+**Description**:
+Prevent panics and show user-friendly errors.
+
+**Acceptance Criteria**:
+- [ ] All Results handled properly
+- [ ] No unwrap() in demo path
+- [ ] User-friendly error messages
+- [ ] Graceful degradation
+
+---
+
+## Week 3: Production Polish (P1 Issues)
+
+### 🟡 ISSUE-008: Configuration System
+**Priority**: P1 - Essential  
+**Estimate**: 2 days  
+**Milestone**: M3  
+**Labels**: `P1-essential`, `comp-core`, `type-feature`
+
+**Description**:
+YAML-based configuration for neurons and mock responses.
+
+**Example Config**:
+```yaml
+neurons:
+  - id: "L4-strategic"
+    layer: "L4"
+    mock_responses:
+      "build": "DIRECTIVE: Create the component"
+      "fix": "DIRECTIVE: Debug and resolve"
+  
+  - id: "L3-design"  
+    layer: "L3"
+    mock_responses:
+      "DIRECTIVE": "DESIGN: Architecture and patterns"
+```
+
+---
+
+### 🟡 ISSUE-009: Basic Monitoring
+**Priority**: P1 - Essential  
+**Estimate**: 2 days  
+**Milestone**: M3  
+**Labels**: `P1-essential`, `type-feature`
+
+**Description**:
+Track signals processed, latency, and basic metrics.
+
+**Metrics**:
+- Signals processed per neuron
+- Average processing time per layer
+- Total signals sent/received
+- Error count
+
+---
+
+### 🟡 ISSUE-010: Test Suite
+**Priority**: P1 - Essential  
 **Estimate**: 3 days  
-**Dependencies**: M3.1  
+**Milestone**: M3  
+**Labels**: `P1-essential`, `type-test`
 
-**Metrics to Track**:
-- Signal processing rate
-- Average latency per layer
-- Neuron uptime
-- Error rates
+**Description**:
+Comprehensive unit and integration tests.
 
----
-
-## Implementation Order
-
-### Week 1-2: Foundation
-1. M1.1: Project Setup ✓
-2. M1.2: Core Types ✓
-3. M1.4: Error Handling ✓
-
-### Week 3-4: Process Management
-4. M2.1: Claude Wrapper ✓
-5. M2.2: Communication Channels ✓
-
-### Week 5-6: Core Functionality
-6. M3.1: Signal Queue ✓
-7. M2.3: Neuron Registry ✓
-
-### Week 7-8: Signal Flow
-8. M1.3: Configuration ✓
-9. M3.2: Local Routing ✓
-10. M3.3: Forward Propagation ✓
-
-### Week 9-10: Backward Flow
-11. M2.4: Prompt Formatting ✓
-12. M3.4: Backward Propagation ✓
-
-### Week 11-12: Polish
-13. M4.1: CLI Interface ✓
-14. M4.3: Monitoring ✓
-15. M4.2: REPL ✓
-16. M4.4: Demos ✓
+**Test Coverage**:
+- Unit tests for all components
+- Integration test for full signal flow
+- Performance benchmarks
+- Demo scenario tests
 
 ---
 
-## Quick Start Issues
+## Week 4: Real Claude (P1 Issues)
 
-For rapid prototyping, these 5 issues give a working demo:
+### 🟡 ISSUE-011: Claude API Integration
+**Priority**: P1 - Essential  
+**Estimate**: 3 days  
+**Milestone**: M4  
+**Labels**: `P1-essential`, `comp-claude`, `type-feature`
 
-### 🚀 Quick Demo Path
-1. **QD1**: Minimal types (1 day)
-   - Just NeuronSignal and basic types
-   
-2. **QD2**: Mock Claude process (1 day)
-   - Echo server that responds to signals
-   
-3. **QD3**: Simple router (2 days)
-   - Hardcoded 3-neuron setup
-   
-4. **QD4**: Basic CLI (1 day)
-   - Start server and send test signal
-   
-5. **QD5**: Demo script (1 day)
-   - Show signal flowing through layers
+**Description**:
+Implement real Claude API client with Anthropic API.
 
-**Total**: 6 days to working demo
+**Features**:
+- API key configuration
+- Request/response handling
+- Rate limiting
+- Error handling and retries
 
 ---
 
-## Testing Strategy
+### 🟡 ISSUE-012: Cost Controls
+**Priority**: P1 - Essential  
+**Estimate**: 2 days  
+**Milestone**: M4  
+**Labels**: `P1-essential`, `comp-claude`, `type-feature`
 
-### Unit Test Coverage Goals
-- Core types: 100%
-- Process management: 80%
-- Signal routing: 90%
-- CLI: 70%
+**Description**:
+Token counting, cost limits, usage analytics.
 
-### Integration Tests
-```rust
-#[tokio::test]
-async fn test_full_signal_flow() {
-    // Spawn 3 neurons
-    // Send signal to L4
-    // Verify it reaches L2
-    // Verify response returns
-}
+**Features**:
+- Token counting per request
+- Daily/monthly spending limits
+- Cost per neuron tracking
+- Usage reports
+
+---
+
+## Post-MVP (P2 Issues)
+
+### 🟢 ISSUE-013: TCP Networking
+**Priority**: P2 - Enhancement  
+**Estimate**: 5 days  
+**Milestone**: M5  
+**Labels**: `P2-enhancement`, `type-feature`
+
+**Description**:
+Add TCP server for multi-server support.
+
+---
+
+### 🟢 ISSUE-014: Process Management
+**Priority**: P2 - Enhancement  
+**Estimate**: 4 days  
+**Milestone**: M5  
+**Labels**: `P2-enhancement`, `type-feature`
+
+**Description**:
+Claude CLI subprocess management instead of API.
+
+---
+
+### 🟢 ISSUE-015: Backward Propagation
+**Priority**: P2 - Enhancement  
+**Estimate**: 5 days  
+**Milestone**: M5  
+**Labels**: `P2-enhancement`, `type-feature`
+
+**Description**:
+Error gradient calculation and learning signals.
+
+---
+
+### 🟢 ISSUE-016: 7-Neuron Topology
+**Priority**: P2 - Enhancement  
+**Estimate**: 3 days  
+**Milestone**: M5  
+**Labels**: `P2-enhancement`, `type-feature`
+
+**Description**:
+Expand from 3 to 7 neurons with full hierarchy.
+
+---
+
+## Future Vision (P3 Issues)
+
+### 🔵 ISSUE-017: Sleep-Wake Cycles
+**Priority**: P3 - Future  
+**Estimate**: 10 days  
+**Milestone**: Phase 3  
+**Labels**: `P3-future`, `type-feature`
+
+---
+
+### 🔵 ISSUE-018: Web UI Dashboard
+**Priority**: P3 - Future  
+**Estimate**: 10 days  
+**Milestone**: Phase 3  
+**Labels**: `P3-future`, `type-feature`
+
+---
+
+## Issue Creation Template
+
+When creating issues in GitHub:
+
+```markdown
+## Description
+Brief description of what needs to be done.
+
+## Acceptance Criteria
+- [ ] Specific measurable outcome 1
+- [ ] Specific measurable outcome 2
+- [ ] Tests pass
+- [ ] Documentation updated
+
+## Technical Notes
+Implementation hints or considerations.
+
+## Dependencies
+- Depends on: #XX
+- Blocks: #YY
 ```
 
-### Mock Claude Implementation
-```rust
-// For testing without real Claude
-pub struct MockClaude {
-    responses: HashMap<String, String>,
-}
-```
+## Quick Reference
 
----
+### Priority Mapping
+- **P0**: Can't demo without it
+- **P1**: Needed for production
+- **P2**: Nice improvements
+- **P3**: Long-term vision
 
-## Acceptance Criteria Checklist
+### Time Estimates
+- **Small**: 1-2 days
+- **Medium**: 3-4 days  
+- **Large**: 5+ days (consider splitting)
 
-### Minimum Viable Product
-- [ ] Can spawn at least 3 neurons in hierarchy
-- [ ] Signals flow from L4 → L3 → L2
-- [ ] Failed signals trigger backward propagation
-- [ ] Crashed neurons automatically restart
-- [ ] CLI can start/stop/monitor system
-- [ ] Logs clearly show signal flow
-- [ ] Configuration is validated on load
-- [ ] Graceful shutdown works
-
-### Stretch Goals
-- [ ] 7-neuron full hierarchy
-- [ ] Dynamic neuron addition
-- [ ] Signal replay for debugging
-- [ ] Performance dashboard
-- [ ] Docker container support
+### Success Metrics
+- Week 1: Mock demo running
+- Week 2: CLI demo complete
+- Week 3: Tests and polish
+- Week 4: Real Claude integrated

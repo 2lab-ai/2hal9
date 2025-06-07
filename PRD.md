@@ -1,8 +1,9 @@
 # 2HAL9 Product Requirements Document
 
-**Version**: 1.0  
+**Version**: 2.0  
 **Date**: January 2025  
-**Author**: CTO, 2HAL9 Project
+**Author**: CTO, 2HAL9 Project  
+**Status**: Revised for Simplified MVP Strategy
 
 ## Executive Summary
 
@@ -13,6 +14,84 @@ The system implements key innovations from our research:
 - **Distributed Neural Architecture**: Scalable multi-server deployment
 - **Forward/Backward Propagation**: Learning through error gradient distribution
 - **Energy-Aware Scaling**: From HAL0 (1kW) to HAL9 (563PW) evolution path
+
+## 0. Revised MVP Strategy - "Skateboard First"
+
+### 0.1 Critical Path to Working Demo (10-12 days)
+
+The MVP has been dramatically simplified to prove the core hierarchical orchestration concept before adding complexity:
+
+**P0 - Absolute Minimum Working Demo:**
+1. **Mock Claude Integration** (2-3 days) - Deterministic responses, zero external dependencies
+2. **3-Neuron Local Orchestration** (5-7 days) - L4→L3→L2 pipeline, in-memory channels only
+3. **Basic CLI Demo Interface** (2 days) - Start server, send signal, view flow
+
+**Total: 2 weeks to first working demonstration**
+
+### 0.2 Architecture Simplifications for MVP
+
+**What We're Building:**
+- Single server, single process
+- 3 neurons only (L4, L3, L2)
+- Mock Claude with hardcoded responses
+- Local memory channels (no TCP)
+- Forward propagation only
+- Simple CLI interface
+
+**What We're Deferring:**
+- Real Claude API/CLI integration → Week 4
+- Multi-server TCP networking → Phase 2
+- Backward propagation → Phase 2
+- Process spawning → Use async tasks
+- Complex routing → Hardcode 3-neuron flow
+- Sleep-wake cycles → Phase 3
+- 7+ neuron topologies → After MVP proves concept
+
+### 0.3 Risk Mitigation Strategy
+
+**Immediate Risks Addressed:**
+1. **Claude API Costs** - Start with mocks, no API costs for initial development
+2. **Process Management** - Use async tasks instead of fragile process spawning
+3. **Distributed Complexity** - Single server only, defer all networking
+
+### 0.4 Success Criteria for MVP
+
+The MVP succeeds when we can demonstrate:
+1. A user query flows through L4→L3→L2 layers
+2. Each layer transforms the query appropriately
+3. The output shows clear hierarchical decomposition
+4. Total demo runs in < 5 seconds
+5. Zero external dependencies required
+
+### 0.5 Priority Matrix
+
+**P0 - MVP Blockers (Must have for demo):**
+- Mock Claude with deterministic responses
+- 3-neuron local orchestration
+- Basic CLI (start server, send signal)
+- Forward propagation only
+- Hardcoded routing
+
+**P1 - Essential Features (Week 3-4):**
+- Real Claude API integration
+- Configuration system
+- Basic monitoring
+- Error handling
+- Cost controls
+
+**P2 - Nice to Have (Post-MVP):**
+- TCP networking
+- Multi-server support
+- 7-neuron topology
+- Backward propagation
+- Process management
+
+**P3 - Future Vision (Months 3+):**
+- Sleep-wake cycles
+- LoRA integration
+- Web UI
+- Advanced learning
+- HAL1+ scaling
 
 ## 1. Vision & Objectives
 
@@ -199,44 +278,64 @@ Server 1: [3, 4, 5, 6, 7] # Low-level (more compute)
 
 ## 6. Implementation Roadmap
 
-### Phase 1: MVP (Months 1-3)
-- [ ] Basic neuron process management
-- [ ] Local inter-neuron communication
-- [ ] Simple forward propagation
-- [ ] Simple Backward propagation
+### Phase 1: Simplified MVP (4 weeks)
+
+#### Week 1: Foundation & Mock Demo
+**P0 - Critical Path:**
+- [x] Project setup and structure
+- [x] Core types (NeuronSignal, Layer)
+- [ ] Mock Claude implementation
+- [ ] 3-neuron orchestrator (hardcoded)
+- [ ] Basic signal routing (local only)
+
+#### Week 2: Working Demo
+**P0 - MVP Completion:**
+- [ ] CLI interface (start, signal, view)
+- [ ] Forward propagation implementation
+- [ ] Demo scenarios (3-5 examples)
+- [ ] Basic error handling
+- [ ] Documentation
+
+#### Week 3: Polish & Testing
+**P1 - Essential Features:**
 - [ ] Configuration system
-- [ ] Basic monitoring
-- [ ] claude Opus 4 api integration
+- [ ] Basic monitoring/metrics
+- [ ] Integration tests
+- [ ] Performance optimization
+- [ ] Demo video creation
 
-### Phase 2: Distribution (Months 4-6)
-- [ ] research claude-core cli account-based subscription 
-- [ ] claude Opus 4 subscription based integration (should hacking claude-code cli)
+#### Week 4: Real Claude Integration
+**P1 - Production Ready:**
+- [ ] Claude API integration (with mocks fallback)
+- [ ] Cost monitoring and limits
+- [ ] Production deployment guide
+- [ ] Advanced demo scenarios
+
+### Phase 2: Distribution (Months 2-3)
+**P2 - Post-MVP Features:**
 - [ ] TCP networking layer
+- [ ] Multi-server support
 - [ ] Remote neuron routing
-- [ ] Multi-server deployment
-
-### Phase 2.5: Distribution
-- [ ] WebUI
-  - [ ] reference openai codex
-  - [ ] reference google juels
-- [ ] dashboard
-- [ ] command interface
-
-### Phase 3: Intelligence (Months 7-9)
-- [ ] Sleep-wake cycles
-- [ ] LoRA integration
-- [ ] Memory consolidation
-- [ ] Learning metrics
-- [ ] Load balancing
-- [ ] Fault tolerance
+- [ ] 7-neuron topology
+- [ ] Process management
 - [ ] Backward propagation
 
-### Phase 4: Evolution (Months 10-12)
-- [ ] HAL1 configuration (32 neurons)
-- [ ] Energy optimization
+### Phase 3: Intelligence (Months 4-6)
+**P3 - Advanced Features:**
+- [ ] Sleep-wake cycles
+- [ ] Memory consolidation
+- [ ] LoRA weight updates
+- [ ] Learning metrics
 - [ ] Advanced topologies
-- [ ] Performance tuning
-- [ ] Production deployment
+- [ ] Web UI dashboard
+
+### Phase 4: Evolution (Months 7-12)
+**Future Vision:**
+- [ ] HAL1 deployment (32 neurons)
+- [ ] Claude CLI integration research
+- [ ] Energy optimization
+- [ ] Production scaling
+- [ ] Multi-tenant support
 
 ## 7. Success Metrics
 
