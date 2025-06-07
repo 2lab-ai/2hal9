@@ -1,0 +1,31 @@
+# Simple 3-neuron configuration for testing
+server_id: "hal9-demo"
+neurons:
+  - id: "neuron-1"
+    layer: "L4"
+    forward_connections: ["neuron-2"]
+    backward_connections: []
+    
+  - id: "neuron-2"
+    layer: "L3"
+    forward_connections: ["neuron-3"]
+    backward_connections: ["neuron-1"]
+    
+  - id: "neuron-3"
+    layer: "L2"
+    forward_connections: []
+    backward_connections: ["neuron-2"]
+
+# Claude configuration
+claude:
+  mode: "mock"  # Use mock for testing
+  model: "claude-3-opus-20240229"
+  temperature: 0.7
+  max_tokens: 4096
+  rate_limit: 60
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  metrics_interval: 30
+  log_level: "info"
