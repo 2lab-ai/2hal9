@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use playwright::{Browser, BrowserType, Playwright};
+use crate::playwright_stub::{Browser, BrowserType, Playwright};
 use tracing::{info, warn, error, debug};
 use uuid::Uuid;
 
@@ -235,7 +235,7 @@ impl BrowserController {
             .map_err(|e| BrowserError::Playwright(e.to_string()))?;
         
         // Encode as base64
-        let base64_data = base64::encode(&screenshot_data);
+        let base64_data = BASE64.encode(&screenshot_data);
         
         Ok(ActionResult::Screenshot { 
             data: base64_data,
@@ -256,7 +256,7 @@ impl BrowserController {
                     .map_err(|_| BrowserError::Timeout(format!("Waiting for selector: {}", selector)))?;
             }
             WaitCondition::Navigation => {
-                page.wait_for_load_state(playwright::api::LoadState::Load)
+                page.wait_for_load_state(crate::playwright_stub::api::LoadState::Load)
                     .await
                     .map_err(|e| BrowserError::Timeout(format!("Waiting for navigation: {}", e)))?;
             }
@@ -358,7 +358,7 @@ pub enum ActionResult {
     WaitComplete,
 }
 
-use base64::Engine;
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 
 #[cfg(test)]
 mod tests {

@@ -12,7 +12,7 @@ path = "src/main.rs"
 [dependencies]
 # Core types
 hal9_core = { path = "../hal9-core" }
-hal9_browser = { path = "../hal9-browser", optional = true }
+hal9-browser = { path = "../hal9-browser", optional = true }
 
 # Async runtime
 tokio = { workspace = true }
@@ -71,4 +71,4 @@ harness = false
 
 [features]
 default = []
-browser = ["hal9_browser"]
+browser = ["hal9-browser"]

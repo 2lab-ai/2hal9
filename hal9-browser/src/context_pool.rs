@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, Semaphore};
-use playwright::{Browser, BrowserContext, Page, api::BrowserContextOptions};
+use crate::playwright_stub::{Browser, BrowserContext, Page, BrowserContextOptions};
 use uuid::Uuid;
 use tracing::{info, warn, debug};
 
