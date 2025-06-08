@@ -56,7 +56,16 @@ async-trait = "0.1"
 once_cell = "1.19"
 
 # Database
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "postgres", "chrono", "uuid"] }
+
+# Redis
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+bb8 = "0.8"
+bb8-redis = "0.14"
+
+# Performance monitoring
+metrics = "0.21"
+metrics-exporter-prometheus = "0.12"
 
 # Authentication
 jsonwebtoken = "9.3"

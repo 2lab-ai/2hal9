@@ -7,14 +7,14 @@ license.workspace = true
 
 [dependencies]
 # Core dependencies
-hal9-core = { path = "../hal9-core" }
+hal9_core = { path = "../hal9-core" }
 
 # Async runtime
 tokio = { workspace = true }
 async-trait = { workspace = true }
 
 # Browser automation
-playwright = "0.4"
+# playwright = "0.4"  # TODO: Replace with actual browser automation library
 
 # Serialization
 serde = { workspace = true }

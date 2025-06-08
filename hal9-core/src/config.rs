@@ -626,10 +626,6 @@ fn default_browser_rate_limit() -> u32 {
     60
 }
 
-fn default_true() -> bool {
-    true
-}
-
 /// Layer-specific system prompts
 pub fn get_system_prompt(layer: &str) -> String {
     match layer {

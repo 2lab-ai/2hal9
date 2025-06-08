@@ -59,8 +59,8 @@ impl BrowserError {
 }
 
 // Convert from playwright errors
-impl From<playwright::Error> for BrowserError {
-    fn from(err: playwright::Error) -> Self {
+impl From<crate::playwright_stub::Error> for BrowserError {
+    fn from(err: crate::playwright_stub::Error) -> Self {
         BrowserError::Playwright(err.to_string())
     }
 }

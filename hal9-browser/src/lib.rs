@@ -8,6 +8,7 @@ pub mod security;
 pub mod tools;
 pub mod metrics;
 pub mod error;
+pub mod playwright_stub;
 
 pub use controller::BrowserController;
 pub use context_pool::{ContextPool, PooledContext};
@@ -17,7 +18,7 @@ pub use metrics::BrowserMetrics;
 pub use error::{BrowserError, Result};
 
 // Re-export playwright types
-pub use playwright::{Browser, BrowserContext, Page};
+// pub use playwright::{Browser, BrowserContext, Page};
 
 /// Browser automation configuration
 #[derive(Debug, Clone, serde::Deserialize)]
