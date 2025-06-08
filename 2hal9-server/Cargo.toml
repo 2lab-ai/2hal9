@@ -54,6 +54,9 @@ mockall = { workspace = true }
 # System info
 sys-info = "0.9"
 
+# Low-level system calls
+libc = "0.2"
+
 [dev-dependencies]
 tokio-test = { workspace = true }
 criterion = { version = "0.5", features = ["async_tokio"] }

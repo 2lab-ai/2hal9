@@ -28,7 +28,7 @@ network:
 
 # Claude configuration
 claude:
-  mode: "api"
+  mode: "mock"
   model: "claude-3-sonnet-20240229"
   temperature: 0.7
   max_tokens: 4000
@@ -50,6 +50,12 @@ claude:
           1. System architecture design
           2. Data architecture design
         delay_ms: 100
+
+# HTTP API configuration
+http:
+  enabled: true
+  bind_address: "127.0.0.1:8081"
+  cors_enabled: true
 
 # Monitoring
 monitoring:

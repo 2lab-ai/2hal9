@@ -4,6 +4,7 @@ pub mod error;
 pub mod signal;
 pub mod config;
 pub mod neuron;
+// pub mod mcp; // Temporarily disabled until compilation errors are fixed
 
 pub use error::{Error, Result};
 pub use signal::{NeuronSignal, PropagationType, SignalPayload, Activation, Gradient};

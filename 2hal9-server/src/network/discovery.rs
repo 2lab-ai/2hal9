@@ -129,16 +129,35 @@ impl ServiceDiscovery {
             return Ok(());
         }
         
-        // Bind UDP socket
-        let socket = UdpSocket::bind("0.0.0.0:0").await
-            .map_err(|e| Error::Network(format!("Failed to bind discovery socket: {}", e)))?;
+        info!("Starting discovery service with config: {:?}", self.config);
+        info!("Local server ID: {}, Local address: {}", self.local_server_id, self.local_address);
+        
+        // For broadcast discovery, we can bind to any available port for receiving
+        // but we'll send to the configured discovery port
+        let bind_addr = "0.0.0.0:0"; // Let OS assign a port
+        info!("Binding discovery socket to any available port ({})", bind_addr);
+        
+        let socket = match UdpSocket::bind(&bind_addr).await {
+            Ok(s) => s,
+            Err(e) => {
+                // Fallback: try binding to the discovery port directly
+                let specific_addr = format!("0.0.0.0:{}", self.config.multicast_addr.port());
+                info!("Failed to bind to any port, trying specific port: {}", specific_addr);
+                UdpSocket::bind(&specific_addr).await
+                    .map_err(|e2| Error::Network(format!("Failed to bind discovery socket: primary error: {}, fallback error: {}", e, e2)))?
+            }
+        };
             
-        // For now, skip multicast setup as it requires platform-specific handling
-        // In production, use a proper multicast library or implement platform-specific code
+        // Enable SO_BROADCAST for broadcast UDP (simpler than multicast)
+        socket.set_broadcast(true)
+            .map_err(|e| Error::Network(format!("Failed to enable broadcast: {}", e)))?;
         
-        // socket.join_multicast_v4(...) - TODO: Implement proper multicast
+        let actual_addr = socket.local_addr()
+            .map_err(|e| Error::Network(format!("Failed to get local address: {}", e)))?;
         
-        info!("Service discovery started on {:?}", socket.local_addr());
+        info!("Service discovery successfully bound to {}, broadcast enabled", actual_addr);
+        info!("Will broadcast to: 255.255.255.255:{}", self.config.multicast_addr.port());
+        info!("Discovery group: '{}'", self.config.discovery_group);
         
         self.socket = Some(Arc::new(socket));
         
@@ -157,7 +176,10 @@ impl ServiceDiscovery {
     async fn start_broadcast_task(&mut self) {
         let socket = self.socket.as_ref().unwrap().clone();
         let interval = self.config.broadcast_interval;
-        let multicast_addr = self.config.multicast_addr;
+        let broadcast_addr = SocketAddr::new(
+            std::net::IpAddr::V4(std::net::Ipv4Addr::new(255, 255, 255, 255)),
+            self.config.multicast_addr.port()
+        );
         let server_id = self.local_server_id.clone();
         let address = self.local_address;
         let neurons = self.local_neurons.clone();
@@ -168,10 +190,12 @@ impl ServiceDiscovery {
         
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(interval);
+            let mut announcement_count = 0u64;
             
             loop {
                 tokio::select! {
                     _ = interval.tick() => {
+                        announcement_count += 1;
                         let msg = DiscoveryMessage {
                             msg_type: DiscoveryMessageType::Announce,
                             group: group.clone(),
@@ -182,9 +206,19 @@ impl ServiceDiscovery {
                         };
                         
                         if let Ok(data) = serde_json::to_vec(&msg) {
-                            if let Err(e) = socket.send_to(&data, multicast_addr).await {
-                                error!("Failed to send discovery announcement: {}", e);
+                            let neurons_count = neurons.read().await.len();
+                            debug!("[{}] Sending discovery announcement #{} to {}: {} bytes, server_id={}, neurons={}", 
+                                   server_id, announcement_count, broadcast_addr, data.len(), server_id, neurons_count);
+                            match socket.send_to(&data, broadcast_addr).await {
+                                Ok(sent) => {
+                                    debug!("[{}] Successfully sent {} bytes to broadcast {}", server_id, sent, broadcast_addr);
+                                }
+                                Err(e) => {
+                                    error!("[{}] Failed to send discovery announcement to {}: {}", server_id, broadcast_addr, e);
+                                }
                             }
+                        } else {
+                            error!("Failed to serialize discovery message");
                         }
                     }
                     _ = shutdown_rx.recv() => {
@@ -203,36 +237,100 @@ impl ServiceDiscovery {
         let discovered_servers = self.discovered_servers.clone();
         let update_tx = self.update_tx.clone();
         let group = self.config.discovery_group.clone();
+        let discovery_port = self.config.multicast_addr.port();
         
         tokio::spawn(async move {
             let mut buf = vec![0u8; 65536];
             
+            let local_addr = socket.local_addr().ok();
+            info!("Discovery receive task started on {:?}, listening for messages...", local_addr);
+            
+            // Also bind a separate socket to the discovery port to receive broadcasts
+            let recv_addr = format!("0.0.0.0:{}", discovery_port); // Use the configured discovery port
+            let recv_socket = match UdpSocket::bind(&recv_addr).await {
+                Ok(s) => {
+                    if let Err(e) = s.set_broadcast(true) {
+                        warn!("Failed to enable broadcast on receive socket: {}", e);
+                    }
+                    info!("Additional receive socket bound to {} for discovery", recv_addr);
+                    Some(s)
+                }
+                Err(e) => {
+                    warn!("Could not bind receive socket to {}: {} (will use primary socket only)", recv_addr, e);
+                    None
+                }
+            };
+            
             loop {
-                match socket.recv_from(&mut buf).await {
-                    Ok((len, addr)) => {
-                        if let Ok(msg) = serde_json::from_slice::<DiscoveryMessage>(&buf[..len]) {
-                            // Ignore our own messages
-                            if msg.server_id == local_server_id {
+                // Try to receive from both sockets
+                let (len, addr, socket_type) = if let Some(ref recv_sock) = recv_socket {
+                    // Use separate buffers for concurrent receives
+                    let mut buf2 = vec![0u8; 65536];
+                    tokio::select! {
+                        r1 = socket.recv_from(&mut buf) => match r1 {
+                            Ok((len, addr)) => (len, addr, "primary"),
+                            Err(e) => {
+                                error!("Primary socket receive error: {}", e);
+                                tokio::time::sleep(Duration::from_secs(1)).await;
                                 continue;
                             }
-                            
-                            // Ignore different groups
-                            if msg.group != group {
+                        },
+                        r2 = recv_sock.recv_from(&mut buf2) => match r2 {
+                            Ok((len, addr)) => {
+                                // Copy data from buf2 to buf
+                                buf[..len].copy_from_slice(&buf2[..len]);
+                                (len, addr, "discovery")
+                            },
+                            Err(e) => {
+                                error!("Discovery socket receive error: {}", e);
+                                tokio::time::sleep(Duration::from_secs(1)).await;
                                 continue;
                             }
-                            
-                            // Handle message
-                            Self::handle_discovery_message(
-                                msg,
-                                addr,
-                                &discovered_servers,
-                                &update_tx
-                            ).await;
                         }
                     }
+                } else {
+                    match socket.recv_from(&mut buf).await {
+                        Ok((len, addr)) => (len, addr, "primary"),
+                        Err(e) => {
+                            error!("Socket receive error: {}", e);
+                            tokio::time::sleep(Duration::from_secs(1)).await;
+                            continue;
+                        }
+                    }
+                };
+                
+                debug!("Received {} bytes from {} on {} socket", len, addr, socket_type);
+                
+                match serde_json::from_slice::<DiscoveryMessage>(&buf[..len]) {
+                    Ok(msg) => {
+                        debug!("Parsed discovery message from {}: type={:?}, server_id={}, group={}", 
+                               addr, msg.msg_type, msg.server_id, msg.group);
+                        
+                        // Ignore our own messages
+                        if msg.server_id == local_server_id {
+                            debug!("Ignoring our own discovery message");
+                            continue;
+                        }
+                        
+                        // Ignore different groups
+                        if msg.group != group {
+                            debug!("Ignoring message from different group: {} != {}", msg.group, group);
+                            continue;
+                        }
+                        
+                        info!("Processing discovery message from {} ({})", msg.server_id, addr);
+                        
+                        // Handle message
+                        Self::handle_discovery_message(
+                            msg,
+                            addr,
+                            &discovered_servers,
+                            &update_tx
+                        ).await;
+                    }
                     Err(e) => {
-                        error!("Discovery receive error: {}", e);
-                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        warn!("Failed to parse discovery message from {}: {}", addr, e);
+                        debug!("Raw data: {:?}", &buf[..len.min(100)]);
                     }
                 }
             }
@@ -332,11 +430,25 @@ impl ServiceDiscovery {
                 version: "1.0".to_string(),
             };
             
+            info!("Sending initial announcement: server_id={}, address={}, group={}, neurons={}",
+                  msg.server_id, msg.address, msg.group, msg.neurons.len());
+            
             let data = serde_json::to_vec(&msg)
                 .map_err(|e| Error::Serialization(format!("Failed to serialize announcement: {}", e)))?;
                 
-            socket.send_to(&data, self.config.multicast_addr).await
+            let broadcast_addr = SocketAddr::new(
+                std::net::IpAddr::V4(std::net::Ipv4Addr::new(255, 255, 255, 255)),
+                self.config.multicast_addr.port()
+            );
+            
+            info!("Broadcasting announcement to: {}, size: {} bytes", broadcast_addr, data.len());
+            
+            socket.send_to(&data, broadcast_addr).await
                 .map_err(|e| Error::Network(format!("Failed to send announcement: {}", e)))?;
+                
+            info!("Initial announcement sent successfully");
+        } else {
+            warn!("Cannot send announcement: socket not initialized");
         }
         
         Ok(())
@@ -357,7 +469,12 @@ impl ServiceDiscovery {
             let data = serde_json::to_vec(&msg)
                 .map_err(|e| Error::Serialization(format!("Failed to serialize goodbye: {}", e)))?;
                 
-            socket.send_to(&data, self.config.multicast_addr).await
+            let broadcast_addr = SocketAddr::new(
+                std::net::IpAddr::V4(std::net::Ipv4Addr::new(255, 255, 255, 255)),
+                self.config.multicast_addr.port()
+            );
+            
+            socket.send_to(&data, broadcast_addr).await
                 .map_err(|e| Error::Network(format!("Failed to send goodbye: {}", e)))?;
         }
         

@@ -51,7 +51,7 @@ start_server1() {
     log_info "Starting Server 1 (Strategic Layer)..."
     cd "$PROJECT_ROOT"
     
-    ./target/release/2hal9-server examples/distributed-2servers.yaml > server1.log 2>&1 &
+    ./target/release/hal9-server examples/distributed-2servers.yaml > server1.log 2>&1 &
     SERVER1_PID=$!
     echo $SERVER1_PID > server1.pid
     
@@ -74,7 +74,7 @@ start_server2() {
     cd "$PROJECT_ROOT"
     
     # Start on different HTTP port
-    HTTP_PORT=8081 ./target/release/2hal9-server examples/distributed-server2.yaml > server2.log 2>&1 &
+    HTTP_PORT=8081 ./target/release/hal9-server examples/distributed-server2.yaml > server2.log 2>&1 &
     SERVER2_PID=$!
     echo $SERVER2_PID > server2.pid
     

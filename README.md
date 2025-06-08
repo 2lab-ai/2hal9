@@ -3,8 +3,9 @@
 <p align="center">
   <img src="https://img.shields.io/badge/rust-1.75+-orange.svg" alt="Rust">
   <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
-  <img src="https://img.shields.io/badge/tests-28%20passing-brightgreen.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-50%2B%20passing-brightgreen.svg" alt="Tests">
   <img src="https://img.shields.io/badge/coverage-95%25+-brightgreen.svg" alt="Coverage">
+  <img src="https://img.shields.io/badge/MCP-enabled-blue.svg" alt="MCP">
 </p>
 
 <p align="center">
@@ -13,19 +14,37 @@
 
 ## 🧠 Overview
 
-2HAL9 orchestrates multiple AI agents through hierarchical layers, mimicking human cognitive architecture. The system demonstrates how complex tasks decompose through strategic thinking (L4), design planning (L3), and concrete implementation (L2), with each layer powered by specialized AI neurons.
+2HAL9 orchestrates multiple AI agents through hierarchical layers, mimicking human cognitive architecture. The system demonstrates how complex tasks decompose through strategic thinking (L4), design planning (L3), and concrete implementation (L2), with each layer powered by specialized AI neurons communicating via the Model Context Protocol (MCP).
 
 ### ✨ Key Features
 
-- **Hierarchical Processing**: L4 (Strategic) → L3 (Design) → L2 (Implementation)
+- **Hierarchical Task Decomposition**: 1 task → 2 subtasks → 4 implementation tasks
+- **Model Context Protocol (MCP)**: Standardized neuron communication via JSON-RPC
 - **Distributed Architecture**: Deploy neurons across multiple servers with automatic discovery
+- **Dynamic Capability Discovery**: Neurons expose tools and resources via MCP
 - **Network Transparency**: Seamless routing between local and remote neurons
 - **Service Discovery**: Automatic server and neuron discovery via UDP multicast
 - **Real-time Visualization**: Web UI with live signal flow animation
-- **Demo Recording/Replay**: Capture and replay perfect demonstrations
+- **Demo Recording/Replay**: Capture and replay demonstrations with variable speed
+- **Export to Video/GIF**: Convert recordings to animated visualizations
 - **Mock & Production Modes**: Development with deterministic mocks, production with Claude API
-- **Comprehensive Testing**: 95%+ coverage with 28 automated tests
-- **"Skateboard First" MVP**: Working demo in ~300 lines, proving the concept
+- **Comprehensive Testing**: 95%+ coverage with 50+ automated tests
+- **"Skateboard First" MVP**: Working demo proving the concept
+
+## 🎯 Latest Updates
+
+### Version 2.1 - MCP Integration & Enhanced Task Decomposition
+- **Model Context Protocol (MCP)**: Standardized neuron communication using JSON-RPC
+- **Hierarchical Task Decomposition**: Improved 1→2→4 task expansion pattern
+- **Enhanced Testing**: 50+ tests covering task composition and MCP flows
+- **Export Functionality**: Convert recordings to SVG/GIF animations
+- **Better Documentation**: Comprehensive guides for MCP integration
+
+### Key Improvements:
+1. **Task Flow**: Each L3 neuron now generates exactly 2 L2 tasks (previously 1)
+2. **MCP Architecture**: Neurons expose capabilities as tools and resources
+3. **Test Coverage**: Added specific tests for task decomposition patterns
+4. **Export Options**: New export-to-video functionality for presentations
 
 ## 🚀 Quick Start
 
@@ -112,18 +131,31 @@ vim .env
 2hal9/
 ├── mvp/                        # Simplified MVP - "Skateboard First"
 │   ├── src/
-│   │   ├── main.rs            # Core orchestrator (~300 lines)
+│   │   ├── main.rs            # Core orchestrator with 1→2→4 decomposition
 │   │   ├── web.rs             # Web UI server
-│   │   └── recorder.rs        # Demo recording/replay
+│   │   ├── recorder.rs        # Demo recording/replay
+│   │   └── exporter.rs        # Export to SVG/GIF
 │   ├── static/                # Web UI (HTML/JS/CSS)
 │   ├── recordings/            # Saved demo sessions
 │   ├── tests/                 # Comprehensive test suite
+│   │   ├── mvp_tests.rs       # Core functionality tests
+│   │   ├── task_composition_tests.rs  # Task decomposition tests
+│   │   └── integration_tests.rs       # Integration tests
 │   └── run-*.sh              # Convenience scripts
 ├── 2hal9-core/               # Core types and abstractions
-├── 2hal9-server/             # Production server (future)
-├── 2hal9-cli/                # CLI tools (future)
+│   ├── src/
+│   │   ├── signal.rs         # Signal types
+│   │   ├── neuron.rs         # Neuron interface
+│   │   └── mcp/              # Model Context Protocol
+│   │       ├── protocol.rs   # MCP message definitions
+│   │       ├── server.rs     # MCP server for neurons
+│   │       ├── client.rs     # MCP client for wrapper
+│   │       └── tools.rs      # MCP tool definitions
+├── 2hal9-server/             # Production server
+├── 2hal9-cli/                # CLI tools
 ├── docs/
 │   ├── PRD.md               # Product Requirements v2.0
+│   ├── MCP_INTEGRATION.md   # MCP protocol documentation
 │   ├── DEVELOPMENT_STRATEGY.md
 │   └── paper/               # Research papers
 └── Cargo.toml               # Workspace configuration
@@ -234,7 +266,14 @@ cargo run -p hal9_mvp -- --export-gif-script=recording.json
 ### Run All Tests
 ```bash
 ./mvp/run-tests.sh
-# Result: 28 tests, 100% passing
+# Result: 50+ tests, 100% passing
+```
+
+### Run Task Composition Tests
+```bash
+./mvp/run-composition-tests.sh
+# Tests hierarchical task decomposition (1→2→4)
+# Verifies MCP communication patterns
 ```
 
 ### Test Categories
@@ -467,31 +506,84 @@ sysctl -w net.core.somaxconn=1024
 ### System Overview
 ```
 ┌─────────┐     ┌─────────┐     ┌─────────┐     ┌─────────┐
-│  User   │────▶│   L4    │────▶│  L3(x2) │────▶│   L2    │
+│  User   │────▶│   L4    │────▶│  L3(x2) │────▶│ L2(x4)  │
 │  Input  │     │Strategic│     │ Design  │     │ Impl.   │
 └─────────┘     └─────────┘     └─────────┘     └─────────┘
+    (1)             (1)            (2)             (4)
                      │               │               │
                      └───────────────┴───────────────┘
                           Backward Propagation
 ```
 
+### Task Decomposition Pattern
+
+The system follows a hierarchical decomposition pattern where each layer expands the task complexity:
+
+```
+Input: 1 task
+  └─> L4: 1 strategic task
+       └─> L3: 2 design tasks (parallel)
+            └─> L2: 4 implementation tasks (2 from each L3)
+```
+
+#### Example: "Build a simple TODO API service"
+
+1. **L4 Strategic** (1 task):
+   - "Design and implement a TODO API service with CRUD operations"
+
+2. **L3 Design** (2 tasks):
+   - "Design backend architecture and data model for TODO service"
+   - "Design API endpoints and request/response schemas"
+
+3. **L2 Implementation** (4 tasks):
+   - From first L3:
+     - "Implement database schema with id, title, description, completed, created_at fields"
+     - "Implement repository pattern with create, read, update, delete methods"
+   - From second L3:
+     - "Implement REST endpoints: POST /todos, GET /todos, PUT /todos/:id, DELETE /todos/:id"
+     - "Implement validation middleware and error handling for API requests"
+
+### Model Context Protocol (MCP) Integration
+
+2HAL9 uses MCP for standardized neuron communication:
+
+```
+┌─────────────────────┐          MCP Protocol         ┌─────────────────────┐
+│   Wrapper/Orch      │ <------------------------>   │   Neuron Server     │
+│  (MCP Client)       │        JSON-RPC over         │  (MCP Server)       │
+│                     │        stdio/TCP/WebSocket    │                     │
+│ - Connect           │                               │ - Process Task      │
+│ - Call Tools        │                               │ - List Tools        │
+│ - Read Resources    │                               │ - Get Capabilities  │
+└─────────────────────┘                               └─────────────────────┘
+```
+
+#### MCP Features:
+- **Dynamic Discovery**: Neurons advertise capabilities via MCP
+- **Tool-based Processing**: Task processing exposed as MCP tools
+- **Resource Sharing**: Neurons share state via MCP resources
+- **Standard Protocol**: JSON-RPC 2.0 for all communication
+
 ### Core Components
 
-1. **Orchestrator**: Central routing and coordination
-2. **MockNeuron**: Deterministic layer processing
-3. **SignalTracker**: Hierarchical visualization
-4. **DemoRecorder**: Session capture/replay
-5. **WebServer**: Real-time UI with WebSockets
+1. **Orchestrator**: Central routing with MCP client connections
+2. **MockNeuron**: Layer-specific processing with MCP server
+3. **SignalTracker**: Hierarchical visualization of signal flow
+4. **DemoRecorder**: Session capture/replay with timing
+5. **WebServer**: Real-time UI with WebSocket broadcasting
+6. **MCP Integration**: Standardized neuron communication layer
 
 ### Signal Flow Example
 ```
 User: "Create task management app"
   ↓
-L4 (neuron-1): Strategic decomposition
-  ├─→ L3 (neuron-2): "Design architecture"
-  │     └─→ L2 (neuron-4): Backend implementation
-  └─→ L3 (neuron-3): "Plan user interface"  
-        └─→ L2 (neuron-4): Frontend implementation
+L4 (neuron-1): Strategic decomposition [MCP: process_task]
+  ├─→ L3 (neuron-2): "Design backend architecture"
+  │     ├─→ L2 (neuron-4): "Implement database schema"
+  │     └─→ L2 (neuron-4): "Implement repository pattern"
+  └─→ L3 (neuron-3): "Design API endpoints"
+        ├─→ L2 (neuron-4): "Implement REST endpoints"
+        └─→ L2 (neuron-4): "Implement validation"
 ```
 
 ## 📚 API Documentation
@@ -512,6 +604,44 @@ pub struct Orchestrator {
     pub async fn send_signal(&self, signal: Signal) -> Result<()>
     pub async fn get_signals(&self) -> Vec<Signal>
     pub fn subscribe_to_signals(&self) -> broadcast::Receiver<Signal>
+}
+```
+
+### MCP Protocol API
+```json
+// Process Task Request
+{
+  "jsonrpc": "2.0",
+  "id": "1",
+  "method": "neuron/processTask",
+  "params": {
+    "task_id": "uuid",
+    "content": "Build a simple TODO API service",
+    "context": {
+      "layer_from": "Input",
+      "layer_to": "L4",
+      "batch_id": "uuid"
+    }
+  }
+}
+
+// Process Task Response
+{
+  "jsonrpc": "2.0",
+  "id": "1",
+  "result": {
+    "task_id": "uuid",
+    "subtasks": [
+      {
+        "id": "uuid",
+        "content": "Design backend architecture...",
+        "target_neuron": "neuron-2",
+        "target_layer": "L3"
+      }
+    ],
+    "status": "success",
+    "processing_time_ms": 150
+  }
 }
 ```
 
@@ -565,15 +695,18 @@ The theoretical foundation for 2HAL9:
 
 ### Phase 1: MVP ✅ (Completed)
 - [x] Core orchestrator with 3 neurons
+- [x] Hierarchical task decomposition (1→2→4)
+- [x] Model Context Protocol (MCP) integration
 - [x] Mock Claude implementation  
 - [x] CLI interface with scenarios
 - [x] Web UI with visualization
 - [x] Recording/replay system
 - [x] Export to SVG/GIF functionality
-- [x] Comprehensive test suite
+- [x] Comprehensive test suite (50+ tests)
 
 ### Phase 2: Production Ready (Current)
-- [ ] Real Claude API integration
+- [x] MCP server/client architecture
+- [ ] Real Claude API integration via MCP
 - [ ] Configuration system (YAML)
 - [ ] Monitoring and metrics
 - [ ] Cost tracking/limits
@@ -630,12 +763,19 @@ git push origin feature/amazing-feature
 ```
 
 ### Areas Needing Help
-- Real Claude API integration
+- Real Claude API integration via MCP
+- MCP transport implementations (TCP, WebSocket)
 - Performance optimizations
 - Additional test scenarios
 - Documentation improvements
 - UI/UX enhancements
 - Cloud deployment guides
+
+### Key Documentation
+- [Architecture Overview](ARCHITECTURE.md)
+- [MCP Integration Guide](docs/MCP_INTEGRATION.md)
+- [Development Strategy](docs/DEVELOPMENT_STRATEGY.md)
+- [Testing Guide](mvp/TESTING_GUIDE.md)
 
 ## 📄 License
 

@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{RwLock, broadcast};
-use tracing::{info};
+use tracing::{info, error};
 
 use twohal9_core::{Error, Result, ServerConfig, NeuronSignal, neuron::NeuronHealth};
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
     claude::{ClaudeInterface, MockClaude, ClaudeAPIClient, FallbackClaude},
     error::{ServerError, ServerResult},
     neuron::{ManagedNeuron, NeuronRegistry},
-    router::{SignalRouter, RoutingTable, DistributedRouter},
+    router::{SignalRouter, RoutingTable, DistributedRouter, DistributedConfig},
     metrics::Metrics,
     network::{TcpTransport, ServiceDiscovery},
 };
@@ -103,7 +103,7 @@ impl HAL9Server {
                 ..Default::default()
             };
             
-            let mut transport = TcpTransport::new(transport_config);
+            let mut transport = TcpTransport::new(transport_config, self.config.server_id.clone());
             transport.set_metrics(self.metrics.clone());
             transport.start().await?;
             let transport = Arc::new(transport);
@@ -150,13 +150,57 @@ impl HAL9Server {
         );
         router.start().await?;
         
+        // Store the router for local use
         *self.router.write().await = Some(router);
         
         // Initialize distributed router if network is enabled
         if self.config.network.enabled {
-            info!("Note: Distributed routing requires both servers to be started");
-            // The distributed router will be initialized when needed
-            // For now, we just log that network mode is enabled
+            if let (Some(transport), Some(discovery)) = (
+                self.transport.read().await.as_ref(),
+                self.discovery.read().await.as_ref()
+            ) {
+                info!("Initializing distributed router");
+                
+                // Create distributed router config
+                let dist_config = DistributedConfig {
+                    enabled: true,
+                    max_hops: 5,
+                    remote_timeout: std::time::Duration::from_secs(30),
+                    auto_discovery: self.config.network.discovery_enabled,
+                };
+                
+                // Get a reference to the router we just stored
+                let router_guard = self.router.read().await;
+                if let Some(ref router) = *router_guard {
+                    // Create a new router for the distributed router
+                    // This is necessary because distributed router needs ownership
+                    let mut distributed_local_router = SignalRouter::new(
+                        self.registry.clone(),
+                        self.routing_table.clone(),
+                    );
+                    distributed_local_router.start().await?;
+                    
+                    // Create distributed router using the new started router
+                    let mut distributed_router = DistributedRouter::new(
+                        self.config.server_id.clone(),
+                        Arc::new(distributed_local_router),
+                        transport.clone(),
+                        discovery.clone(),
+                        dist_config,
+                    );
+                    
+                    // Start the distributed router
+                    distributed_router.start().await?;
+                    
+                    *self.distributed_router.write().await = Some(Arc::new(distributed_router));
+                    
+                    info!("Distributed router initialized and started");
+                } else {
+                    error!("Failed to get router reference for distributed routing");
+                }
+            } else {
+                info!("Network components not ready for distributed routing");
+            }
         }
         
         info!("Server started with {} neurons", self.config.neurons.len());
@@ -294,12 +338,14 @@ impl HAL9Server {
             
         let neurons = self.registry.list_all().await;
         let metrics = self.metrics.snapshot();
+        let network_status = self.network_status().await;
         
         Ok(ExtendedServerStatus {
             running: self.router.read().await.is_some(),
             uptime,
             neurons,
             metrics,
+            network_status,
         })
     }
     
@@ -422,6 +468,7 @@ pub struct ExtendedServerStatus {
     pub uptime: Duration,
     pub neurons: Vec<NeuronInfo>,
     pub metrics: crate::metrics::MetricsSnapshot,
+    pub network_status: Option<NetworkStatus>,
 }
 
 /// Neuron information
