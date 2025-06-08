@@ -32,6 +32,10 @@ pub struct ServerConfig {
     /// Optional authentication configuration
     #[serde(default)]
     pub auth: AuthConfig,
+    
+    /// Optional browser automation configuration
+    #[serde(default)]
+    pub browser: Option<BrowserConfig>,
 }
 
 /// Backward propagation configuration
@@ -465,6 +469,165 @@ fn default_adjustment_decay() -> f32 {
 
 fn default_max_gradient_depth() -> usize {
     3
+}
+
+/// Browser automation configuration
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BrowserConfig {
+    /// Browser automation settings
+    pub config: BrowserSettings,
+}
+
+/// Browser settings
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BrowserSettings {
+    /// Maximum concurrent browser contexts
+    #[serde(default = "default_max_browser_contexts")]
+    pub max_contexts: usize,
+    
+    /// Browser type (chromium, firefox, webkit)
+    #[serde(default = "default_browser_type")]
+    pub browser_type: String,
+    
+    /// Headless mode
+    #[serde(default = "default_browser_headless")]
+    pub headless: bool,
+    
+    /// Viewport width
+    #[serde(default = "default_viewport_width")]
+    pub viewport_width: u32,
+    
+    /// Viewport height
+    #[serde(default = "default_viewport_height")]
+    pub viewport_height: u32,
+    
+    /// Default timeout in milliseconds
+    #[serde(default = "default_browser_timeout")]
+    pub default_timeout: u32,
+    
+    /// Resource limits
+    #[serde(default)]
+    pub resource_limits: BrowserResourceLimits,
+    
+    /// Security configuration
+    #[serde(default)]
+    pub security: BrowserSecurityConfig,
+}
+
+/// Browser resource limits
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BrowserResourceLimits {
+    #[serde(default = "default_max_cpu_percent")]
+    pub max_cpu_percent: u8,
+    
+    #[serde(default = "default_max_memory_mb")]
+    pub max_memory_mb: u32,
+    
+    #[serde(default = "default_max_execution_time_secs")]
+    pub max_execution_time_secs: u64,
+    
+    #[serde(default = "default_max_concurrent_actions")]
+    pub max_concurrent_actions: usize,
+}
+
+impl Default for BrowserResourceLimits {
+    fn default() -> Self {
+        Self {
+            max_cpu_percent: default_max_cpu_percent(),
+            max_memory_mb: default_max_memory_mb(),
+            max_execution_time_secs: default_max_execution_time_secs(),
+            max_concurrent_actions: default_max_concurrent_actions(),
+        }
+    }
+}
+
+/// Browser security configuration
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BrowserSecurityConfig {
+    /// URL whitelist patterns
+    #[serde(default)]
+    pub url_whitelist: Vec<String>,
+    
+    /// URL blacklist patterns
+    #[serde(default)]
+    pub url_blacklist: Vec<String>,
+    
+    /// Enable credential vault
+    #[serde(default = "default_true")]
+    pub enable_credential_vault: bool,
+    
+    /// Enable audit logging
+    #[serde(default = "default_true")]
+    pub enable_audit_log: bool,
+    
+    /// Rate limit per minute
+    #[serde(default = "default_browser_rate_limit")]
+    pub rate_limit_per_minute: u32,
+}
+
+impl Default for BrowserSecurityConfig {
+    fn default() -> Self {
+        Self {
+            url_whitelist: vec!["*".to_string()],
+            url_blacklist: vec![
+                "*/admin/*".to_string(),
+                "*/.git/*".to_string(),
+                "*/api/internal/*".to_string(),
+            ],
+            enable_credential_vault: true,
+            enable_audit_log: true,
+            rate_limit_per_minute: default_browser_rate_limit(),
+        }
+    }
+}
+
+// Browser default functions
+fn default_max_browser_contexts() -> usize {
+    10
+}
+
+fn default_browser_type() -> String {
+    "chromium".to_string()
+}
+
+fn default_browser_headless() -> bool {
+    true
+}
+
+fn default_viewport_width() -> u32 {
+    1920
+}
+
+fn default_viewport_height() -> u32 {
+    1080
+}
+
+fn default_browser_timeout() -> u32 {
+    30000
+}
+
+fn default_max_cpu_percent() -> u8 {
+    50
+}
+
+fn default_max_memory_mb() -> u32 {
+    512
+}
+
+fn default_max_execution_time_secs() -> u64 {
+    60
+}
+
+fn default_max_concurrent_actions() -> usize {
+    5
+}
+
+fn default_browser_rate_limit() -> u32 {
+    60
+}
+
+fn default_true() -> bool {
+    true
 }
 
 /// Layer-specific system prompts

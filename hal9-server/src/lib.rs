@@ -2,6 +2,7 @@
 
 pub mod api;
 pub mod api_auth;
+pub mod api_codegen;
 pub mod auth_middleware;
 pub mod circuit_breaker;
 pub mod claude;

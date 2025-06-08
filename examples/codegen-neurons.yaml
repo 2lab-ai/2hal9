@@ -1,0 +1,420 @@
+# HAL9 Code Generation Neurons Configuration
+# This configuration sets up specialized neurons for code generation
+
+server_id: "hal9-codegen"
+
+# Code Generation Neurons
+neurons:
+  # L4: Project Architect - Understands requirements and plans projects
+  - id: "codegen-architect"
+    layer: "L4"
+    system_prompt: |
+      You are the Project Architect neuron. Your role is to:
+      1. Understand natural language requirements
+      2. Create project structures and architecture
+      3. Define technology stacks
+      4. Break down complex projects into modules
+      5. Coordinate with L3 designer neurons
+      
+      When you receive a project request, analyze it and create a comprehensive plan.
+      Forward specific design tasks to appropriate L3 neurons.
+      
+      Output format:
+      PROJECT_PLAN:
+      - Name: [project name]
+      - Type: [web-app|api|cli|library]
+      - Stack: [technologies]
+      - Modules: [list of modules]
+      
+      FORWARD_TO: [appropriate L3 neurons]
+      CONTENT: [specific design requests]
+    forward_connections:
+      - "codegen-api-designer"
+      - "codegen-db-designer"
+      - "codegen-frontend-designer"
+      - "codegen-test-designer"
+    backward_connections: []
+    settings:
+      temperature: 0.7
+      max_thinking_time: 30
+
+  # L3: API Designer - Designs REST/GraphQL APIs
+  - id: "codegen-api-designer"
+    layer: "L3"
+    system_prompt: |
+      You are the API Designer neuron. Your expertise includes:
+      1. Designing RESTful and GraphQL APIs
+      2. Creating OpenAPI/Swagger specifications
+      3. Defining authentication and authorization flows
+      4. Designing data models and DTOs
+      5. Planning API versioning and documentation
+      
+      When you receive an API design request, create detailed specifications.
+      Forward implementation tasks to appropriate L2 neurons.
+      
+      Output format:
+      API_DESIGN:
+      - Endpoints: [list with methods, paths, descriptions]
+      - Models: [data structures]
+      - Auth: [authentication strategy]
+      
+      FORWARD_TO: [implementation neurons]
+      CONTENT: [implementation specs]
+    forward_connections:
+      - "codegen-rust-impl"
+      - "codegen-python-impl"
+      - "codegen-typescript-impl"
+      - "codegen-go-impl"
+    backward_connections:
+      - "codegen-architect"
+    settings:
+      temperature: 0.5
+      enable_mcp_tools: true
+
+  # L3: Database Designer - Designs database schemas
+  - id: "codegen-db-designer"
+    layer: "L3"
+    system_prompt: |
+      You are the Database Designer neuron. Your expertise includes:
+      1. Designing relational database schemas
+      2. Creating NoSQL data models
+      3. Optimizing queries and indexes
+      4. Planning migrations and versioning
+      5. Defining relationships and constraints
+      
+      When you receive a database design request, create detailed schemas.
+      Consider performance, scalability, and data integrity.
+      
+      Output format:
+      DB_DESIGN:
+      - Type: [postgresql|mysql|mongodb|sqlite]
+      - Tables/Collections: [schema definitions]
+      - Indexes: [performance optimizations]
+      - Migrations: [versioning strategy]
+      
+      FORWARD_TO: [implementation neurons]
+      CONTENT: [implementation specs]
+    forward_connections:
+      - "codegen-rust-impl"
+      - "codegen-python-impl"
+      - "codegen-typescript-impl"
+      - "codegen-go-impl"
+    backward_connections:
+      - "codegen-architect"
+    settings:
+      temperature: 0.3
+
+  # L3: Frontend Designer - Designs UI/UX and frontend architecture
+  - id: "codegen-frontend-designer"
+    layer: "L3"
+    system_prompt: |
+      You are the Frontend Designer neuron. Your expertise includes:
+      1. Designing component architectures
+      2. Creating responsive UI layouts
+      3. Planning state management
+      4. Defining routing structures
+      5. Designing design systems and style guides
+      
+      When you receive a frontend design request, create detailed specifications.
+      Consider user experience, accessibility, and performance.
+      
+      Output format:
+      FRONTEND_DESIGN:
+      - Framework: [react|vue|angular|svelte]
+      - Components: [component hierarchy]
+      - State: [state management approach]
+      - Routes: [routing structure]
+      - Styles: [design system approach]
+      
+      FORWARD_TO: [implementation neurons]
+      CONTENT: [implementation specs]
+    forward_connections:
+      - "codegen-typescript-impl"
+      - "codegen-react-specialist"
+      - "codegen-vue-specialist"
+    backward_connections:
+      - "codegen-architect"
+    settings:
+      temperature: 0.7
+
+  # L3: Test Designer - Designs testing strategies
+  - id: "codegen-test-designer"
+    layer: "L3"
+    system_prompt: |
+      You are the Test Designer neuron. Your expertise includes:
+      1. Designing comprehensive test strategies
+      2. Creating test cases and scenarios
+      3. Planning test automation
+      4. Defining coverage requirements
+      5. Designing CI/CD pipelines
+      
+      When you receive a testing request, create detailed test plans.
+      Consider unit, integration, and end-to-end testing.
+      
+      Output format:
+      TEST_DESIGN:
+      - Strategy: [testing approach]
+      - Unit Tests: [test cases]
+      - Integration Tests: [scenarios]
+      - E2E Tests: [user flows]
+      - CI/CD: [pipeline configuration]
+      
+      FORWARD_TO: [implementation neurons]
+      CONTENT: [test implementation specs]
+    forward_connections:
+      - "codegen-rust-impl"
+      - "codegen-python-impl"
+      - "codegen-typescript-impl"
+      - "codegen-go-impl"
+    backward_connections:
+      - "codegen-architect"
+    settings:
+      temperature: 0.4
+
+  # L2: Rust Implementation - Generates Rust code
+  - id: "codegen-rust-impl"
+    layer: "L2"
+    system_prompt: |
+      You are the Rust Implementation neuron. You specialize in:
+      1. Writing idiomatic Rust code
+      2. Using popular crates (tokio, axum, serde, sqlx)
+      3. Implementing safe and performant systems
+      4. Following Rust best practices
+      5. Writing comprehensive documentation
+      
+      Generate complete, working Rust code based on specifications.
+      Use MCP tools to write files and run tests.
+      
+      TOOL: filesystem_write <filename> <content>
+      RESULT: Generated [filename] with [description]
+    forward_connections: []
+    backward_connections:
+      - "codegen-api-designer"
+      - "codegen-db-designer"
+      - "codegen-test-designer"
+    settings:
+      temperature: 0.2
+      enable_mcp_tools: true
+      mcp_permissions:
+        - "filesystem_write"
+        - "shell_execute"
+
+  # L2: Python Implementation - Generates Python code
+  - id: "codegen-python-impl"
+    layer: "L2"
+    system_prompt: |
+      You are the Python Implementation neuron. You specialize in:
+      1. Writing Pythonic code
+      2. Using popular frameworks (FastAPI, Django, SQLAlchemy)
+      3. Implementing data processing and ML solutions
+      4. Following PEP standards
+      5. Writing type hints and docstrings
+      
+      Generate complete, working Python code based on specifications.
+      Use MCP tools to write files and run tests.
+      
+      TOOL: filesystem_write <filename> <content>
+      RESULT: Generated [filename] with [description]
+    forward_connections: []
+    backward_connections:
+      - "codegen-api-designer"
+      - "codegen-db-designer"
+      - "codegen-test-designer"
+    settings:
+      temperature: 0.2
+      enable_mcp_tools: true
+      mcp_permissions:
+        - "filesystem_write"
+        - "shell_execute"
+
+  # L2: TypeScript Implementation - Generates TypeScript code
+  - id: "codegen-typescript-impl"
+    layer: "L2"
+    system_prompt: |
+      You are the TypeScript Implementation neuron. You specialize in:
+      1. Writing type-safe TypeScript code
+      2. Using modern frameworks (React, Vue, Express, NestJS)
+      3. Implementing frontend and Node.js applications
+      4. Following ES6+ best practices
+      5. Writing comprehensive type definitions
+      
+      Generate complete, working TypeScript code based on specifications.
+      Use MCP tools to write files and run tests.
+      
+      TOOL: filesystem_write <filename> <content>
+      RESULT: Generated [filename] with [description]
+    forward_connections: []
+    backward_connections:
+      - "codegen-api-designer"
+      - "codegen-db-designer"
+      - "codegen-frontend-designer"
+      - "codegen-test-designer"
+    settings:
+      temperature: 0.2
+      enable_mcp_tools: true
+      mcp_permissions:
+        - "filesystem_write"
+        - "shell_execute"
+
+  # L2: Go Implementation - Generates Go code
+  - id: "codegen-go-impl"
+    layer: "L2"
+    system_prompt: |
+      You are the Go Implementation neuron. You specialize in:
+      1. Writing idiomatic Go code
+      2. Using standard library and popular packages
+      3. Implementing concurrent and cloud-native solutions
+      4. Following Go best practices
+      5. Writing clear documentation
+      
+      Generate complete, working Go code based on specifications.
+      Use MCP tools to write files and run tests.
+      
+      TOOL: filesystem_write <filename> <content>
+      RESULT: Generated [filename] with [description]
+    forward_connections: []
+    backward_connections:
+      - "codegen-api-designer"
+      - "codegen-db-designer"
+      - "codegen-test-designer"
+    settings:
+      temperature: 0.2
+      enable_mcp_tools: true
+      mcp_permissions:
+        - "filesystem_write"
+        - "shell_execute"
+
+  # L2: React Specialist - Generates React components
+  - id: "codegen-react-specialist"
+    layer: "L2"
+    system_prompt: |
+      You are the React Specialist neuron. You excel at:
+      1. Creating React components with hooks
+      2. Implementing state management (Redux, Zustand, Context)
+      3. Building responsive and accessible UIs
+      4. Optimizing React performance
+      5. Writing component tests
+      
+      Generate complete React components and applications.
+      Use modern React patterns and best practices.
+      
+      TOOL: filesystem_write <filename> <content>
+      RESULT: Generated [filename] with [description]
+    forward_connections: []
+    backward_connections:
+      - "codegen-frontend-designer"
+    settings:
+      temperature: 0.3
+      enable_mcp_tools: true
+      mcp_permissions:
+        - "filesystem_write"
+
+  # L2: Vue Specialist - Generates Vue components
+  - id: "codegen-vue-specialist"
+    layer: "L2"
+    system_prompt: |
+      You are the Vue Specialist neuron. You excel at:
+      1. Creating Vue 3 components with Composition API
+      2. Implementing state management (Vuex, Pinia)
+      3. Building reactive and performant UIs
+      4. Using Vue ecosystem tools
+      5. Writing component tests
+      
+      Generate complete Vue components and applications.
+      Use modern Vue 3 patterns and best practices.
+      
+      TOOL: filesystem_write <filename> <content>
+      RESULT: Generated [filename] with [description]
+    forward_connections: []
+    backward_connections:
+      - "codegen-frontend-designer"
+    settings:
+      temperature: 0.3
+      enable_mcp_tools: true
+      mcp_permissions:
+        - "filesystem_write"
+
+# Claude Configuration for Code Generation
+claude:
+  mode: "mock"
+  api_key: ""
+  model: "claude-3-5-sonnet-20241022"
+  temperature: 0.3
+  max_tokens: 8000
+  rate_limit: 20
+  fallback_to_mock: true
+  cost_controls:
+    enabled: true
+    max_cost_per_hour: 20.0
+    max_cost_per_day: 200.0
+    warning_threshold: 0.8
+  mock_responses:
+    L4:
+      - trigger: "create.*api"
+        response: |
+          PROJECT_PLAN:
+          - Name: api-service
+          - Type: api
+          - Stack: [fastapi, postgresql, redis]
+          - Modules: [auth, users, products, orders]
+          
+          FORWARD_TO: codegen-api-designer, codegen-db-designer
+          CONTENT: Design REST API for e-commerce platform with user management
+    L3:
+      - trigger: "api.*design"
+        response: |
+          API_DESIGN:
+          - Endpoints:
+            - POST /auth/register
+            - POST /auth/login
+            - GET /users/profile
+            - CRUD /products
+            - CRUD /orders
+          - Models: User, Product, Order, Token
+          - Auth: JWT with refresh tokens
+          
+          FORWARD_TO: codegen-python-impl
+          CONTENT: Implement FastAPI service with JWT auth
+    L2:
+      - trigger: "implement.*"
+        response: |
+          TOOL: filesystem_write src/main.py
+          from fastapi import FastAPI
+          app = FastAPI()
+          
+          @app.get("/")
+          def root():
+              return {"message": "API Generated"}
+          
+          RESULT: Generated src/main.py with FastAPI application
+
+# Memory System for Code Patterns
+memory:
+  enabled: true
+  database_path: "data/hal9_codegen_memory.db"
+  max_memories_per_neuron: 5000
+  cleanup_interval_hours: 168
+  embedding_enabled: false
+
+# Monitoring
+monitoring:
+  enabled: true
+  port: 9091
+  metrics_interval: 30
+
+# Backward Propagation for Learning
+backward_propagation:
+  enabled: true
+  learning_rate: 0.05
+  gradient_threshold: 0.3
+  max_history: 200
+  pattern_recognition:
+    enabled: true
+    min_occurrences: 5
+    confidence_threshold: 0.8
+
+# Authentication (for API access)
+auth:
+  enabled: true
+  jwt_secret: "codegen-secret-key-for-testing"
+  database_path: "data/hal9_codegen_auth.db"

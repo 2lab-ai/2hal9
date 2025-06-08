@@ -3,6 +3,8 @@ members = [
     "hal9-core",
     "hal9-server", 
     "hal9-cli",
+    "hal9-codegen",
+    "hal9-browser",
     "mvp"
 ]
 resolver = "2"

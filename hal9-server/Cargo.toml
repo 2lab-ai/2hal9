@@ -12,6 +12,7 @@ path = "src/main.rs"
 [dependencies]
 # Core types
 hal9_core = { path = "../hal9-core" }
+hal9_browser = { path = "../hal9-browser", optional = true }
 
 # Async runtime
 tokio = { workspace = true }
@@ -67,3 +68,7 @@ criterion = { version = "0.5", features = ["async_tokio"] }
 [[bench]]
 name = "performance_benchmark"
 harness = false
+
+[features]
+default = []
+browser = ["hal9_browser"]

@@ -1,0 +1,54 @@
+[package]
+name = "hal9-browser"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+# Core dependencies
+hal9-core = { path = "../hal9-core" }
+
+# Async runtime
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+# Browser automation
+playwright = "0.4"
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+chrono = { workspace = true }
+dashmap = { workspace = true }
+once_cell = { workspace = true }
+
+# URL parsing
+url = "2.5"
+
+# Pattern matching for security
+glob = "0.3"
+
+# Base64 encoding
+base64 = "0.22"
+
+# Encryption for credential vault
+ring = "0.17"
+aes-gcm = "0.10"
+
+# Rate limiting
+governor = "0.6"
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+tempfile = "3.10"
