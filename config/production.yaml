@@ -1,0 +1,180 @@
+# 2HAL9 Production Configuration
+# This configuration defines a production-ready 7-neuron hierarchical system
+
+server_id: "hal9-prod-cluster"
+
+neurons:
+  # L4 Strategic Layer - High-level planning and decomposition
+  - id: "prod-l4-strategic"
+    layer: "L4"
+    claude_command: "claude"
+    forward_connections: 
+      - "prod-l3-arch"
+      - "prod-l3-design"
+    settings:
+      temperature: 0.7
+      max_tokens: 4000
+      model: "claude-3-opus-20240229"  # Use most capable model for strategy
+
+  # L3 Architectural Layer - System design and technical planning
+  - id: "prod-l3-arch"
+    layer: "L3"
+    claude_command: "claude"
+    forward_connections:
+      - "prod-l2-backend"
+      - "prod-l2-frontend"
+    backward_connections:
+      - "prod-l4-strategic"
+    settings:
+      temperature: 0.5
+      max_tokens: 3000
+      model: "claude-3-sonnet-20240229"
+
+  - id: "prod-l3-design"
+    layer: "L3"
+    claude_command: "claude"
+    forward_connections:
+      - "prod-l2-data"
+      - "prod-l2-infra"
+    backward_connections:
+      - "prod-l4-strategic"
+    settings:
+      temperature: 0.5
+      max_tokens: 3000
+      model: "claude-3-sonnet-20240229"
+
+  # L2 Implementation Layer - Actual code generation and execution
+  - id: "prod-l2-backend"
+    layer: "L2"
+    claude_command: "claude"
+    backward_connections:
+      - "prod-l3-arch"
+    settings:
+      temperature: 0.3
+      max_tokens: 2000
+      model: "claude-3-haiku-20240307"  # Use faster model for implementation
+
+  - id: "prod-l2-frontend"
+    layer: "L2"
+    claude_command: "claude"
+    backward_connections:
+      - "prod-l3-arch"
+    settings:
+      temperature: 0.3
+      max_tokens: 2000
+      model: "claude-3-haiku-20240307"
+
+  - id: "prod-l2-data"
+    layer: "L2"
+    claude_command: "claude"
+    backward_connections:
+      - "prod-l3-design"
+    settings:
+      temperature: 0.3
+      max_tokens: 2000
+      model: "claude-3-haiku-20240307"
+
+  - id: "prod-l2-infra"
+    layer: "L2"
+    claude_command: "claude"
+    backward_connections:
+      - "prod-l3-design"
+    settings:
+      temperature: 0.3
+      max_tokens: 2000
+      model: "claude-3-haiku-20240307"
+
+# Claude API Configuration
+claude:
+  mode: "api"  # Use real API in production
+  api_key: "${ANTHROPIC_API_KEY}"
+  model: "claude-3-sonnet-20240229"  # Default model
+  temperature: 0.5
+  max_tokens: 4000
+  rate_limit: 60  # requests per minute
+  fallback_to_mock: true  # Fallback to mock mode if API fails
+  
+  # Cost controls
+  cost_controls:
+    max_cost_per_hour: 10.0
+    max_cost_per_day: 100.0
+    max_tokens_per_request: 4000
+    alert_threshold: 0.8
+  
+  # Mock responses for fallback mode
+  mock_responses:
+    L4:
+      - trigger: "fallback"
+        response: |
+          FORWARD_TO: prod-l3-arch, prod-l3-design
+          CONTENT: [FALLBACK MODE] Breaking down request into architectural and design components
+        delay_ms: 100
+    L3:
+      - trigger: "fallback"
+        response: |
+          FORWARD_TO: prod-l2-backend, prod-l2-frontend
+          CONTENT: [FALLBACK MODE] Delegating implementation tasks
+        delay_ms: 100
+    L2:
+      - trigger: "fallback"
+        response: |
+          RESULT: [FALLBACK MODE] Implementation would be completed here
+        delay_ms: 100
+
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  metrics_interval: 60  # seconds
+  log_level: "info"
+  
+  # Alerting thresholds
+  alerts:
+    error_rate_threshold: 0.05  # 5%
+    latency_p95_threshold: 100  # ms
+    memory_usage_threshold: 0.8  # 80%
+    
+  # Metric retention
+  retention:
+    raw_metrics: "2h"
+    aggregated_metrics: "30d"
+    
+# Performance Configuration
+performance:
+  # Connection pooling
+  connection_pool_size: 10
+  connection_timeout: 30
+  
+  # Request handling
+  request_timeout: 60
+  max_concurrent_requests: 100
+  
+  # Circuit breaker settings
+  circuit_breaker:
+    failure_threshold: 5
+    success_threshold: 3
+    timeout: 30
+    window: 60
+    
+# Security Configuration
+security:
+  # API authentication
+  api_auth_enabled: true
+  api_key_header: "X-API-Key"
+  
+  # Rate limiting
+  rate_limit:
+    enabled: true
+    window: 60  # seconds
+    max_requests: 100
+    
+  # IP whitelisting
+  ip_whitelist:
+    enabled: false
+    allowed_ips: []
+    
+# Backup Configuration
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # 2 AM daily
+  retention_days: 30
+  destination: "s3://hal9-backups/${server_id}"

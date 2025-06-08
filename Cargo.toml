@@ -2,7 +2,8 @@
 members = [
     "2hal9-core",
     "2hal9-server", 
-    "2hal9-cli"
+    "2hal9-cli",
+    "mvp"
 ]
 resolver = "2"
 

@@ -49,7 +49,7 @@ impl Layer {
 }
 
 /// Neuron state
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum NeuronState {
     Starting,
     Running,
@@ -59,7 +59,7 @@ pub enum NeuronState {
 }
 
 /// Neuron health information
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NeuronHealth {
     pub state: NeuronState,
     pub last_signal: Option<chrono::DateTime<chrono::Utc>>,

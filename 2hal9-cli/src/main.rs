@@ -4,7 +4,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use std::path::PathBuf;
-use tracing::{error, info};
+use tracing::error;
 
 mod commands;
 use commands::{start, status, signal, stop};

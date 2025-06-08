@@ -1,5 +1,5 @@
 [package]
-name = "2hal9-cli"
+name = "twohal9_cli"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -11,8 +11,8 @@ path = "src/main.rs"
 
 [dependencies]
 # Core crates
-2hal9-core = { path = "../2hal9-core" }
-2hal9-server = { path = "../2hal9-server" }
+twohal9_core = { path = "../2hal9-core" }
+twohal9_server = { path = "../2hal9-server" }
 
 # CLI framework
 clap = { workspace = true }

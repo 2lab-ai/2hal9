@@ -3,8 +3,11 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{debug, info};
-use 2hal9_core::{Result, Error, Layer};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+use tracing::{debug, info, warn};
+use twohal9_core::{Result, Error};
+use crate::cost_tracker::CostTracker;
 
 /// Claude interface abstraction
 #[async_trait]
@@ -37,37 +40,55 @@ pub struct MockClaude {
 
 impl MockClaude {
     /// Create a new mock Claude for a specific layer
-    pub fn new(layer: &str) -> Self {
+    pub fn new(layer: &str, config: &twohal9_core::config::ClaudeConfig) -> Self {
         let mut responses = HashMap::new();
         
-        // Add layer-specific mock responses
-        match layer {
-            "L4" => {
+        // Add configuration-based mock responses if available
+        if let Some(layer_responses) = config.mock_responses.get(layer) {
+            for mock_resp in layer_responses {
                 responses.insert(
-                    "default".to_string(),
-                    "FORWARD_TO: neuron-2, neuron-3\nCONTENT: Breaking down into two strategic initiatives:\n1. Design the system architecture\n2. Plan the implementation approach".to_string()
+                    mock_resp.trigger.clone(),
+                    mock_resp.response.clone()
                 );
             }
-            "L3" => {
-                responses.insert(
-                    "default".to_string(),
-                    "FORWARD_TO: neuron-4, neuron-5\nCONTENT: Design specification:\n- Component A: Handle data processing\n- Component B: Manage user interface".to_string()
-                );
-            }
-            "L2" => {
-                responses.insert(
-                    "default".to_string(),
-                    "RESULT: Implementation complete\n```python\ndef process_data(input):\n    return input.upper()\n```".to_string()
-                );
-            }
-            _ => {}
         }
+        
+        // Add default layer-specific mock responses if no custom ones provided
+        if responses.is_empty() {
+            match layer {
+                "L4" => {
+                    responses.insert(
+                        "default".to_string(),
+                        "FORWARD_TO: neuron-2, neuron-3\nCONTENT: Breaking down into two strategic initiatives:\n1. Design the system architecture\n2. Plan the implementation approach".to_string()
+                    );
+                }
+                "L3" => {
+                    responses.insert(
+                        "default".to_string(),
+                        "FORWARD_TO: neuron-4, neuron-5\nCONTENT: Design specification:\n- Component A: Handle data processing\n- Component B: Manage user interface".to_string()
+                    );
+                }
+                "L2" => {
+                    responses.insert(
+                        "default".to_string(),
+                        "RESULT: Implementation complete\n```python\ndef process_data(input):\n    return input.upper()\n```".to_string()
+                    );
+                }
+                _ => {}
+            }
+        }
+        
+        // Set delay from first response or use default
+        let delay_ms = config.mock_responses.get(layer)
+            .and_then(|resps| resps.first())
+            .map(|r| r.delay_ms)
+            .unwrap_or(100);
         
         Self {
             layer: layer.to_string(),
-            system_prompt: 2hal9_core::config::get_system_prompt(layer),
+            system_prompt: twohal9_core::config::get_system_prompt(layer),
             responses,
-            delay_ms: 100,
+            delay_ms,
         }
     }
     
@@ -122,8 +143,14 @@ pub struct ClaudeAPIClient {
     system_prompt: String,
     temperature: f32,
     max_tokens: u32,
-    last_usage: Option<TokenUsage>,
+    last_usage: Mutex<Option<TokenUsage>>,
     client: reqwest::Client,
+    rate_limiter: Arc<tokio::sync::Semaphore>,
+    request_timeout: Duration,
+    retry_count: u32,
+    cost_per_1k_prompt: f64,
+    cost_per_1k_completion: f64,
+    cost_tracker: Option<Arc<CostTracker>>,
 }
 
 impl ClaudeAPIClient {
@@ -135,21 +162,47 @@ impl ClaudeAPIClient {
         temperature: f32,
         max_tokens: u32,
     ) -> Self {
+        // Set cost based on model
+        let (cost_per_1k_prompt, cost_per_1k_completion) = match model.as_str() {
+            "claude-3-opus-20240229" => (0.015, 0.075),
+            "claude-3-sonnet-20240229" => (0.003, 0.015),
+            "claude-3-haiku-20240307" => (0.00025, 0.00125),
+            _ => (0.003, 0.015), // Default to sonnet pricing
+        };
+        
         Self {
             api_key,
             model,
-            system_prompt: 2hal9_core::config::get_system_prompt(layer),
+            system_prompt: twohal9_core::config::get_system_prompt(layer),
             temperature,
             max_tokens,
-            last_usage: None,
-            client: reqwest::Client::new(),
+            last_usage: Mutex::new(None),
+            client: reqwest::Client::builder()
+                .timeout(Duration::from_secs(30))
+                .build()
+                .unwrap(),
+            rate_limiter: Arc::new(tokio::sync::Semaphore::new(10)), // 10 concurrent requests
+            request_timeout: Duration::from_secs(30),
+            retry_count: 3,
+            cost_per_1k_prompt,
+            cost_per_1k_completion,
+            cost_tracker: None,
         }
+    }
+    
+    /// Set cost tracker
+    pub fn set_cost_tracker(&mut self, tracker: Arc<CostTracker>) {
+        self.cost_tracker = Some(tracker);
     }
 }
 
 #[async_trait]
 impl ClaudeInterface for ClaudeAPIClient {
     async fn send_message(&self, message: &str) -> Result<String> {
+        // Acquire rate limit permit
+        let _permit = self.rate_limiter.acquire().await
+            .map_err(|_| Error::ClaudeApi("Rate limiter error".to_string()))?;
+            
         let request = ClaudeRequest {
             model: self.model.clone(),
             messages: vec![
@@ -166,12 +219,60 @@ impl ClaudeInterface for ClaudeAPIClient {
             temperature: self.temperature,
         };
         
+        // Retry logic
+        let mut last_error = None;
+        for attempt in 0..self.retry_count {
+            if attempt > 0 {
+                // Exponential backoff
+                let delay = Duration::from_millis(100 * 2u64.pow(attempt));
+                warn!("Retrying Claude API request (attempt {}), waiting {:?}", attempt + 1, delay);
+                tokio::time::sleep(delay).await;
+            }
+            
+            match self.send_request(&request).await {
+                Ok(response) => return Ok(response),
+                Err(e) => {
+                    warn!("Claude API request failed: {}", e);
+                    last_error = Some(e);
+                    
+                    // Don't retry on certain errors
+                    if let Error::ClaudeApi(msg) = &last_error.as_ref().unwrap() {
+                        if msg.contains("invalid_api_key") || msg.contains("permission_denied") {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        Err(last_error.unwrap_or_else(|| Error::ClaudeApi("Unknown error".to_string())))
+    }
+    
+    fn system_prompt(&self) -> &str {
+        &self.system_prompt
+    }
+    
+    fn last_token_usage(&self) -> Option<TokenUsage> {
+        self.last_usage.lock().ok()?.clone()
+    }
+}
+
+impl ClaudeAPIClient {
+    /// Send the actual API request
+    async fn send_request(&self, request: &ClaudeRequest) -> Result<String> {
+        // Check cost limits before making request
+        if let Some(tracker) = &self.cost_tracker {
+            // Estimate tokens (rough approximation)
+            let estimated_tokens = request.max_tokens;
+            tracker.check_request(estimated_tokens).await?;
+        }
+        
         let response = self.client
             .post("https://api.anthropic.com/v1/messages")
             .header("x-api-key", &self.api_key)
             .header("anthropic-version", "2023-06-01")
             .header("content-type", "application/json")
-            .json(&request)
+            .json(request)
             .send()
             .await
             .map_err(|e| Error::ClaudeApi(e.to_string()))?;
@@ -184,26 +285,116 @@ impl ClaudeInterface for ClaudeAPIClient {
         let api_response: ClaudeResponse = response.json().await
             .map_err(|e| Error::ClaudeApi(e.to_string()))?;
             
-        // Update token usage
-        if let Some(usage) = api_response.usage {
-            self.last_usage.replace(TokenUsage {
-                prompt_tokens: usage.input_tokens,
-                completion_tokens: usage.output_tokens,
-                total_tokens: usage.input_tokens + usage.output_tokens,
-            });
+        // Update token usage and calculate cost
+        if let Some(api_usage) = api_response.usage {
+            let prompt_cost = (api_usage.input_tokens as f64 / 1000.0) * self.cost_per_1k_prompt;
+            let completion_cost = (api_usage.output_tokens as f64 / 1000.0) * self.cost_per_1k_completion;
+            let total_cost = prompt_cost + completion_cost;
+            
+            info!(
+                "Claude API usage: prompt_tokens={}, completion_tokens={}, cost=${:.4}",
+                api_usage.input_tokens, api_usage.output_tokens, total_cost
+            );
+            
+            // Record cost with tracker
+            if let Some(tracker) = &self.cost_tracker {
+                let total_tokens = api_usage.input_tokens + api_usage.output_tokens;
+                tracker.record_cost(total_cost, total_tokens as u64).await;
+            }
+            
+            if let Ok(mut last_usage) = self.last_usage.lock() {
+                last_usage.replace(TokenUsage {
+                    prompt_tokens: api_usage.input_tokens,
+                    completion_tokens: api_usage.output_tokens,
+                    total_tokens: api_usage.input_tokens + api_usage.output_tokens,
+                });
+            }
         }
         
         Ok(api_response.content.first()
             .map(|c| c.text.clone())
             .unwrap_or_default())
     }
+}
+
+/// Claude client with automatic fallback to mock mode
+pub struct FallbackClaude {
+    primary: Box<dyn ClaudeInterface>,
+    fallback: Box<dyn ClaudeInterface>,
+    use_fallback: Arc<Mutex<bool>>,
+    fallback_until: Arc<Mutex<Option<std::time::Instant>>>,
+}
+
+impl FallbackClaude {
+    /// Create a new fallback Claude client
+    pub fn new(primary: Box<dyn ClaudeInterface>, fallback: Box<dyn ClaudeInterface>) -> Self {
+        Self {
+            primary,
+            fallback,
+            use_fallback: Arc::new(Mutex::new(false)),
+            fallback_until: Arc::new(Mutex::new(None)),
+        }
+    }
+}
+
+#[async_trait]
+impl ClaudeInterface for FallbackClaude {
+    async fn send_message(&self, message: &str) -> Result<String> {
+        // Check if we should use fallback
+        let should_use_fallback = {
+            let use_fallback = self.use_fallback.lock().unwrap();
+            if *use_fallback {
+                // Check if fallback period has expired
+                if let Some(until) = *self.fallback_until.lock().unwrap() {
+                    if std::time::Instant::now() > until {
+                        drop(use_fallback);
+                        *self.use_fallback.lock().unwrap() = false;
+                        *self.fallback_until.lock().unwrap() = None;
+                        false
+                    } else {
+                        true
+                    }
+                } else {
+                    true
+                }
+            } else {
+                false
+            }
+        };
+        
+        if should_use_fallback {
+            debug!("Using fallback Claude (mock mode)");
+            return self.fallback.send_message(message).await;
+        }
+        
+        // Try primary first
+        match self.primary.send_message(message).await {
+            Ok(response) => Ok(response),
+            Err(e) => {
+                warn!("Primary Claude failed, switching to fallback: {}", e);
+                
+                // Enable fallback for 5 minutes
+                *self.use_fallback.lock().unwrap() = true;
+                *self.fallback_until.lock().unwrap() = Some(
+                    std::time::Instant::now() + Duration::from_secs(300)
+                );
+                
+                // Use fallback
+                self.fallback.send_message(message).await
+            }
+        }
+    }
     
     fn system_prompt(&self) -> &str {
-        &self.system_prompt
+        self.primary.system_prompt()
     }
     
     fn last_token_usage(&self) -> Option<TokenUsage> {
-        self.last_usage.clone()
+        if *self.use_fallback.lock().unwrap() {
+            self.fallback.last_token_usage()
+        } else {
+            self.primary.last_token_usage()
+        }
     }
 }
 

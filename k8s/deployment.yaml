@@ -1,0 +1,244 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hal9
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hal9-config
+  namespace: hal9
+data:
+  production.yaml: |
+    server_id: "hal9-k8s-cluster"
+    neurons:
+      - id: "k8s-l4-strategic"
+        layer: "L4"
+        claude_command: "claude"
+        forward_connections: ["k8s-l3-arch", "k8s-l3-design"]
+        settings:
+          temperature: 0.7
+          max_tokens: 4000
+      - id: "k8s-l3-arch"
+        layer: "L3"
+        claude_command: "claude"
+        forward_connections: ["k8s-l2-impl-1", "k8s-l2-impl-2"]
+        backward_connections: ["k8s-l4-strategic"]
+        settings:
+          temperature: 0.5
+          max_tokens: 3000
+      - id: "k8s-l2-impl-1"
+        layer: "L2"
+        claude_command: "claude"
+        backward_connections: ["k8s-l3-arch"]
+        settings:
+          temperature: 0.3
+          max_tokens: 2000
+    claude:
+      mode: "api"
+      model: "claude-3-sonnet-20240229"
+      temperature: 0.5
+      max_tokens: 4000
+      rate_limit: 60
+      fallback_to_mock: true
+      cost_controls:
+        max_cost_per_hour: 10.0
+        max_cost_per_day: 100.0
+        max_tokens_per_request: 4000
+        alert_threshold: 0.8
+    monitoring:
+      enabled: true
+      metrics_interval: 60
+      log_level: "info"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hal9-secrets
+  namespace: hal9
+type: Opaque
+stringData:
+  ANTHROPIC_API_KEY: "your-api-key-here"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hal9-server
+  namespace: hal9
+  labels:
+    app: hal9
+    component: server
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: hal9
+      component: server
+  template:
+    metadata:
+      labels:
+        app: hal9
+        component: server
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: hal9-server
+        image: hal9:latest
+        imagePullPolicy: Always
+        ports:
+        - name: api
+          containerPort: 8080
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        env:
+        - name: RUST_LOG
+          value: "info"
+        - name: HAL9_CONFIG_PATH
+          value: "/app/config/production.yaml"
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: hal9-secrets
+              key: ANTHROPIC_API_KEY
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+        - name: logs
+          mountPath: /app/logs
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: api
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: api
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: api
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+      volumes:
+      - name: config
+        configMap:
+          name: hal9-config
+      - name: logs
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hal9-service
+  namespace: hal9
+  labels:
+    app: hal9
+spec:
+  type: ClusterIP
+  selector:
+    app: hal9
+    component: server
+  ports:
+  - name: api
+    port: 8080
+    targetPort: api
+  - name: metrics
+    port: 9090
+    targetPort: metrics
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hal9-hpa
+  namespace: hal9
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hal9-server
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hal9-ingress
+  namespace: hal9
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rate-limit: "10"
+spec:
+  tls:
+  - hosts:
+    - hal9.example.com
+    secretName: hal9-tls
+  rules:
+  - host: hal9.example.com
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: hal9-service
+            port:
+              name: api
+      - path: /metrics
+        pathType: Exact
+        backend:
+          service:
+            name: hal9-service
+            port:
+              name: metrics
+---
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: hal9-metrics
+  namespace: hal9
+  labels:
+    app: hal9
+spec:
+  selector:
+    matchLabels:
+      app: hal9
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics

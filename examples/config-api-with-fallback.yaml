@@ -1,0 +1,63 @@
+# Production configuration with Claude API and fallback to mock
+server_id: "hal9-production"
+neurons:
+  - id: "neuron-1"
+    layer: "L4"
+    forward_connections: ["neuron-2"]
+    backward_connections: []
+    
+  - id: "neuron-2"
+    layer: "L3"
+    forward_connections: ["neuron-3"]
+    backward_connections: ["neuron-1"]
+    
+  - id: "neuron-3"
+    layer: "L2"
+    forward_connections: []
+    backward_connections: ["neuron-2"]
+
+# Claude configuration with API mode and fallback
+claude:
+  mode: "api"  # Use real Claude API
+  # api_key: "sk-ant-..."  # Set via ANTHROPIC_API_KEY env var
+  model: "claude-3-haiku-20240307"  # Use cheaper model for production
+  temperature: 0.7
+  max_tokens: 2048  # Limit tokens to control costs
+  rate_limit: 30  # 30 requests per minute
+  fallback_to_mock: true  # Automatically fallback to mock on API errors
+  
+  # Cost control configuration
+  cost_controls:
+    max_cost_per_hour: 5.0      # $5/hour maximum
+    max_cost_per_day: 50.0      # $50/day maximum
+    max_tokens_per_request: 2048 # Limit tokens per request
+    alert_threshold: 0.8         # Alert at 80% of limits
+  
+  # Mock responses for fallback mode
+  mock_responses:
+    L4:
+      - trigger: "default"
+        response: |
+          FORWARD_TO: neuron-2
+          CONTENT: [FALLBACK MODE] Processing strategic request
+        delay_ms: 50
+    
+    L3:
+      - trigger: "default"
+        response: |
+          FORWARD_TO: neuron-3
+          CONTENT: [FALLBACK MODE] Creating design specification
+        delay_ms: 50
+    
+    L2:
+      - trigger: "default"
+        response: |
+          RESULT: [FALLBACK MODE] Implementation placeholder
+          Note: Running in fallback mode due to API issues
+        delay_ms: 50
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  metrics_interval: 60  # Report metrics every minute
+  log_level: "info"

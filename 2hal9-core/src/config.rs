@@ -80,6 +80,52 @@ pub struct ClaudeConfig {
     /// Rate limit (requests per minute)
     #[serde(default = "default_rate_limit")]
     pub rate_limit: u32,
+    
+    /// Mock responses for testing (layer -> responses)
+    #[serde(default)]
+    pub mock_responses: HashMap<String, Vec<MockResponse>>,
+    
+    /// Fallback to mock on API errors
+    #[serde(default = "default_true")]
+    pub fallback_to_mock: bool,
+    
+    /// Cost controls
+    #[serde(default)]
+    pub cost_controls: CostControls,
+}
+
+/// Cost control configuration
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CostControls {
+    /// Maximum cost per hour in USD
+    #[serde(default = "default_max_cost_per_hour")]
+    pub max_cost_per_hour: f64,
+    
+    /// Maximum cost per day in USD
+    #[serde(default = "default_max_cost_per_day")]
+    pub max_cost_per_day: f64,
+    
+    /// Maximum tokens per request
+    #[serde(default = "default_max_tokens_per_request")]
+    pub max_tokens_per_request: u32,
+    
+    /// Alert threshold (percentage of limit)
+    #[serde(default = "default_alert_threshold")]
+    pub alert_threshold: f64,
+}
+
+/// Mock response configuration
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct MockResponse {
+    /// Trigger phrase to match (partial match)
+    pub trigger: String,
+    
+    /// Response template
+    pub response: String,
+    
+    /// Optional delay in milliseconds
+    #[serde(default = "default_mock_delay")]
+    pub delay_ms: u64,
 }
 
 impl Default for ClaudeConfig {
@@ -91,6 +137,20 @@ impl Default for ClaudeConfig {
             temperature: default_temperature(),
             max_tokens: default_max_tokens(),
             rate_limit: default_rate_limit(),
+            mock_responses: HashMap::new(),
+            fallback_to_mock: true,
+            cost_controls: CostControls::default(),
+        }
+    }
+}
+
+impl Default for CostControls {
+    fn default() -> Self {
+        Self {
+            max_cost_per_hour: default_max_cost_per_hour(),
+            max_cost_per_day: default_max_cost_per_day(),
+            max_tokens_per_request: default_max_tokens_per_request(),
+            alert_threshold: default_alert_threshold(),
         }
     }
 }
@@ -130,6 +190,26 @@ fn default_max_tokens() -> u32 {
 
 fn default_rate_limit() -> u32 {
     60
+}
+
+fn default_mock_delay() -> u64 {
+    100
+}
+
+fn default_max_cost_per_hour() -> f64 {
+    10.0 // $10 per hour
+}
+
+fn default_max_cost_per_day() -> f64 {
+    100.0 // $100 per day
+}
+
+fn default_max_tokens_per_request() -> u32 {
+    4096
+}
+
+fn default_alert_threshold() -> f64 {
+    0.8 // Alert at 80% of limit
 }
 
 /// Layer-specific system prompts

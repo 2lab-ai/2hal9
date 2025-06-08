@@ -1,5 +1,5 @@
 [package]
-name = "2hal9-core"
+name = "twohal9_core"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
