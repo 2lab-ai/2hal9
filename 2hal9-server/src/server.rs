@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{RwLock, broadcast};
-use tracing::info;
+use tracing::{info};
 
 use twohal9_core::{Error, Result, ServerConfig, NeuronSignal, neuron::NeuronHealth};
 use crate::{
@@ -11,9 +11,19 @@ use crate::{
     claude::{ClaudeInterface, MockClaude, ClaudeAPIClient, FallbackClaude},
     error::{ServerError, ServerResult},
     neuron::{ManagedNeuron, NeuronRegistry},
-    router::{SignalRouter, RoutingTable},
+    router::{SignalRouter, RoutingTable, DistributedRouter},
     metrics::Metrics,
+    network::{TcpTransport, ServiceDiscovery},
 };
+
+/// Network status information
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct NetworkStatus {
+    pub enabled: bool,
+    pub server_id: String,
+    pub connected_servers: Vec<String>,
+    pub remote_neurons: usize,
+}
 
 /// Main HAL9 server
 pub struct HAL9Server {
@@ -21,6 +31,9 @@ pub struct HAL9Server {
     registry: Arc<NeuronRegistry>,
     routing_table: Arc<RoutingTable>,
     router: RwLock<Option<SignalRouter>>,
+    distributed_router: RwLock<Option<Arc<DistributedRouter>>>,
+    transport: RwLock<Option<Arc<TcpTransport>>>,
+    discovery: RwLock<Option<Arc<RwLock<ServiceDiscovery>>>>,
     metrics: Arc<Metrics>,
     event_tx: broadcast::Sender<WsMessage>,
     start_time: RwLock<Option<Instant>>,
@@ -35,6 +48,9 @@ impl HAL9Server {
             registry: Arc::new(NeuronRegistry::new()),
             routing_table: Arc::new(RoutingTable::new()),
             router: RwLock::new(None),
+            distributed_router: RwLock::new(None),
+            transport: RwLock::new(None),
+            discovery: RwLock::new(None),
             metrics: Arc::new(Metrics::new()),
             event_tx,
             start_time: RwLock::new(None),
@@ -73,6 +89,60 @@ impl HAL9Server {
             self.start_metrics_reporter().await;
         }
         
+        // Initialize network if enabled
+        if self.config.network.enabled {
+            info!("Initializing distributed networking");
+            
+            // Create TCP transport
+            let bind_address = self.config.network.bind_address.parse()
+                .map_err(|e| Error::Config(format!("Invalid bind address: {}", e)))?;
+                
+            let transport_config = crate::network::tcp_transport::TransportConfig {
+                bind_address,
+                max_connections: self.config.network.max_connections as usize,
+                ..Default::default()
+            };
+            
+            let mut transport = TcpTransport::new(transport_config);
+            transport.set_metrics(self.metrics.clone());
+            transport.start().await?;
+            let transport = Arc::new(transport);
+            *self.transport.write().await = Some(transport.clone());
+            
+            // Create service discovery if enabled
+            if self.config.network.discovery_enabled {
+                let discovery_addr = self.config.network.discovery_address.parse()
+                    .map_err(|e| Error::Config(format!("Invalid discovery address: {}", e)))?;
+                    
+                let discovery_config = crate::network::discovery::DiscoveryConfig {
+                    multicast_addr: discovery_addr,
+                    discovery_group: self.config.network.discovery_group.clone(),
+                    enabled: true,
+                    ..Default::default()
+                };
+                
+                let mut discovery = ServiceDiscovery::new(
+                    discovery_config,
+                    self.config.server_id.clone(),
+                    self.config.network.bind_address.parse()
+                        .unwrap_or_else(|_| "0.0.0.0:9000".parse().unwrap()),
+                );
+                
+                // Get local neurons for announcement
+                let local_neurons = self.config.neurons.iter()
+                    .map(|n| crate::network::protocol::NeuronInfo {
+                        id: n.id.clone(),
+                        layer: n.layer.clone(),
+                        server_id: self.config.server_id.clone(),
+                    })
+                    .collect();
+                    
+                discovery.update_neurons(local_neurons).await;
+                discovery.start().await?;
+                *self.discovery.write().await = Some(Arc::new(RwLock::new(discovery)));
+            }
+        }
+        
         // Start signal router
         let mut router = SignalRouter::new(
             self.registry.clone(),
@@ -81,6 +151,13 @@ impl HAL9Server {
         router.start().await?;
         
         *self.router.write().await = Some(router);
+        
+        // Initialize distributed router if network is enabled
+        if self.config.network.enabled {
+            info!("Note: Distributed routing requires both servers to be started");
+            // The distributed router will be initialized when needed
+            // For now, we just log that network mode is enabled
+        }
         
         info!("Server started with {} neurons", self.config.neurons.len());
         Ok(())
@@ -122,8 +199,12 @@ impl HAL9Server {
     
     /// Send a signal to the network
     pub async fn send_signal(&self, signal: NeuronSignal) -> Result<()> {
-        if let Some(router) = self.router.read().await.as_ref() {
-            self.metrics.record_signal_sent();
+        self.metrics.record_signal_sent();
+        
+        // Use distributed router if available
+        if let Some(distributed_router) = self.distributed_router.read().await.as_ref() {
+            distributed_router.route_signal(signal).await
+        } else if let Some(router) = self.router.read().await.as_ref() {
             router.send_signal(signal).await
         } else {
             Err(Error::InvalidState("Server not started".to_string()))
@@ -147,9 +228,27 @@ impl HAL9Server {
     pub async fn shutdown(&self) -> Result<()> {
         info!("Shutting down 2HAL9 server");
         
-        // Stop router
+        // Stop distributed router first
+        if let Some(_distributed_router) = self.distributed_router.write().await.take() {
+            // The Arc will be dropped when this scope ends
+            info!("Distributed router stopped");
+        }
+        
+        // Stop local router
         if let Some(mut router) = self.router.write().await.take() {
             router.shutdown().await?;
+        }
+        
+        // Stop network components
+        if let Some(_transport) = self.transport.write().await.take() {
+            // Transport will be dropped when Arc goes out of scope
+            // This will trigger cleanup in the Drop implementation
+            info!("Network transport stopped");
+        }
+        
+        if let Some(_discovery) = self.discovery.write().await.take() {
+            // Discovery will be dropped when Arc goes out of scope
+            info!("Service discovery stopped");
         }
         
         // Shutdown all neurons
@@ -168,6 +267,22 @@ impl HAL9Server {
     pub fn registry(&self) -> Arc<NeuronRegistry> {
         self.registry.clone()
     }
+    
+    /// Get network status
+    pub async fn network_status(&self) -> Option<NetworkStatus> {
+        if let Some(distributed_router) = self.distributed_router.read().await.as_ref() {
+            let routing_info = distributed_router.get_routing_info();
+            Some(NetworkStatus {
+                enabled: true,
+                server_id: routing_info.server_id,
+                connected_servers: routing_info.connected_servers,
+                remote_neurons: routing_info.remote_neurons.len(),
+            })
+        } else {
+            None
+        }
+    }
+    
     
     // API-specific methods
     

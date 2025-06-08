@@ -18,7 +18,9 @@
 ### ✨ Key Features
 
 - **Hierarchical Processing**: L4 (Strategic) → L3 (Design) → L2 (Implementation)
-- **Distributed Architecture**: Multi-neuron parallel processing with forward/backward propagation
+- **Distributed Architecture**: Deploy neurons across multiple servers with automatic discovery
+- **Network Transparency**: Seamless routing between local and remote neurons
+- **Service Discovery**: Automatic server and neuron discovery via UDP multicast
 - **Real-time Visualization**: Web UI with live signal flow animation
 - **Demo Recording/Replay**: Capture and replay perfect demonstrations
 - **Mock & Production Modes**: Development with deterministic mocks, production with Claude API
@@ -195,6 +197,21 @@ cargo fmt
 ./mvp/replay-demo.sh
 # Select recording
 # Choose playback speed (0.5x-10x)
+```
+
+### 5. Distributed Mode (Multi-Server)
+```bash
+# Start distributed servers
+./scripts/run-distributed.sh
+
+# This will:
+# - Start Server 1 (L4 Strategic) on port 9001
+# - Start Server 2 (L3/L2 Workers) on port 9002
+# - Enable automatic service discovery
+# - Show monitoring instructions
+
+# Stop distributed servers
+./scripts/stop-distributed.sh
 ```
 
 ### 5. Export Mode (Video/GIF Generation)

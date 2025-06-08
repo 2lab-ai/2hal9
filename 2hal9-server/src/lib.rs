@@ -6,6 +6,7 @@ pub mod claude;
 pub mod cost_tracker;
 pub mod error;
 pub mod metrics;
+pub mod network;
 pub mod neuron;
 pub mod performance;
 pub mod router;

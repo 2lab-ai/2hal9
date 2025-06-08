@@ -16,6 +16,10 @@ pub struct ServerConfig {
     /// Optional Claude API configuration
     #[serde(default)]
     pub claude: ClaudeConfig,
+    
+    /// Optional network configuration for distributed mode
+    #[serde(default)]
+    pub network: NetworkConfig,
 }
 
 /// Individual neuron configuration
@@ -114,6 +118,44 @@ pub struct CostControls {
     pub alert_threshold: f64,
 }
 
+/// Network configuration for distributed mode
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct NetworkConfig {
+    /// Enable distributed mode
+    #[serde(default = "default_false")]
+    pub enabled: bool,
+    
+    /// TCP bind address
+    #[serde(default = "default_bind_address")]
+    pub bind_address: String,
+    
+    /// Enable service discovery
+    #[serde(default = "default_true")]
+    pub discovery_enabled: bool,
+    
+    /// Discovery multicast address
+    #[serde(default = "default_multicast_address")]
+    pub discovery_address: String,
+    
+    /// Discovery group (for multi-tenancy)
+    #[serde(default = "default_discovery_group")]
+    pub discovery_group: String,
+    
+    /// Maximum connections
+    #[serde(default = "default_max_connections")]
+    pub max_connections: usize,
+    
+    /// Enable TLS encryption
+    #[serde(default = "default_false")]
+    pub tls_enabled: bool,
+    
+    /// TLS certificate path
+    pub tls_cert: Option<String>,
+    
+    /// TLS key path
+    pub tls_key: Option<String>,
+}
+
 /// Mock response configuration
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MockResponse {
@@ -151,6 +193,22 @@ impl Default for CostControls {
             max_cost_per_day: default_max_cost_per_day(),
             max_tokens_per_request: default_max_tokens_per_request(),
             alert_threshold: default_alert_threshold(),
+        }
+    }
+}
+
+impl Default for NetworkConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_false(),
+            bind_address: default_bind_address(),
+            discovery_enabled: default_true(),
+            discovery_address: default_multicast_address(),
+            discovery_group: default_discovery_group(),
+            max_connections: default_max_connections(),
+            tls_enabled: default_false(),
+            tls_cert: None,
+            tls_key: None,
         }
     }
 }
@@ -210,6 +268,26 @@ fn default_max_tokens_per_request() -> u32 {
 
 fn default_alert_threshold() -> f64 {
     0.8 // Alert at 80% of limit
+}
+
+fn default_false() -> bool {
+    false
+}
+
+fn default_bind_address() -> String {
+    "0.0.0.0:9000".to_string()
+}
+
+fn default_multicast_address() -> String {
+    "239.255.42.99:8888".to_string()
+}
+
+fn default_discovery_group() -> String {
+    "default".to_string()
+}
+
+fn default_max_connections() -> usize {
+    1000
 }
 
 /// Layer-specific system prompts
