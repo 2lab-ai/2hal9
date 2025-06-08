@@ -1,8 +1,8 @@
-# Model Context Protocol (MCP) Integration for 2HAL9
+# Model Context Protocol (MCP) Integration for HAL9
 
 ## Overview
 
-The 2HAL9 system uses the Model Context Protocol (MCP) to provide standardized communication between the wrapper server (orchestrator) and individual neurons. This design enables:
+The HAL9 system uses the Model Context Protocol (MCP) to provide standardized communication between the wrapper server (orchestrator) and individual neurons. This design enables:
 
 - **Standardized Communication**: All neurons communicate via the same protocol
 - **Dynamic Discovery**: Wrapper can discover neuron capabilities at runtime
@@ -42,7 +42,7 @@ The 2HAL9 system uses the Model Context Protocol (MCP) to provide standardized c
   "params": {
     "protocolVersion": "2024-11-05",
     "clientInfo": {
-      "name": "2HAL9 Wrapper",
+      "name": "HAL9 Wrapper",
       "version": "1.0.0"
     }
   }

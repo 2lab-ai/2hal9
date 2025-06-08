@@ -110,4 +110,4 @@ Perfect example of "Skateboard First" - a simple feature that massively improves
 
 ## 💡 Key Insight
 
-The best development decisions solve immediate, practical problems. Recording demos isn't glamorous, but it's what makes the difference between a failed presentation and a successful one. This feature will be used every single time someone demos 2HAL9!
+The best development decisions solve immediate, practical problems. Recording demos isn't glamorous, but it's what makes the difference between a failed presentation and a successful one. This feature will be used every single time someone demos HAL9!

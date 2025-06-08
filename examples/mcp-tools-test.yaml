@@ -1,0 +1,94 @@
+# Configuration for testing MCP tools integration
+# This config creates neurons with access to various tools
+
+neurons:
+  # L4 Strategic Layer - can read docs and fetch web content
+  - id: strategic-analyzer
+    layer: L4
+    system_prompt: |
+      You are a strategic layer neuron with access to documentation and web resources.
+      When processing signals, use your available tools to gather information.
+      Your responses should provide high-level strategic insights.
+    forward_connections: ["design-architect"]
+    backward_connections: []
+    
+  # L3 Design Layer - can read source code and run analysis commands  
+  - id: design-architect
+    layer: L3
+    system_prompt: |
+      You are a design layer neuron with access to source code and development tools.
+      When processing signals, use your tools to analyze code structure and design patterns.
+      Your responses should focus on architectural decisions and design decomposition.
+    forward_connections: ["implementation-coder"]
+    backward_connections: ["strategic-analyzer"]
+    
+  # L2 Implementation Layer - can read/write files and execute safe commands
+  - id: implementation-coder
+    layer: L2
+    system_prompt: |
+      You are an implementation layer neuron with file system access and command execution.
+      When processing signals, use your tools to generate, modify, and test code.
+      Your responses should provide concrete implementations and executable solutions.
+    forward_connections: []
+    backward_connections: ["design-architect"]
+
+# Use hybrid Claude mode for testing
+claude:
+  mode: "auto"  # Will use mock mode for development
+  
+  # Configure mock responses for each layer
+  mock_responses:
+    L4: |
+      I'll analyze the strategic requirements using available tools.
+      
+      TOOL: filesystem_read {"path": "./README.md"}
+      
+      Based on the documentation, I understand the HAL9 system architecture.
+      
+      FORWARD_TO: design-architect
+      CONTENT:
+      Strategic analysis complete. The system requires:
+      1. Hierarchical neuron processing
+      2. MCP tool integration for external capabilities
+      3. Cost-effective AI orchestration
+      
+    L3: |
+      I'll design the architecture based on the strategic requirements.
+      
+      TOOL: filesystem_read {"path": "./src/lib.rs"}
+      
+      After analyzing the codebase, I'll design the following components:
+      
+      FORWARD_TO: implementation-coder
+      CONTENT:
+      Design specifications:
+      1. Tool registry with layer-based permissions
+      2. Async tool execution with error handling
+      3. Integration with neuron processing pipeline
+      
+    L2: |
+      I'll implement the required components.
+      
+      TOOL: filesystem_write {"path": "/tmp/test-implementation.rs", "content": "// Test implementation\npub fn test() -> Result<(), Error> {\n    println!(\"MCP tools integrated successfully!\");\n    Ok(())\n}"}
+      
+      Implementation complete.
+      
+      CONTENT:
+      Created test implementation at /tmp/test-implementation.rs
+      The MCP tools are now fully integrated into the neuron processing system.
+
+# Server configuration
+server:
+  host: "127.0.0.1"
+  port: 9736
+  metrics_port: 9737
+  enable_metrics: true
+
+# Network configuration (single server mode)
+network:
+  mode: "local"
+
+# Logging
+logging:
+  level: "debug"
+  format: "pretty"

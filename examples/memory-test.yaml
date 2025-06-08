@@ -1,0 +1,100 @@
+# Configuration for testing persistent memory system
+# This config creates neurons with memory storage
+
+neurons:
+  # L4 Strategic Layer with memory
+  - id: strategic-memory
+    layer: L4
+    system_prompt: |
+      You are a strategic layer neuron with persistent memory.
+      Use your memory to learn from past experiences and improve your analysis.
+      When processing signals, reference relevant past experiences.
+    forward_connections: ["design-memory"]
+    backward_connections: []
+    
+  # L3 Design Layer with memory  
+  - id: design-memory
+    layer: L3
+    system_prompt: |
+      You are a design layer neuron with persistent memory.
+      Learn from past design decisions and their outcomes.
+      Use your memory to avoid repeating past mistakes.
+    forward_connections: ["implementation-memory"]
+    backward_connections: ["strategic-memory"]
+    
+  # L2 Implementation Layer with memory
+  - id: implementation-memory
+    layer: L2
+    system_prompt: |
+      You are an implementation layer neuron with persistent memory.
+      Remember successful code patterns and failed attempts.
+      Use your memory to generate better implementations over time.
+    forward_connections: []
+    backward_connections: ["design-memory"]
+
+# Memory configuration
+memory:
+  enabled: true
+  database_path: "./data/hal9_memory.db"
+  cleanup:
+    # Clean up memories older than 30 days with importance < 0.3
+    retention_days: 30
+    min_importance: 0.3
+  embeddings:
+    # Enable semantic search (future feature)
+    enabled: false
+    dimension: 384
+
+# Use hybrid Claude mode
+claude:
+  mode: "auto"
+  
+  # Configure mock responses that reference memory
+  mock_responses:
+    L4: |
+      Analyzing the strategic requirements...
+      
+      Based on my memory:
+      - Previous similar task: "Design scalable API" resulted in microservices architecture
+      - Learned that monolithic approaches fail at scale
+      
+      FORWARD_TO: design-memory
+      CONTENT:
+      Strategic recommendation: Use distributed architecture based on past success patterns.
+      
+    L3: |
+      Designing the architecture...
+      
+      From my memory:
+      - Previous error: Tight coupling caused maintenance issues
+      - Successful pattern: Event-driven communication
+      
+      FORWARD_TO: implementation-memory
+      CONTENT:
+      Design: Event-driven microservices with loose coupling.
+      
+    L2: |
+      Implementing the solution...
+      
+      Recalling from memory:
+      - Successful code pattern: Repository pattern for data access
+      - Failed attempt: Direct database access caused testing issues
+      
+      CONTENT:
+      Implementation complete using proven patterns from memory.
+
+# Server configuration
+server:
+  host: "127.0.0.1"
+  port: 9736
+  metrics_port: 9737
+  enable_metrics: true
+
+# Network configuration (single server mode)
+network:
+  mode: "local"
+
+# Logging
+logging:
+  level: "debug"
+  format: "pretty"

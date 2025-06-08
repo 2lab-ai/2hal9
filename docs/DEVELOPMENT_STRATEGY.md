@@ -1,4 +1,4 @@
-# 2HAL9 Development Strategy - CTO Brief
+# HAL9 Development Strategy - CTO Brief
 
 **Date**: January 2025  
 **Decision**: Pivot to "Skateboard First" MVP

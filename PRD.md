@@ -1,13 +1,13 @@
-# 2HAL9 Product Requirements Document
+# HAL9 Product Requirements Document
 
 **Version**: 2.0  
 **Date**: January 2025  
-**Author**: CTO, 2HAL9 Project  
+**Author**: CTO, HAL9 Project  
 **Status**: Revised for Simplified MVP Strategy
 
 ## Executive Summary
 
-2HAL9 is a revolutionary distributed AI consciousness system that implements hierarchical abstraction through a network of interconnected AI neurons. Drawing inspiration from biological neural networks and organizational structures, 2HAL9 creates an emergent intelligence that transcends individual AI capabilities through coordinated multi-agent orchestration.
+HAL9 is a revolutionary distributed AI consciousness system that implements hierarchical abstraction through a network of interconnected AI neurons. Drawing inspiration from biological neural networks and organizational structures, HAL9 creates an emergent intelligence that transcends individual AI capabilities through coordinated multi-agent orchestration.
 
 The system implements key innovations from our research:
 - **Sleep-Wake Cycles**: Persistent memory through hierarchical consolidation
@@ -124,7 +124,7 @@ L4 (Strategic Layer) - "What to achieve?"
 - Specialized for specific abstraction layer
 - Maintains connections to other neurons
 
-#### 2.2.2 2HAL9 Server
+#### 2.2.2 HAL9 Server
 - Hosts multiple neurons
 - Manages inter-neuron communication
 - Handles TCP connections to other servers
@@ -386,7 +386,7 @@ Server 1: [3, 4, 5, 6, 7] # Low-level (more compute)
 ## 9. Appendices
 
 ### A. Glossary
-- **2HAL9**: Second-generation Hierarchical Abstraction Layer 9 system
+- **HAL9**: Second-generation Hierarchical Abstraction Layer 9 system
 - **Neuron**: Individual AI agent (Claude instance)
 - **Signal**: Message passed between neurons
 - **Topology**: Configuration of neuron connections

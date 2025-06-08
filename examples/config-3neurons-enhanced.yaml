@@ -127,7 +127,7 @@ claude:
           from pydantic import BaseModel
           from typing import List
           
-          app = FastAPI(title="2HAL9 API")
+          app = FastAPI(title="HAL9 API")
           
           class DataModel(BaseModel):
               id: int

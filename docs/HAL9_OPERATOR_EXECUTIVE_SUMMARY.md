@@ -33,7 +33,7 @@ TON Blockchain → USDT Payments
 ## Key Technical Components
 
 ### 1. MCP Integration
-- Extends existing 2HAL9 MCP protocol
+- Extends existing HAL9 MCP protocol
 - New tools: `browser_navigate`, `browser_interact`, `amazon_search`, `ton_wallet`
 - Seamless integration with neuron architecture
 
@@ -148,7 +148,7 @@ TON Blockchain → USDT Payments
 
 ## Conclusion
 
-HAL9-Operator represents a transformative opportunity to create the first truly autonomous AI assistant for e-commerce and finance. By leveraging Telegram's massive user base, the existing 2HAL9 architecture, and emerging blockchain technology, we can build a platform that fundamentally changes how people shop and manage money online.
+HAL9-Operator represents a transformative opportunity to create the first truly autonomous AI assistant for e-commerce and finance. By leveraging Telegram's massive user base, the existing HAL9 architecture, and emerging blockchain technology, we can build a platform that fundamentally changes how people shop and manage money online.
 
 The combination of conversational AI, browser automation, and cryptocurrency creates a unique value proposition that positions HAL9 as the leader in the next generation of AI assistants.
 

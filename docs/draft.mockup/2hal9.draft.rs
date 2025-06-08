@@ -255,7 +255,7 @@ impl ClaudeNeuron {
     }
 }
 
-// ===== 2HAL9 Server =====
+// ===== HAL9 Server =====
 
 pub struct HAL9Server {
     config: ServerConfig,

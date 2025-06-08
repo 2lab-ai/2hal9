@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# 2HAL9 MVP Demo Runner
+# HAL9 MVP Demo Runner
 
-echo "🧠 2HAL9 MVP - Hierarchical AI Orchestration Demo"
+echo "🧠 HAL9 MVP - Hierarchical AI Orchestration Demo"
 echo "================================================"
 echo ""
 echo "This demo shows how a user request flows through"

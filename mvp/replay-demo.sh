@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# 2HAL9 Demo Replay Script
+# HAL9 Demo Replay Script
 
-echo "🎬 2HAL9 Demo Replay Mode"
+echo "🎬 HAL9 Demo Replay Mode"
 echo "========================="
 echo
 

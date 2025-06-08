@@ -8,6 +8,7 @@
 use chrono::Utc;
 use uuid::Uuid;
 use std::collections::HashMap;
+use tokio::sync::mpsc;
 
 // Import from main module
 use hal9_mvp::{Signal, MockNeuron};
@@ -130,7 +131,7 @@ mod tests {
     #[tokio::test]
     async fn test_complete_task_composition_flow() {
         let test_case = get_todo_api_test_case();
-        let (tx, mut rx) = mpsc::channel(100);
+        let (tx, mut rx) = mpsc::channel::<Signal>(100);
         
         // Track all signals
         let mut all_signals = Vec::new();

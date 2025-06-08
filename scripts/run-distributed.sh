@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script to run 2HAL9 in distributed mode with two servers
+# Script to run HAL9 in distributed mode with two servers
 
 set -e
 
@@ -40,7 +40,7 @@ check_existing_servers() {
 
 # Build the project
 build_project() {
-    log_info "Building 2HAL9..."
+    log_info "Building HAL9..."
     cd "$PROJECT_ROOT"
     cargo build --release
     log_info "Build complete"
@@ -94,7 +94,7 @@ start_server2() {
 # Show status
 show_status() {
     echo
-    log_info "Distributed 2HAL9 is running!"
+    log_info "Distributed HAL9 is running!"
     echo
     echo -e "${BLUE}Server Status:${NC}"
     echo "  Server 1 (Strategic):        http://localhost:8080/api/v1/status"
@@ -106,7 +106,7 @@ show_status() {
     echo
     echo -e "${BLUE}Test Commands:${NC}"
     echo "  # Send a test signal:"
-    echo "  ./target/release/2hal9 signal forward --from client --to strategic-main --content \"Create a web application\""
+    echo "  ./target/release/hal9 signal forward --from client --to strategic-main --content \"Create a web application\""
     echo
     echo "  # Check server 1 status:"
     echo "  curl http://localhost:8080/api/v1/status | jq"
@@ -142,7 +142,7 @@ monitor_logs() {
 
 # Main execution
 main() {
-    log_info "Starting 2HAL9 Distributed Mode"
+    log_info "Starting HAL9 Distributed Mode"
     
     check_existing_servers
     build_project

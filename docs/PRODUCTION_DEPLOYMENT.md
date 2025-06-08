@@ -1,4 +1,4 @@
-# 2HAL9 Production Deployment Guide
+# HAL9 Production Deployment Guide
 
 ## Table of Contents
 1. [Prerequisites](#prerequisites)
@@ -22,8 +22,8 @@
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/yourusername/2hal9.git
-cd 2hal9
+git clone https://github.com/yourusername/hal9.git
+cd hal9
 ```
 
 ### 2. Environment Variables
@@ -116,7 +116,7 @@ docker-compose logs -f hal9-server
 3. **Check Health**
 ```bash
 curl http://localhost:8080/health
-docker exec hal9-server 2hal9 status
+docker exec hal9-server hal9 status
 ```
 
 ### Method 2: Kubernetes
@@ -199,15 +199,15 @@ kubectl apply -f k8s/
 1. **Install Binary**
 ```bash
 cargo build --release
-sudo cp target/release/2hal9-server /usr/local/bin/
-sudo cp target/release/2hal9 /usr/local/bin/
+sudo cp target/release/hal9-server /usr/local/bin/
+sudo cp target/release/hal9 /usr/local/bin/
 ```
 
 2. **Create Service File**
 ```bash
 sudo tee /etc/systemd/system/hal9.service << EOF
 [Unit]
-Description=2HAL9 AI Server
+Description=HAL9 AI Server
 After=network.target
 
 [Service]
@@ -218,7 +218,7 @@ WorkingDirectory=/opt/hal9
 Environment="RUST_LOG=info"
 Environment="HAL9_CONFIG_PATH=/opt/hal9/config/production.yaml"
 EnvironmentFile=/opt/hal9/.env
-ExecStart=/usr/local/bin/2hal9-server
+ExecStart=/usr/local/bin/hal9-server
 Restart=always
 RestartSec=10
 
@@ -419,6 +419,6 @@ docker logs -f hal9-server --since 10m
 ## Support
 
 For issues or questions:
-- GitHub Issues: https://github.com/yourusername/2hal9/issues
-- Documentation: https://2hal9.docs.example.com
+- GitHub Issues: https://github.com/yourusername/hal9/issues
+- Documentation: https://hal9.docs.example.com
 - Emergency: contact@example.com

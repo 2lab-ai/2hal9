@@ -1,4 +1,4 @@
-# 2HAL9 MVP Demo Enhancements
+# HAL9 MVP Demo Enhancements
 
 ## 🎯 Overview
 

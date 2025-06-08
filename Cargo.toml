@@ -1,8 +1,8 @@
 [workspace]
 members = [
-    "2hal9-core",
-    "2hal9-server", 
-    "2hal9-cli",
+    "hal9-core",
+    "hal9-server", 
+    "hal9-cli",
     "mvp"
 ]
 resolver = "2"
@@ -10,9 +10,9 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-authors = ["2HAL9 Team"]
+authors = ["HAL9 Team"]
 license = "MIT"
-repository = "https://github.com/2lab-ai/2hal9"
+repository = "https://github.com/2lab-ai/hal9"
 
 [workspace.dependencies]
 # Async runtime
@@ -52,3 +52,12 @@ reqwest = { version = "0.12", features = ["json"] }
 # Other
 async-trait = "0.1"
 once_cell = "1.19"
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+
+# Authentication
+jsonwebtoken = "9.3"
+bcrypt = "0.15"
+base64 = "0.22"
+rand = "0.8"

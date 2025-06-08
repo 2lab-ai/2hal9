@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# 2HAL9 Demo Recording Script
+# HAL9 Demo Recording Script
 
-echo "🔴 2HAL9 Demo Recording Mode"
+echo "🔴 HAL9 Demo Recording Mode"
 echo "============================"
 echo
 echo "This will record your demo session for later replay."

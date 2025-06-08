@@ -1,4 +1,4 @@
-# GitHub Milestones - 2HAL9 Project
+# GitHub Milestones - HAL9 Project
 
 **Updated**: January 2025  
 **Strategy**: Simplified MVP - "Skateboard First"
@@ -44,9 +44,9 @@
 
 **Issues**:
 1. **CLI Interface** [P0]
-   - `2hal9 start` - Start server with 3 neurons
-   - `2hal9 signal <message>` - Send user signal
-   - `2hal9 logs` - View signal flow
+   - `hal9 start` - Start server with 3 neurons
+   - `hal9 signal <message>` - Send user signal
+   - `hal9 logs` - View signal flow
    
 2. **Demo Scenarios** [P0]
    - "Create a web server" → hierarchical breakdown

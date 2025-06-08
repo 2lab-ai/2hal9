@@ -1,0 +1,104 @@
+# Configuration for testing backward propagation learning system
+# This config creates neurons that learn from errors
+
+server_id: "hal9-learning-test"
+
+neurons:
+  # L4 Strategic Layer with learning
+  - id: strategic-learner
+    layer: L4
+    system_prompt: |
+      You are a strategic layer neuron with learning capabilities.
+      Learn from errors to improve your strategic planning.
+      Adapt your approach based on feedback.
+    forward_connections: ["design-learner"]
+    backward_connections: []
+    
+  # L3 Design Layer with learning  
+  - id: design-learner
+    layer: L3
+    system_prompt: |
+      You are a design layer neuron with learning capabilities.
+      Learn from implementation failures to improve designs.
+      Adjust your patterns based on error feedback.
+    forward_connections: ["implementation-learner"]
+    backward_connections: ["strategic-learner"]
+    
+  # L2 Implementation Layer with learning
+  - id: implementation-learner
+    layer: L2
+    system_prompt: |
+      You are an implementation layer neuron with learning capabilities.
+      Learn from execution errors to improve implementations.
+      Remember failed approaches to avoid repeating mistakes.
+    forward_connections: []
+    backward_connections: ["design-learner"]
+
+# Memory configuration (required for learning)
+memory:
+  enabled: true
+  database_path: "data/hal9_learning.db"
+  cleanup:
+    retention_days: 90  # Keep learning memories longer
+    min_importance: 0.2
+
+# Backward propagation configuration
+backward_propagation:
+  enabled: true
+  learning_rate: 0.1
+  pattern_threshold: 3
+  adjustment_decay: 0.95
+  max_gradient_depth: 3
+
+# Use hybrid Claude mode
+claude:
+  mode: "auto"
+  
+  # Configure mock responses that simulate errors and learning
+  mock_responses:
+    L4:
+      - trigger: "default"
+        response: |
+          Analyzing strategic requirements...
+          
+          FORWARD_TO: design-learner
+          CONTENT:
+          Strategy: Build a real-time data processing system.
+        delay_ms: 100
+        
+    L3:
+      - trigger: "default"
+        response: |
+          Designing architecture...
+          
+          FORWARD_TO: implementation-learner
+          CONTENT:
+          Design: Use synchronous processing for all operations.
+        delay_ms: 100
+        
+    L2:
+      - trigger: "default"
+        response: |
+          Implementing solution...
+          
+          ERROR: Implementation failed - synchronous processing caused timeouts.
+          
+          BACKWARD_TO: design-learner
+          ERROR_TYPE: Timeout error in synchronous processing
+        delay_ms: 100
+
+# Server configuration
+server:
+  host: "127.0.0.1"
+  port: 9736
+  metrics_port: 9737
+  enable_metrics: true
+
+# Network configuration (single server mode)
+network:
+  mode: "local"
+
+# Logging
+logging:
+  level: "debug"
+  format: "pretty"

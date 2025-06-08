@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# 2HAL9 MVP Test Runner
+# HAL9 MVP Test Runner
 
-echo "🧪 2HAL9 MVP Test Suite"
+echo "🧪 HAL9 MVP Test Suite"
 echo "======================"
 echo
 

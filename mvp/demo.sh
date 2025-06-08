@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# 2HAL9 MVP Demo Script
+# HAL9 MVP Demo Script
 
 clear
 
-echo "🚀 Starting 2HAL9 MVP Demo..."
+echo "🚀 Starting HAL9 MVP Demo..."
 echo
 sleep 1
 

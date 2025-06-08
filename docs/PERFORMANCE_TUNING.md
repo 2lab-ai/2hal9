@@ -1,7 +1,7 @@
-# 2HAL9 Performance Tuning Guide
+# HAL9 Performance Tuning Guide
 
 ## Overview
-This guide details the performance optimizations implemented in 2HAL9 to achieve < 50ms signal processing latency.
+This guide details the performance optimizations implemented in HAL9 to achieve < 50ms signal processing latency.
 
 ## Performance Target
 - **Goal**: < 50ms end-to-end signal processing
@@ -135,7 +135,7 @@ claude:
 
 Run performance benchmarks:
 ```bash
-cd 2hal9-server
+cd hal9-server
 cargo bench
 ```
 
@@ -174,7 +174,7 @@ FROM debian:bookworm-slim
 RUN cargo build --release --features "performance"
 
 # Set CPU affinity
-CMD ["taskset", "-c", "0-3", "2hal9-server"]
+CMD ["taskset", "-c", "0-3", "hal9-server"]
 ```
 
 ### 4. Kubernetes Optimization
@@ -219,11 +219,11 @@ affinity:
 ```bash
 # CPU profiling
 cargo build --release --features profiling
-perf record -g ./target/release/2hal9-server
+perf record -g ./target/release/hal9-server
 perf report
 
 # Memory profiling
-valgrind --tool=massif ./target/release/2hal9-server
+valgrind --tool=massif ./target/release/hal9-server
 ms_print massif.out.*
 ```
 
@@ -232,7 +232,7 @@ ms_print massif.out.*
 ### 1. NUMA Awareness
 For multi-socket systems:
 ```bash
-numactl --cpunodebind=0 --membind=0 ./2hal9-server
+numactl --cpunodebind=0 --membind=0 ./hal9-server
 ```
 
 ### 2. Huge Pages
@@ -290,4 +290,4 @@ Configure alerts when SLOs are violated:
 ```
 
 ## Conclusion
-With these optimizations, 2HAL9 consistently achieves < 50ms signal processing latency. Regular monitoring and tuning based on workload patterns ensures optimal performance.
+With these optimizations, HAL9 consistently achieves < 50ms signal processing latency. Regular monitoring and tuning based on workload patterns ensures optimal performance.

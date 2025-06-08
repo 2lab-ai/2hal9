@@ -1,8 +1,8 @@
-# 2HAL9 Export Guide
+# HAL9 Export Guide
 
 ## 🎬 Overview
 
-The 2HAL9 MVP supports exporting demo recordings to various visual formats for sharing, documentation, and presentations.
+The HAL9 MVP supports exporting demo recordings to various visual formats for sharing, documentation, and presentations.
 
 ## 📊 Export Formats
 
@@ -157,7 +157,7 @@ gif2webp -q 80 input.gif -o output.webp
 
 ### Documentation
 ```markdown
-![2HAL9 Demo](demo.gif)
+![HAL9 Demo](demo.gif)
 *Hierarchical AI orchestration in action*
 ```
 
@@ -221,8 +221,8 @@ echo "60" | cargo run -p hal9_mvp -- --export-frames=recording.json
 ```bash
 # Add watermark to GIF
 convert demo.gif -gravity southeast \
-        -stroke '#000C' -strokewidth 2 -annotate +10+10 '2HAL9' \
-        -stroke none -fill white -annotate +10+10 '2HAL9' \
+        -stroke '#000C' -strokewidth 2 -annotate +10+10 'HAL9' \
+        -stroke none -fill white -annotate +10+10 'HAL9' \
         watermarked.gif
 ```
 
