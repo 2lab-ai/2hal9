@@ -2,7 +2,7 @@
 
 **Author**: Jihyuk Im  
 **Date**: June 2025  
-**Email**: x@labforadvanced.study, x@2HAL9.com
+**Email**: x@labforadvanced.study, x@HAL9.com
 
 ## Abstract
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Testing 2HAL9 Claude API Integration"
+echo "🚀 Testing HAL9 Claude API Integration"
 echo "======================================="
 
 # Check if API key is set

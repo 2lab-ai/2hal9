@@ -1,4 +1,4 @@
-# 2HAL9 - Hierarchical AI Layer Orchestration System
+# HAL9 - Hierarchical AI Layer Orchestration System
 
 <p align="center">
   <img src="https://img.shields.io/badge/rust-1.75+-orange.svg" alt="Rust">
@@ -14,7 +14,7 @@
 
 ## 🧠 Overview
 
-2HAL9 orchestrates multiple AI agents through hierarchical layers, mimicking human cognitive architecture. The system demonstrates how complex tasks decompose through strategic thinking (L4), design planning (L3), and concrete implementation (L2), with each layer powered by specialized AI neurons communicating via the Model Context Protocol (MCP).
+HAL9 orchestrates multiple AI agents through hierarchical layers, mimicking human cognitive architecture. The system demonstrates how complex tasks decompose through strategic thinking (L4), design planning (L3), and concrete implementation (L2), with each layer powered by specialized AI neurons communicating via the Model Context Protocol (MCP).
 
 ### ✨ Key Features
 
@@ -49,22 +49,29 @@
 ## 🚀 Quick Start
 
 ```bash
-# Clone and enter directory
-git clone https://github.com/2lab-ai/2hal9.git
-cd 2hal9
+# Clone repository
+git clone https://github.com/2lab-ai/hal9
+cd hal9
 
-# Run the MVP demo (CLI mode)
-./mvp/run-mvp.sh
+# Build the project
+cargo build --release
 
-# Run with web interface
+# Start the server
+./run-3neuron-demo.sh
+
+# In another terminal, send a signal
+./target/release/hal9 signal \
+  --from user \
+  --to neuron-1 \
+  --content "Create a web application" \
+  --server localhost:8080
+
+# Run full demo scenarios
+./demo-scenarios.sh
+
+# Run MVP with web interface
 ./mvp/run-web.sh
 # Open http://localhost:3000
-
-# Record a demo session
-./mvp/record-demo.sh
-
-# Run comprehensive tests
-./mvp/run-tests.sh
 ```
 
 ## 📋 Table of Contents
@@ -102,8 +109,8 @@ cd 2hal9
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/2lab-ai/2hal9.git
-cd 2hal9
+git clone https://github.com/2lab-ai/hal9.git
+cd hal9
 ```
 
 ### 2. Install Dependencies
@@ -128,7 +135,7 @@ vim .env
 ## 📁 Project Structure
 
 ```
-2hal9/
+hal9/
 ├── mvp/                        # Simplified MVP - "Skateboard First"
 │   ├── src/
 │   │   ├── main.rs            # Core orchestrator with 1→2→4 decomposition
@@ -142,7 +149,7 @@ vim .env
 │   │   ├── task_composition_tests.rs  # Task decomposition tests
 │   │   └── integration_tests.rs       # Integration tests
 │   └── run-*.sh              # Convenience scripts
-├── 2hal9-core/               # Core types and abstractions
+├── hal9-core/               # Core types and abstractions
 │   ├── src/
 │   │   ├── signal.rs         # Signal types
 │   │   ├── neuron.rs         # Neuron interface
@@ -151,8 +158,8 @@ vim .env
 │   │       ├── server.rs     # MCP server for neurons
 │   │       ├── client.rs     # MCP client for wrapper
 │   │       └── tools.rs      # MCP tool definitions
-├── 2hal9-server/             # Production server
-├── 2hal9-cli/                # CLI tools
+├── hal9-server/             # Production server
+├── hal9-cli/                # CLI tools
 ├── docs/
 │   ├── PRD.md               # Product Requirements v2.0
 │   ├── MCP_INTEGRATION.md   # MCP protocol documentation
@@ -388,10 +395,10 @@ cargo doc             # Docs
 ```bash
 # Build and install
 cargo build --release -p hal9_mvp
-sudo cp target/release/hal9_mvp /usr/local/bin/2hal9
+sudo cp target/release/hal9_mvp /usr/local/bin/hal9
 
 # Run as service
-2hal9 --web
+hal9 --web
 ```
 
 ### Docker Deployment
@@ -405,38 +412,38 @@ RUN cargo build --release -p hal9_mvp
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/target/release/hal9_mvp /usr/local/bin/2hal9
+COPY --from=builder /app/target/release/hal9_mvp /usr/local/bin/hal9
 EXPOSE 3000
-CMD ["2hal9", "--web"]
+CMD ["hal9", "--web"]
 ```
 
 ```bash
 # Build and run
-docker build -t 2hal9:latest .
-docker run -d -p 3000:3000 --name 2hal9 2hal9:latest
+docker build -t hal9:latest .
+docker run -d -p 3000:3000 --name hal9 hal9:latest
 ```
 
 ### Kubernetes Deployment
 
 ```yaml
-# 2hal9-deployment.yaml
+# hal9-deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: 2hal9
+  name: hal9
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: 2hal9
+      app: hal9
   template:
     metadata:
       labels:
-        app: 2hal9
+        app: hal9
     spec:
       containers:
-      - name: 2hal9
-        image: 2hal9:latest
+      - name: hal9
+        image: hal9:latest
         ports:
         - containerPort: 3000
         env:
@@ -445,7 +452,7 @@ spec:
         - name: ANTHROPIC_API_KEY
           valueFrom:
             secretKeyRef:
-              name: 2hal9-secrets
+              name: hal9-secrets
               key: anthropic-api-key
         resources:
           requests:
@@ -458,10 +465,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: 2hal9-service
+  name: hal9-service
 spec:
   selector:
-    app: 2hal9
+    app: hal9
   ports:
   - port: 80
     targetPort: 3000
@@ -474,8 +481,8 @@ spec:
 ```bash
 # Build and push to ECR
 aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_URI
-docker tag 2hal9:latest $ECR_URI/2hal9:latest
-docker push $ECR_URI/2hal9:latest
+docker tag hal9:latest $ECR_URI/hal9:latest
+docker push $ECR_URI/hal9:latest
 
 # Deploy with ECS CLI
 ecs-cli compose up
@@ -484,8 +491,8 @@ ecs-cli compose up
 #### Google Cloud Run
 ```bash
 # Build and deploy
-gcloud builds submit --tag gcr.io/$PROJECT_ID/2hal9
-gcloud run deploy 2hal9 --image gcr.io/$PROJECT_ID/2hal9 --platform managed
+gcloud builds submit --tag gcr.io/$PROJECT_ID/hal9
+gcloud run deploy hal9 --image gcr.io/$PROJECT_ID/hal9 --platform managed
 ```
 
 #### Production Configuration
@@ -545,7 +552,7 @@ Input: 1 task
 
 ### Model Context Protocol (MCP) Integration
 
-2HAL9 uses MCP for standardized neuron communication:
+HAL9 uses MCP for standardized neuron communication:
 
 ```
 ┌─────────────────────┐          MCP Protocol         ┌─────────────────────┐
@@ -670,7 +677,7 @@ GET  /metrics       # Prometheus metrics (future)
 
 ## 📖 Research Papers
 
-The theoretical foundation for 2HAL9:
+The theoretical foundation for HAL9:
 
 1. **[L1: Hierarchical Abstraction is All You Need](docs/paper/L1_Hierarchical%20Abstraction%20is%20All%20You%20Need.ko.md)**
    - Core principle of hierarchical decomposition
@@ -742,9 +749,9 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ### Quick Start for Contributors
 ```bash
 # Fork and clone
-git fork https://github.com/2lab-ai/2hal9
-git clone https://github.com/YOUR_USERNAME/2hal9
-cd 2hal9
+git fork https://github.com/2lab-ai/hal9
+git clone https://github.com/YOUR_USERNAME/hal9
+cd hal9
 
 # Create feature branch
 git checkout -b feature/amazing-feature
@@ -790,15 +797,15 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 📞 Support & Contact
 
-- **Issues**: [GitHub Issues](https://github.com/2lab-ai/2hal9/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/2lab-ai/2hal9/discussions)
+- **Issues**: [GitHub Issues](https://github.com/2lab-ai/hal9/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/2lab-ai/hal9/discussions)
 - **Email**: support@2lab.ai
 - **Twitter**: [@2lab_ai](https://twitter.com/2lab_ai)
 
 ---
 
 <p align="center">
-  <strong>2HAL9 - Hierarchical AI Layer 9</strong><br>
+  <strong>HAL9 - Hierarchical AI Layer 9</strong><br>
   <em>Building the path to artificial general intelligence through hierarchical orchestration</em><br><br>
-  Built with ❤️ by the 2HAL9 Team
+  Built with ❤️ by the HAL9 Team
 </p>

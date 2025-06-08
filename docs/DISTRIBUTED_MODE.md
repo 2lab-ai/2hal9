@@ -1,8 +1,8 @@
-# 2HAL9 Distributed Mode Guide
+# HAL9 Distributed Mode Guide
 
 ## Overview
 
-2HAL9's distributed mode enables neurons to be deployed across multiple servers, creating a truly distributed AI consciousness network. This guide covers the setup, configuration, and operation of distributed 2HAL9 deployments.
+HAL9's distributed mode enables neurons to be deployed across multiple servers, creating a truly distributed AI consciousness network. This guide covers the setup, configuration, and operation of distributed HAL9 deployments.
 
 ## Architecture
 
@@ -130,7 +130,7 @@ neurons:
     layer: "L4"
 ```
 
-## Running Distributed 2HAL9
+## Running Distributed HAL9
 
 ### Quick Start
 
@@ -149,7 +149,7 @@ Use the provided scripts for easy distributed deployment:
 #### 1. Start First Server
 
 ```bash
-./target/release/2hal9-server examples/distributed-2servers.yaml
+./target/release/hal9-server examples/distributed-2servers.yaml
 ```
 
 Output:
@@ -162,7 +162,7 @@ Output:
 #### 2. Start Second Server
 
 ```bash
-HTTP_PORT=8081 ./target/release/2hal9-server examples/distributed-server2.yaml
+HTTP_PORT=8081 ./target/release/hal9-server examples/distributed-server2.yaml
 ```
 
 Output:
@@ -175,7 +175,7 @@ Output:
 ### 3. Send Test Signal
 
 ```bash
-./target/release/2hal9 signal forward \
+./target/release/hal9 signal forward \
   --from client \
   --to strategic-main \
   --content "Design a distributed task processing system"
@@ -265,7 +265,7 @@ Distributed signals include metadata:
 
 Enable debug logging:
 ```bash
-RUST_LOG=debug,twohal9_server::network=trace ./target/release/2hal9-server config.yaml
+RUST_LOG=debug,twohal9_server::network=trace ./target/release/hal9-server config.yaml
 ```
 
 ### Common Errors
@@ -324,4 +324,4 @@ RUST_LOG=debug,twohal9_server::network=trace ./target/release/2hal9-server confi
 
 ## Conclusion
 
-Distributed mode transforms 2HAL9 from a single-server system into a true distributed AI consciousness network. By spreading neurons across multiple servers, you gain resilience, scalability, and geographic distribution while maintaining the hierarchical intelligence model.
+Distributed mode transforms HAL9 from a single-server system into a true distributed AI consciousness network. By spreading neurons across multiple servers, you gain resilience, scalability, and geographic distribution while maintaining the hierarchical intelligence model.

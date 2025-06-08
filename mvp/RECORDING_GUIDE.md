@@ -1,8 +1,8 @@
-# 2HAL9 Demo Recording & Replay Guide
+# HAL9 Demo Recording & Replay Guide
 
 ## 🎬 Overview
 
-The 2HAL9 MVP now includes a powerful **demo recording and replay system** that captures every signal, neuron activation, and code generation event. This ensures perfect, repeatable demonstrations for presentations, sharing, and testing.
+The HAL9 MVP now includes a powerful **demo recording and replay system** that captures every signal, neuron activation, and code generation event. This ensures perfect, repeatable demonstrations for presentations, sharing, and testing.
 
 ## 🎯 Why Recording Matters
 
@@ -217,4 +217,4 @@ vim mvp/src/main.rs
 4. **Golden Demos**: Keep a "golden" set of perfect recordings
 5. **Diff Recordings**: Use JSON diff tools to compare runs
 
-The recording system transforms 2HAL9 demos from live performances into **reliable, shareable, and repeatable experiences**!
+The recording system transforms HAL9 demos from live performances into **reliable, shareable, and repeatable experiences**!

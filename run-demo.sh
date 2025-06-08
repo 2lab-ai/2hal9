@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# 2HAL9 Demo Script
+# HAL9 Demo Script
 
-echo "🧠 2HAL9 - Hierarchical AI Neural Network Demo"
+echo "🧠 HAL9 - Hierarchical AI Neural Network Demo"
 echo "=============================================="
 echo ""
 
@@ -13,7 +13,7 @@ if ! command -v cargo &> /dev/null; then
 fi
 
 # Build the project
-echo "📦 Building 2HAL9..."
+echo "📦 Building HAL9..."
 cargo build --release
 
 if [ $? -ne 0 ]; then
@@ -25,18 +25,18 @@ echo "✅ Build successful!"
 echo ""
 
 # Run with 3-neuron configuration
-echo "🚀 Starting 2HAL9 with 3-neuron configuration..."
+echo "🚀 Starting HAL9 with 3-neuron configuration..."
 echo ""
 echo "Run the following command to start the server:"
 echo ""
-echo "  ./target/release/2hal9 start --config examples/config-3neurons.yaml"
+echo "  ./target/release/hal9 start --config examples/config-3neurons.yaml"
 echo ""
 echo "In another terminal, you can:"
 echo ""
 echo "  # Check status"
-echo "  ./target/release/2hal9 status"
+echo "  ./target/release/hal9 status"
 echo ""
 echo "  # Send a signal"
-echo "  ./target/release/2hal9 signal --to neuron-1 --content \"Create a web application\""
+echo "  ./target/release/hal9 signal --to neuron-1 --content \"Create a web application\""
 echo ""
 echo "Press Ctrl+C to stop the server."

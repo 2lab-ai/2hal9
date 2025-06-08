@@ -2,12 +2,12 @@
 
 ## Overview
 
-This document provides detailed technical implementation guidance for the HAL9-Operator Telegram service, building on the existing 2HAL9 infrastructure and MCP protocol.
+This document provides detailed technical implementation guidance for the HAL9-Operator Telegram service, building on the existing HAL9 infrastructure and MCP protocol.
 
 ## Project Structure
 
 ```
-2hal9-operator/
+hal9-operator/
 ├── Cargo.toml
 ├── src/
 │   ├── main.rs              # Entry point
@@ -973,4 +973,4 @@ lazy_static! {
 4. **Batch Operations**: Batch database writes
 5. **Resource Limits**: Set memory/CPU limits per neuron
 
-This implementation guide provides a comprehensive foundation for building the HAL9-Operator Telegram service, leveraging the existing 2HAL9 infrastructure while adding Telegram-specific functionality.
+This implementation guide provides a comprehensive foundation for building the HAL9-Operator Telegram service, leveraging the existing HAL9 infrastructure while adding Telegram-specific functionality.

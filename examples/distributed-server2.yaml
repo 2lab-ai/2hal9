@@ -1,4 +1,4 @@
-# Distributed 2HAL9 Configuration - Server 2
+# Distributed HAL9 Configuration - Server 2
 # This server hosts L3 and L2 neurons
 
 server_id: "hal9-server-2"

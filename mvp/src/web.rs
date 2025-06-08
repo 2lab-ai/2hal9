@@ -1,4 +1,4 @@
-//! Web interface for 2HAL9 MVP
+//! Web interface for HAL9 MVP
 
 use anyhow::Result;
 use axum::{

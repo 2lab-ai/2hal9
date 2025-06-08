@@ -19,7 +19,7 @@ services:
     networks:
       - hal9-network
     healthcheck:
-      test: ["CMD", "2hal9", "status"]
+      test: ["CMD", "hal9", "status"]
       interval: 30s
       timeout: 10s
       retries: 3

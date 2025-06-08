@@ -1,0 +1,42 @@
+[package]
+name = "hal9_core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Async
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# HTTP client for web fetch tool
+reqwest = { workspace = true }
+
+# Database for memory storage
+sqlx = { workspace = true }
+
+# Authentication
+jsonwebtoken = { workspace = true }
+bcrypt = { workspace = true }
+base64 = { workspace = true }
+rand = { workspace = true }
+sha2 = "0.10"
+
+[dev-dependencies]
+tokio-test = { workspace = true }

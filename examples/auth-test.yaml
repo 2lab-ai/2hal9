@@ -1,0 +1,37 @@
+# Configuration for testing authentication system
+server_id: "hal9-auth-test"
+
+# Enable authentication
+auth:
+  enabled: true
+  jwt_secret: "test-secret-key-for-development-only"
+  database_path: "data/hal9_auth.db"
+  access_token_duration_minutes: 15
+  refresh_token_duration_days: 7
+
+# Simple test neurons
+neurons:
+  - id: test-neuron
+    layer: L4
+    system_prompt: "You are a test neuron with authentication"
+    forward_connections: []
+    backward_connections: []
+
+# Server settings
+server:
+  host: "127.0.0.1"
+  port: 8080
+
+# Memory settings
+memory:
+  enabled: true
+  database_path: "data/hal9_auth_memory.db"
+
+# Claude settings
+claude:
+  mode: "mock"
+  mock_responses:
+    L4:
+      - trigger: "default"
+        response: "Authenticated response from test neuron"
+        delay_ms: 100

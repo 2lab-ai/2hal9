@@ -137,9 +137,9 @@ Create minimal CLI for demo purposes.
 
 **Commands**:
 ```bash
-2hal9 start              # Start server with 3 neurons
-2hal9 signal <message>   # Send user signal to L4
-2hal9 logs               # Show signal flow
+hal9 start              # Start server with 3 neurons
+hal9 signal <message>   # Send user signal to L4
+hal9 logs               # Show signal flow
 ```
 
 **Acceptance Criteria**:
@@ -167,7 +167,7 @@ Create 3-5 compelling demo scenarios that showcase hierarchical processing.
 
 **Demo Output Example**:
 ```
-> 2hal9 signal "Build a web server"
+> hal9 signal "Build a web server"
 
 [L4-Strategic] Processing...
 Output: "DIRECTIVE: Create HTTP server with REST API"

@@ -1,0 +1,1096 @@
+# HAL9 Demo Configuration - Enhanced Mock Responses for Demo Scenarios
+server_id: "hal9-demo-server"
+neurons:
+  - id: "neuron-1"
+    layer: "L4"
+    forward_connections: ["neuron-2"]
+    backward_connections: []
+    
+  - id: "neuron-2"
+    layer: "L3"
+    forward_connections: ["neuron-3"]
+    backward_connections: ["neuron-1"]
+    
+  - id: "neuron-3"
+    layer: "L2"
+    forward_connections: []
+    backward_connections: ["neuron-2"]
+
+# Claude configuration with scenario-specific mock responses
+claude:
+  mode: "mock"  # Use mock for deterministic demo
+  model: "claude-3-opus-20240229"
+  temperature: 0.7
+  max_tokens: 4096
+  rate_limit: 60
+  
+  # Custom mock responses for each layer and scenario
+  mock_responses:
+    L4:
+      # Web Application scenario
+      - trigger: "web application"
+        response: |
+          FORWARD_TO: neuron-2
+          CONTENT: Strategic decomposition for task management web application:
+          
+          1. Frontend Development Strategy
+             - Build responsive React UI with TypeScript
+             - Implement state management with Redux
+             - Design intuitive task workflows
+          
+          2. Backend Architecture Strategy  
+             - Create RESTful API with FastAPI
+             - Design PostgreSQL database schema
+             - Implement JWT authentication
+          
+          3. Infrastructure Strategy
+             - Container-based deployment
+             - CI/CD pipeline setup
+             - Monitoring and logging
+        delay_ms: 200
+        
+      # Data Analysis scenario
+      - trigger: "data analysis"
+        response: |
+          FORWARD_TO: neuron-2
+          CONTENT: Strategic plan for e-commerce data analysis pipeline:
+          
+          1. Data Collection Strategy
+             - Integrate multiple data sources
+             - Real-time event streaming
+             - Historical data warehousing
+          
+          2. Analysis Framework Strategy
+             - Customer segmentation algorithms
+             - Behavioral pattern recognition
+             - Predictive analytics models
+          
+          3. Visualization Strategy
+             - Interactive dashboards
+             - Real-time metrics
+             - Automated reporting
+        delay_ms: 200
+        
+      # API Design scenario
+      - trigger: "authentication API"
+        response: |
+          FORWARD_TO: neuron-2
+          CONTENT: Strategic plan for secure authentication API:
+          
+          1. Security Architecture
+             - JWT token implementation
+             - Role-based access control (RBAC)
+             - OAuth2 integration support
+          
+          2. API Design Principles
+             - RESTful endpoint structure
+             - Versioning strategy
+             - Rate limiting and throttling
+          
+          3. User Management
+             - Registration workflows
+             - Password reset mechanisms
+             - Multi-factor authentication
+        delay_ms: 200
+        
+      # Machine Learning scenario
+      - trigger: "machine learning"
+        response: |
+          FORWARD_TO: neuron-2
+          CONTENT: Strategic plan for recommendation system:
+          
+          1. ML Pipeline Architecture
+             - Data preprocessing workflows
+             - Feature engineering pipeline
+             - Model training infrastructure
+          
+          2. Algorithm Strategy
+             - Collaborative filtering approach
+             - Content-based recommendations
+             - Hybrid model implementation
+          
+          3. Deployment Strategy
+             - Model versioning system
+             - A/B testing framework
+             - Performance monitoring
+        delay_ms: 200
+        
+      # Infrastructure scenario
+      - trigger: "CI/CD pipeline"
+        response: |
+          FORWARD_TO: neuron-2
+          CONTENT: Strategic plan for CI/CD infrastructure:
+          
+          1. Continuous Integration
+             - Automated testing framework
+             - Code quality gates
+             - Security scanning
+          
+          2. Containerization Strategy
+             - Docker image optimization
+             - Multi-stage builds
+             - Registry management
+          
+          3. Kubernetes Deployment
+             - Cluster architecture
+             - GitOps workflow
+             - Auto-scaling policies
+        delay_ms: 200
+        
+      # Default fallback
+      - trigger: "default"
+        response: |
+          FORWARD_TO: neuron-2
+          CONTENT: Breaking down request into strategic components for implementation
+        delay_ms: 150
+    
+    L3:
+      # Web Application design
+      - trigger: "React UI"
+        response: |
+          FORWARD_TO: neuron-3
+          CONTENT: Technical design for task management application:
+          
+          Frontend Architecture:
+          - Component Structure:
+            - App.tsx (main container)
+            - TaskList, TaskItem, TaskForm components
+            - Redux store for state management
+          
+          Backend Design:
+          - API Endpoints:
+            - POST /api/tasks (create)
+            - GET /api/tasks (list with pagination)
+            - PUT /api/tasks/{id} (update)
+            - DELETE /api/tasks/{id} (delete)
+          
+          Database Schema:
+          - tasks table: id, title, description, status, created_at, updated_at
+          - users table: id, email, password_hash, created_at
+          - user_tasks table: user_id, task_id, assigned_at
+        delay_ms: 250
+        
+      # Data Analysis design
+      - trigger: "data sources"
+        response: |
+          FORWARD_TO: neuron-3
+          CONTENT: Technical design for data analysis pipeline:
+          
+          Data Architecture:
+          - Apache Kafka for event streaming
+          - PostgreSQL for transactional data
+          - S3 for data lake storage
+          - Apache Airflow for orchestration
+          
+          Processing Design:
+          - ETL pipelines with PySpark
+          - Real-time processing with Kafka Streams
+          - Batch analytics with scheduled jobs
+          
+          Visualization Stack:
+          - Grafana for real-time metrics
+          - Plotly Dash for interactive dashboards
+          - Automated reports with Jupyter
+        delay_ms: 250
+        
+      # API Authentication design
+      - trigger: "JWT token"
+        response: |
+          FORWARD_TO: neuron-3
+          CONTENT: Technical design for authentication API:
+          
+          Security Architecture:
+          - JWT with RS256 algorithm
+          - Access tokens (15min) + Refresh tokens (7 days)
+          - Redis for token blacklisting
+          
+          API Structure:
+          - POST /auth/register
+          - POST /auth/login
+          - POST /auth/refresh
+          - POST /auth/logout
+          - GET /auth/verify
+          
+          RBAC Design:
+          - roles table: id, name, permissions
+          - user_roles table: user_id, role_id
+          - Middleware for permission checking
+        delay_ms: 250
+        
+      # Machine Learning design
+      - trigger: "filtering approach"
+        response: |
+          FORWARD_TO: neuron-3
+          CONTENT: Technical design for recommendation system:
+          
+          ML Architecture:
+          - Feature Store with Feast
+          - Model Training with TensorFlow
+          - Model Serving with TensorFlow Serving
+          
+          Algorithm Design:
+          - User-Item collaborative filtering
+          - Matrix factorization with ALS
+          - Deep learning with neural collaborative filtering
+          
+          Infrastructure:
+          - MLflow for experiment tracking
+          - Kubeflow for pipeline orchestration
+          - Prometheus for model monitoring
+        delay_ms: 250
+        
+      # Infrastructure design
+      - trigger: "testing framework"
+        response: |
+          FORWARD_TO: neuron-3
+          CONTENT: Technical design for CI/CD pipeline:
+          
+          CI Pipeline:
+          - GitHub Actions workflows
+          - Jest/Pytest for unit tests
+          - Cypress for E2E tests
+          - SonarQube for code analysis
+          
+          Container Design:
+          - Multi-stage Dockerfile
+          - Alpine base images
+          - Layer caching optimization
+          
+          K8s Architecture:
+          - Deployments with rolling updates
+          - Services for load balancing
+          - ConfigMaps and Secrets
+          - HPA for auto-scaling
+        delay_ms: 250
+        
+      # Default design response
+      - trigger: "default"
+        response: |
+          FORWARD_TO: neuron-3
+          CONTENT: Creating detailed technical specifications for implementation
+        delay_ms: 200
+    
+    L2:
+      # React implementation
+      - trigger: "TaskList"
+        response: |
+          RESULT: Task management React implementation:
+          
+          ```typescript
+          // TaskList.tsx
+          import React, { useState, useEffect } from 'react';
+          import { useDispatch, useSelector } from 'react-redux';
+          import { fetchTasks, createTask, updateTask, deleteTask } from './taskSlice';
+          
+          interface Task {
+            id: string;
+            title: string;
+            description: string;
+            status: 'pending' | 'in_progress' | 'completed';
+            createdAt: Date;
+          }
+          
+          export const TaskList: React.FC = () => {
+            const dispatch = useDispatch();
+            const { tasks, loading, error } = useSelector((state: RootState) => state.tasks);
+            const [newTask, setNewTask] = useState({ title: '', description: '' });
+            
+            useEffect(() => {
+              dispatch(fetchTasks());
+            }, [dispatch]);
+            
+            const handleCreateTask = async () => {
+              await dispatch(createTask(newTask));
+              setNewTask({ title: '', description: '' });
+            };
+            
+            const handleStatusUpdate = (taskId: string, status: Task['status']) => {
+              dispatch(updateTask({ id: taskId, status }));
+            };
+            
+            return (
+              <div className="task-list-container">
+                <h1>Task Management</h1>
+                
+                <div className="task-form">
+                  <input
+                    type="text"
+                    placeholder="Task title"
+                    value={newTask.title}
+                    onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                  />
+                  <textarea
+                    placeholder="Description"
+                    value={newTask.description}
+                    onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                  />
+                  <button onClick={handleCreateTask}>Create Task</button>
+                </div>
+                
+                {loading && <div>Loading tasks...</div>}
+                {error && <div className="error">Error: {error}</div>}
+                
+                <div className="tasks-grid">
+                  {tasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onStatusUpdate={handleStatusUpdate}
+                      onDelete={() => dispatch(deleteTask(task.id))}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          };
+          ```
+          
+          ```python
+          # FastAPI Backend - main.py
+          from fastapi import FastAPI, HTTPException, Depends
+          from sqlalchemy.orm import Session
+          from typing import List
+          from datetime import datetime
+          import models, schemas, database
+          
+          app = FastAPI(title="Task Management API")
+          
+          @app.post("/api/tasks", response_model=schemas.Task)
+          async def create_task(
+              task: schemas.TaskCreate,
+              db: Session = Depends(database.get_db)
+          ):
+              db_task = models.Task(
+                  title=task.title,
+                  description=task.description,
+                  status="pending",
+                  created_at=datetime.utcnow()
+              )
+              db.add(db_task)
+              db.commit()
+              db.refresh(db_task)
+              return db_task
+          
+          @app.get("/api/tasks", response_model=List[schemas.Task])
+          async def list_tasks(
+              skip: int = 0,
+              limit: int = 100,
+              db: Session = Depends(database.get_db)
+          ):
+              tasks = db.query(models.Task).offset(skip).limit(limit).all()
+              return tasks
+          ```
+        delay_ms: 400
+        
+      # Data pipeline implementation
+      - trigger: "Apache Kafka"
+        response: |
+          RESULT: Data analysis pipeline implementation:
+          
+          ```python
+          # kafka_consumer.py
+          from kafka import KafkaConsumer
+          from pyspark.sql import SparkSession
+          from pyspark.sql.functions import *
+          import json
+          
+          class EcommerceAnalyticsPipeline:
+              def __init__(self):
+                  self.spark = SparkSession.builder \
+                      .appName("EcommerceAnalytics") \
+                      .config("spark.sql.streaming.checkpointLocation", "/tmp/checkpoint") \
+                      .getOrCreate()
+                  
+                  self.consumer = KafkaConsumer(
+                      'ecommerce-events',
+                      bootstrap_servers=['localhost:9092'],
+                      value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+                  )
+              
+              def process_customer_events(self):
+                  # Read from Kafka stream
+                  df = self.spark \
+                      .readStream \
+                      .format("kafka") \
+                      .option("kafka.bootstrap.servers", "localhost:9092") \
+                      .option("subscribe", "ecommerce-events") \
+                      .load()
+                  
+                  # Parse JSON events
+                  events = df.select(
+                      col("timestamp"),
+                      from_json(col("value").cast("string"), self.get_event_schema()).alias("data")
+                  ).select("timestamp", "data.*")
+                  
+                  # Customer behavior analytics
+                  customer_metrics = events \
+                      .groupBy(
+                          window(col("timestamp"), "1 hour"),
+                          col("customer_id")
+                      ) \
+                      .agg(
+                          count("event_type").alias("total_events"),
+                          sum(when(col("event_type") == "purchase", col("amount")).otherwise(0)).alias("total_spent"),
+                          collect_set("product_id").alias("viewed_products")
+                      )
+                  
+                  # Write to analytics database
+                  query = customer_metrics \
+                      .writeStream \
+                      .outputMode("update") \
+                      .format("jdbc") \
+                      .option("url", "jdbc:postgresql://localhost:5432/analytics") \
+                      .option("dbtable", "customer_metrics") \
+                      .trigger(processingTime='10 seconds') \
+                      .start()
+                  
+                  return query
+          
+          # Dash Dashboard - dashboard.py
+          import dash
+          from dash import dcc, html
+          import plotly.express as px
+          import pandas as pd
+          from sqlalchemy import create_engine
+          
+          app = dash.Dash(__name__)
+          engine = create_engine('postgresql://user:pass@localhost:5432/analytics')
+          
+          def load_customer_metrics():
+              query = """
+              SELECT 
+                  date_trunc('hour', window_start) as hour,
+                  COUNT(DISTINCT customer_id) as active_customers,
+                  SUM(total_spent) as revenue,
+                  AVG(total_events) as avg_events_per_customer
+              FROM customer_metrics
+              WHERE window_start >= NOW() - INTERVAL '24 hours'
+              GROUP BY 1
+              ORDER BY 1
+              """
+              return pd.read_sql(query, engine)
+          
+          app.layout = html.Div([
+              html.H1('E-commerce Analytics Dashboard'),
+              dcc.Graph(id='revenue-chart'),
+              dcc.Graph(id='customer-activity'),
+              dcc.Interval(id='interval-component', interval=30*1000)  # Update every 30s
+          ])
+          
+          @app.callback(
+              [dash.Output('revenue-chart', 'figure'),
+               dash.Output('customer-activity', 'figure')],
+              [dash.Input('interval-component', 'n_intervals')]
+          )
+          def update_charts(n):
+              df = load_customer_metrics()
+              
+              revenue_fig = px.line(df, x='hour', y='revenue', 
+                                   title='Hourly Revenue Trend')
+              
+              activity_fig = px.bar(df, x='hour', y='active_customers',
+                                   title='Active Customers per Hour')
+              
+              return revenue_fig, activity_fig
+          ```
+        delay_ms: 400
+        
+      # Authentication implementation
+      - trigger: "JWT with RS256"
+        response: |
+          RESULT: Authentication API implementation:
+          
+          ```python
+          # auth_api.py
+          from fastapi import FastAPI, HTTPException, Depends, status
+          from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+          from jose import JWTError, jwt
+          from passlib.context import CryptContext
+          from datetime import datetime, timedelta
+          from typing import Optional
+          import redis
+          from sqlalchemy.orm import Session
+          import models, schemas, database
+          
+          app = FastAPI(title="Authentication API")
+          security = HTTPBearer()
+          pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+          redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
+          
+          # RSA keys for JWT
+          with open("private_key.pem", "r") as f:
+              PRIVATE_KEY = f.read()
+          with open("public_key.pem", "r") as f:
+              PUBLIC_KEY = f.read()
+          
+          class AuthService:
+              @staticmethod
+              def create_access_token(data: dict) -> str:
+                  to_encode = data.copy()
+                  expire = datetime.utcnow() + timedelta(minutes=15)
+                  to_encode.update({"exp": expire, "type": "access"})
+                  return jwt.encode(to_encode, PRIVATE_KEY, algorithm="RS256")
+              
+              @staticmethod
+              def create_refresh_token(data: dict) -> str:
+                  to_encode = data.copy()
+                  expire = datetime.utcnow() + timedelta(days=7)
+                  to_encode.update({"exp": expire, "type": "refresh"})
+                  return jwt.encode(to_encode, PRIVATE_KEY, algorithm="RS256")
+              
+              @staticmethod
+              def verify_token(token: str) -> dict:
+                  try:
+                      # Check if token is blacklisted
+                      if redis_client.get(f"blacklist:{token}"):
+                          raise HTTPException(
+                              status_code=status.HTTP_401_UNAUTHORIZED,
+                              detail="Token has been revoked"
+                          )
+                      
+                      payload = jwt.decode(token, PUBLIC_KEY, algorithms=["RS256"])
+                      return payload
+                  except JWTError:
+                      raise HTTPException(
+                          status_code=status.HTTP_401_UNAUTHORIZED,
+                          detail="Invalid token"
+                      )
+          
+          @app.post("/auth/register", response_model=schemas.UserResponse)
+          async def register(
+              user: schemas.UserCreate,
+              db: Session = Depends(database.get_db)
+          ):
+              # Check if user exists
+              if db.query(models.User).filter(models.User.email == user.email).first():
+                  raise HTTPException(
+                      status_code=status.HTTP_400_BAD_REQUEST,
+                      detail="Email already registered"
+                  )
+              
+              # Create user
+              hashed_password = pwd_context.hash(user.password)
+              db_user = models.User(
+                  email=user.email,
+                  password_hash=hashed_password,
+                  created_at=datetime.utcnow()
+              )
+              db.add(db_user)
+              db.commit()
+              db.refresh(db_user)
+              
+              return db_user
+          
+          @app.post("/auth/login", response_model=schemas.TokenResponse)
+          async def login(
+              credentials: schemas.LoginRequest,
+              db: Session = Depends(database.get_db)
+          ):
+              # Verify user
+              user = db.query(models.User).filter(
+                  models.User.email == credentials.email
+              ).first()
+              
+              if not user or not pwd_context.verify(credentials.password, user.password_hash):
+                  raise HTTPException(
+                      status_code=status.HTTP_401_UNAUTHORIZED,
+                      detail="Invalid credentials"
+                  )
+              
+              # Create tokens
+              access_token = AuthService.create_access_token({"sub": str(user.id)})
+              refresh_token = AuthService.create_refresh_token({"sub": str(user.id)})
+              
+              return {
+                  "access_token": access_token,
+                  "refresh_token": refresh_token,
+                  "token_type": "bearer"
+              }
+          
+          # RBAC Middleware
+          def require_role(required_roles: List[str]):
+              async def role_checker(
+                  credentials: HTTPAuthorizationCredentials = Depends(security),
+                  db: Session = Depends(database.get_db)
+              ):
+                  payload = AuthService.verify_token(credentials.credentials)
+                  user_id = payload.get("sub")
+                  
+                  # Get user roles
+                  user = db.query(models.User).filter(
+                      models.User.id == user_id
+                  ).first()
+                  
+                  user_roles = [role.name for role in user.roles]
+                  
+                  if not any(role in required_roles for role in user_roles):
+                      raise HTTPException(
+                          status_code=status.HTTP_403_FORBIDDEN,
+                          detail="Insufficient permissions"
+                      )
+                  
+                  return user
+              
+              return role_checker
+          
+          @app.get("/admin/users", dependencies=[Depends(require_role(["admin"]))])
+          async def list_users(db: Session = Depends(database.get_db)):
+              return db.query(models.User).all()
+          ```
+        delay_ms: 400
+        
+      # ML implementation
+      - trigger: "Matrix factorization"
+        response: |
+          RESULT: Recommendation system implementation:
+          
+          ```python
+          # recommendation_system.py
+          import tensorflow as tf
+          from tensorflow import keras
+          from tensorflow.keras import layers
+          import numpy as np
+          import pandas as pd
+          from typing import List, Tuple
+          import mlflow
+          import feast
+          from datetime import datetime
+          
+          class CollaborativeFilteringModel:
+              def __init__(self, num_users: int, num_items: int, embedding_dim: int = 50):
+                  self.num_users = num_users
+                  self.num_items = num_items
+                  self.embedding_dim = embedding_dim
+                  self.model = self._build_model()
+                  
+                  # Initialize Feast feature store
+                  self.fs = feast.FeatureStore(repo_path="feature_repo/")
+              
+              def _build_model(self) -> keras.Model:
+                  # Input layers
+                  user_input = layers.Input(shape=(1,), name='user_id')
+                  item_input = layers.Input(shape=(1,), name='item_id')
+                  
+                  # Embedding layers
+                  user_embedding = layers.Embedding(
+                      self.num_users, 
+                      self.embedding_dim,
+                      name='user_embedding'
+                  )(user_input)
+                  item_embedding = layers.Embedding(
+                      self.num_items,
+                      self.embedding_dim,
+                      name='item_embedding'
+                  )(item_input)
+                  
+                  # Flatten embeddings
+                  user_vec = layers.Flatten()(user_embedding)
+                  item_vec = layers.Flatten()(item_embedding)
+                  
+                  # Neural collaborative filtering
+                  concat = layers.Concatenate()([user_vec, item_vec])
+                  dense1 = layers.Dense(128, activation='relu')(concat)
+                  dense1 = layers.Dropout(0.2)(dense1)
+                  dense2 = layers.Dense(64, activation='relu')(dense1)
+                  dense2 = layers.Dropout(0.2)(dense2)
+                  
+                  # Matrix factorization path
+                  mf_dot = layers.Dot(axes=1)([user_vec, item_vec])
+                  
+                  # Combine NCF and MF
+                  concat_final = layers.Concatenate()([mf_dot, dense2])
+                  output = layers.Dense(1, activation='sigmoid')(concat_final)
+                  
+                  model = keras.Model(
+                      inputs=[user_input, item_input],
+                      outputs=output
+                  )
+                  
+                  model.compile(
+                      optimizer='adam',
+                      loss='binary_crossentropy',
+                      metrics=['mae', 'mse']
+                  )
+                  
+                  return model
+              
+              def get_features_from_store(self, user_ids: List[int]) -> pd.DataFrame:
+                  """Fetch user features from Feast feature store"""
+                  entity_df = pd.DataFrame({
+                      "user_id": user_ids,
+                      "event_timestamp": [datetime.now()] * len(user_ids)
+                  })
+                  
+                  features = self.fs.get_online_features(
+                      features=[
+                          "user_features:purchase_count_30d",
+                          "user_features:avg_purchase_value",
+                          "user_features:category_preferences"
+                      ],
+                      entity_rows=[{"user_id": uid} for uid in user_ids]
+                  ).to_df()
+                  
+                  return features
+              
+              def train_with_mlflow(self, train_data: Tuple[np.ndarray, np.ndarray, np.ndarray]):
+                  """Train model with MLflow tracking"""
+                  with mlflow.start_run():
+                      # Log parameters
+                      mlflow.log_param("embedding_dim", self.embedding_dim)
+                      mlflow.log_param("num_users", self.num_users)
+                      mlflow.log_param("num_items", self.num_items)
+                      
+                      # Train model
+                      X_user, X_item, y = train_data
+                      history = self.model.fit(
+                          [X_user, X_item], y,
+                          batch_size=256,
+                          epochs=20,
+                          validation_split=0.1,
+                          callbacks=[
+                              keras.callbacks.EarlyStopping(patience=3),
+                              keras.callbacks.ReduceLROnPlateau(patience=2)
+                          ]
+                      )
+                      
+                      # Log metrics
+                      mlflow.log_metric("final_loss", history.history['loss'][-1])
+                      mlflow.log_metric("final_mae", history.history['mae'][-1])
+                      
+                      # Log model
+                      mlflow.tensorflow.log_model(self.model, "recommendation_model")
+              
+              def get_recommendations(self, user_id: int, top_k: int = 10) -> List[Tuple[int, float]]:
+                  """Get top-k recommendations for a user"""
+                  # Get user features
+                  user_features = self.get_features_from_store([user_id])
+                  
+                  # Get all items
+                  all_items = np.arange(self.num_items)
+                  user_array = np.array([user_id] * self.num_items)
+                  
+                  # Predict scores
+                  scores = self.model.predict([user_array, all_items])
+                  
+                  # Get top-k items
+                  top_indices = scores.flatten().argsort()[-top_k:][::-1]
+                  recommendations = [(int(idx), float(scores[idx])) for idx in top_indices]
+                  
+                  return recommendations
+          
+          # Model serving with TensorFlow Serving
+          # docker run -p 8501:8501 \
+          #   --mount type=bind,source=/path/to/model,target=/models/recommendation \
+          #   -e MODEL_NAME=recommendation \
+          #   tensorflow/serving
+          
+          # API endpoint for serving
+          @app.post("/recommend/{user_id}")
+          async def get_recommendations(user_id: int, top_k: int = 10):
+              # Call TensorFlow Serving
+              import requests
+              
+              serving_url = "http://localhost:8501/v1/models/recommendation:predict"
+              
+              # Prepare input
+              all_items = list(range(1000))  # Assuming 1000 items
+              instances = [{"user_id": [user_id], "item_id": [item]} for item in all_items]
+              
+              response = requests.post(serving_url, json={"instances": instances})
+              predictions = response.json()["predictions"]
+              
+              # Get top-k
+              scores = [(i, score[0]) for i, score in enumerate(predictions)]
+              scores.sort(key=lambda x: x[1], reverse=True)
+              
+              return {"user_id": user_id, "recommendations": scores[:top_k]}
+          ```
+        delay_ms: 400
+        
+      # CI/CD implementation
+      - trigger: "GitHub Actions"
+        response: |
+          RESULT: CI/CD pipeline implementation:
+          
+          ```yaml
+          # .github/workflows/ci-cd.yml
+          name: CI/CD Pipeline
+          
+          on:
+            push:
+              branches: [main, develop]
+            pull_request:
+              branches: [main]
+          
+          env:
+            REGISTRY: ghcr.io
+            IMAGE_NAME: ${{ github.repository }}
+          
+          jobs:
+            test:
+              runs-on: ubuntu-latest
+              strategy:
+                matrix:
+                  python-version: [3.8, 3.9]
+                  node-version: [14, 16]
+              
+              steps:
+              - uses: actions/checkout@v3
+              
+              - name: Set up Python
+                uses: actions/setup-python@v4
+                with:
+                  python-version: ${{ matrix.python-version }}
+              
+              - name: Set up Node.js
+                uses: actions/setup-node@v3
+                with:
+                  node-version: ${{ matrix.node-version }}
+              
+              - name: Cache dependencies
+                uses: actions/cache@v3
+                with:
+                  path: |
+                    ~/.cache/pip
+                    ~/.npm
+                  key: ${{ runner.os }}-${{ hashFiles('**/requirements.txt', '**/package-lock.json') }}
+              
+              - name: Install Python dependencies
+                run: |
+                  python -m pip install --upgrade pip
+                  pip install -r requirements.txt
+                  pip install pytest pytest-cov
+              
+              - name: Install Node dependencies
+                run: |
+                  npm ci
+                  npm install -g jest
+              
+              - name: Run Python tests
+                run: |
+                  pytest tests/ --cov=app --cov-report=xml
+              
+              - name: Run JavaScript tests
+                run: |
+                  npm test -- --coverage
+              
+              - name: Run E2E tests
+                run: |
+                  npm run cypress:run
+              
+              - name: SonarQube scan
+                uses: sonarsource/sonarqube-scan-action@master
+                env:
+                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+                  SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          
+            build:
+              needs: test
+              runs-on: ubuntu-latest
+              
+              steps:
+              - uses: actions/checkout@v3
+              
+              - name: Set up Docker Buildx
+                uses: docker/setup-buildx-action@v2
+              
+              - name: Log in to Container Registry
+                uses: docker/login-action@v2
+                with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+              
+              - name: Extract metadata
+                id: meta
+                uses: docker/metadata-action@v4
+                with:
+                  images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+              
+              - name: Build and push Docker image
+                uses: docker/build-push-action@v4
+                with:
+                  context: .
+                  push: true
+                  tags: ${{ steps.meta.outputs.tags }}
+                  labels: ${{ steps.meta.outputs.labels }}
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+          
+            deploy:
+              needs: build
+              runs-on: ubuntu-latest
+              if: github.ref == 'refs/heads/main'
+              
+              steps:
+              - uses: actions/checkout@v3
+              
+              - name: Install kubectl
+                uses: azure/setup-kubectl@v3
+              
+              - name: Configure kubectl
+                run: |
+                  echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+                  export KUBECONFIG=kubeconfig
+              
+              - name: Deploy to Kubernetes
+                run: |
+                  kubectl apply -f k8s/namespace.yaml
+                  kubectl apply -f k8s/configmap.yaml
+                  kubectl apply -f k8s/secrets.yaml
+                  kubectl apply -f k8s/deployment.yaml
+                  kubectl apply -f k8s/service.yaml
+                  kubectl apply -f k8s/ingress.yaml
+                  kubectl apply -f k8s/hpa.yaml
+                  
+                  # Wait for deployment
+                  kubectl rollout status deployment/app -n production
+          ```
+          
+          ```dockerfile
+          # Dockerfile - Multi-stage build
+          # Build stage
+          FROM node:16-alpine AS frontend-build
+          WORKDIR /app/frontend
+          COPY frontend/package*.json ./
+          RUN npm ci --only=production
+          COPY frontend/ .
+          RUN npm run build
+          
+          # Python build stage
+          FROM python:3.9-slim AS backend-build
+          WORKDIR /app
+          COPY requirements.txt .
+          RUN pip install --no-cache-dir -r requirements.txt
+          
+          # Final stage
+          FROM python:3.9-slim
+          WORKDIR /app
+          
+          # Install runtime dependencies
+          RUN apt-get update && apt-get install -y \
+              curl \
+              && rm -rf /var/lib/apt/lists/*
+          
+          # Copy Python dependencies
+          COPY --from=backend-build /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
+          
+          # Copy frontend build
+          COPY --from=frontend-build /app/frontend/build /app/static
+          
+          # Copy application code
+          COPY . .
+          
+          # Health check
+          HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+            CMD curl -f http://localhost:8000/health || exit 1
+          
+          EXPOSE 8000
+          CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8000"]
+          ```
+          
+          ```yaml
+          # k8s/deployment.yaml
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: app
+            namespace: production
+          spec:
+            replicas: 3
+            selector:
+              matchLabels:
+                app: myapp
+            template:
+              metadata:
+                labels:
+                  app: myapp
+              spec:
+                containers:
+                - name: app
+                  image: ghcr.io/myorg/myapp:latest
+                  ports:
+                  - containerPort: 8000
+                  env:
+                  - name: DATABASE_URL
+                    valueFrom:
+                      secretKeyRef:
+                        name: app-secrets
+                        key: database-url
+                  resources:
+                    requests:
+                      memory: "256Mi"
+                      cpu: "250m"
+                    limits:
+                      memory: "512Mi"
+                      cpu: "500m"
+                  livenessProbe:
+                    httpGet:
+                      path: /health
+                      port: 8000
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                  readinessProbe:
+                    httpGet:
+                      path: /ready
+                      port: 8000
+                    initialDelaySeconds: 5
+                    periodSeconds: 5
+          
+          ---
+          # k8s/hpa.yaml
+          apiVersion: autoscaling/v2
+          kind: HorizontalPodAutoscaler
+          metadata:
+            name: app-hpa
+            namespace: production
+          spec:
+            scaleTargetRef:
+              apiVersion: apps/v1
+              kind: Deployment
+              name: app
+            minReplicas: 3
+            maxReplicas: 10
+            metrics:
+            - type: Resource
+              resource:
+                name: cpu
+                target:
+                  type: Utilization
+                  averageUtilization: 70
+            - type: Resource
+              resource:
+                name: memory
+                target:
+                  type: Utilization
+                  averageUtilization: 80
+          ```
+        delay_ms: 400
+        
+      # Default implementation
+      - trigger: "default"
+        response: |
+          RESULT: Implementation completed
+          ```python
+          # Generated implementation based on specifications
+          def process_request(input_data):
+              """Process the request according to the design specifications"""
+              # Implementation logic here
+              result = transform_and_process(input_data)
+              return {"status": "success", "result": result}
+          ```
+        delay_ms: 300
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  metrics_interval: 30
+  log_level: "debug"  # More verbose for demo
+
+# Cost controls (not used in mock mode, but good to have)
+claude:
+  cost_controls:
+    max_cost_per_hour: 0.0  # No cost in mock mode
+    max_cost_per_day: 0.0
+    max_tokens_per_request: 4096
+    alert_threshold: 0.8

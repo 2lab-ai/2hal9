@@ -1,6 +1,6 @@
 # Demo Recordings
 
-This directory stores recorded demo sessions for the 2HAL9 MVP.
+This directory stores recorded demo sessions for the HAL9 MVP.
 
 ## File Format
 

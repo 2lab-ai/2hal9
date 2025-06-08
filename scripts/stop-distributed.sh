@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script to stop distributed 2HAL9 servers
+# Script to stop distributed HAL9 servers
 
 set -e
 
@@ -93,7 +93,7 @@ check_servers() {
 
 # Main
 main() {
-    log_info "Stopping 2HAL9 Distributed Servers"
+    log_info "Stopping HAL9 Distributed Servers"
     
     check_servers
     stop_servers

@@ -1,0 +1,134 @@
+# HAL9 Auto Mode Configuration
+# Automatically uses mock in development, API in production
+server_id: "hal9-auto"
+neurons:
+  - id: "neuron-1"
+    layer: "L4"
+    forward_connections: ["neuron-2"]
+    backward_connections: []
+    
+  - id: "neuron-2"
+    layer: "L3"
+    forward_connections: ["neuron-3"]
+    backward_connections: ["neuron-1"]
+    
+  - id: "neuron-3"
+    layer: "L2"
+    forward_connections: []
+    backward_connections: ["neuron-2"]
+
+# Claude configuration - Auto mode
+claude:
+  mode: "auto"  # Mock in dev, API in production (based on HAL9_ENV)
+  
+  # API configuration (used in production)
+  # api_key: "sk-ant-..."  # Or use ANTHROPIC_API_KEY env var
+  model: "claude-3-haiku-20240307"  # Fastest and cheapest for auto mode
+  temperature: 0.7
+  max_tokens: 1500
+  rate_limit: 60
+  
+  # Cost controls
+  cost_controls:
+    max_cost_per_hour: 5.0     # $5/hour in production
+    max_cost_per_day: 50.0     # $50/day in production
+    max_tokens_per_request: 1500
+    alert_threshold: 0.9
+  
+  # Mock responses for development
+  mock_responses:
+    L4:
+      - trigger: "web"
+        response: |
+          FORWARD_TO: neuron-2
+          CONTENT: Strategic plan for web application:
+          1. Define user requirements
+          2. Design system architecture
+          3. Plan implementation phases
+        delay_ms: 150
+        
+      - trigger: "api"
+        response: |
+          FORWARD_TO: neuron-2
+          CONTENT: Strategic plan for API development:
+          1. Define endpoints and resources
+          2. Design data models
+          3. Plan authentication strategy
+        delay_ms: 150
+        
+      - trigger: "default"
+        response: |
+          FORWARD_TO: neuron-2
+          CONTENT: Breaking down request into strategic components
+        delay_ms: 100
+    
+    L3:
+      - trigger: "architecture"
+        response: |
+          FORWARD_TO: neuron-3
+          CONTENT: System design:
+          - Frontend: React with TypeScript
+          - Backend: FastAPI
+          - Database: PostgreSQL
+          - Cache: Redis
+        delay_ms: 200
+        
+      - trigger: "endpoints"
+        response: |
+          FORWARD_TO: neuron-3
+          CONTENT: API design:
+          - REST endpoints following OpenAPI 3.0
+          - GraphQL for complex queries
+          - WebSocket for real-time features
+        delay_ms: 200
+        
+      - trigger: "default"
+        response: |
+          FORWARD_TO: neuron-3
+          CONTENT: Creating technical design specifications
+        delay_ms: 150
+    
+    L2:
+      - trigger: "react"
+        response: |
+          RESULT: React component implementation
+          ```typescript
+          interface AppProps {
+            title: string;
+          }
+          
+          export const App: React.FC<AppProps> = ({ title }) => {
+            return <div>{title}</div>;
+          };
+          ```
+        delay_ms: 300
+        
+      - trigger: "fastapi"
+        response: |
+          RESULT: FastAPI implementation
+          ```python
+          from fastapi import FastAPI
+          
+          app = FastAPI()
+          
+          @app.get("/")
+          async def root():
+              return {"message": "Hello World"}
+          ```
+        delay_ms: 300
+        
+      - trigger: "default"
+        response: |
+          RESULT: Implementation complete
+          ```python
+          # Generated implementation
+          def process():
+              return "Success"
+          ```
+        delay_ms: 200
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  metrics_interval: 30
+  log_level: "debug"  # More verbose in dev mode

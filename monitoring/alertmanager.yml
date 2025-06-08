@@ -1,0 +1,59 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+  routes:
+    # Critical alerts
+    - match:
+        severity: critical
+      receiver: 'critical'
+      continue: true
+    
+    # Claude cost alerts
+    - match:
+        component: claude
+      receiver: 'cost-alerts'
+      group_wait: 30s
+      
+    # Security alerts
+    - match:
+        component: security
+      receiver: 'security-alerts'
+      group_wait: 0s
+
+receivers:
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook'
+        send_resolved: true
+
+  - name: 'critical'
+    webhook_configs:
+      - url: 'http://localhost:5001/critical'
+        send_resolved: true
+    # Add PagerDuty, Slack, or email config here
+
+  - name: 'cost-alerts'
+    webhook_configs:
+      - url: 'http://localhost:5001/cost-alerts'
+        send_resolved: true
+    # Add finance team notification here
+
+  - name: 'security-alerts'
+    webhook_configs:
+      - url: 'http://localhost:5001/security'
+        send_resolved: true
+    # Add security team notification here
+
+inhibit_rules:
+  # If server is down, inhibit other alerts
+  - source_match:
+      alertname: 'HAL9ServerDown'
+    target_match:
+      service: 'hal9'
+    equal: ['instance']

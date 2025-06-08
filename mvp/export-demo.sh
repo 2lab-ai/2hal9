@@ -1,9 +1,9 @@
 #!/bin/bash
-# 2HAL9 Export Demo Script
+# HAL9 Export Demo Script
 
 set -e
 
-echo "🎬 2HAL9 Export Demo"
+echo "🎬 HAL9 Export Demo"
 echo "==================="
 echo
 

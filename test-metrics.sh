@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Testing 2HAL9 Enhanced Metrics System"
+echo "🚀 Testing HAL9 Enhanced Metrics System"
 echo "======================================="
 
 # Start server in background

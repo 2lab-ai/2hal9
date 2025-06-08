@@ -1,4 +1,4 @@
-# Distributed 2HAL9 Configuration - Server 1
+# Distributed HAL9 Configuration - Server 1
 # This configuration demonstrates a distributed setup with neurons split across 2 servers
 
 server_id: "hal9-server-1"

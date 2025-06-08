@@ -1,5 +1,5 @@
 #!/bin/bash
-# 2HAL9 Production Deployment Script
+# HAL9 Production Deployment Script
 
 set -e
 
@@ -125,7 +125,7 @@ deploy() {
     log_info "Waiting for services to be healthy..."
     local retries=30
     while [ $retries -gt 0 ]; do
-        if docker-compose exec -T hal9-server 2hal9 status &> /dev/null; then
+        if docker-compose exec -T hal9-server hal9 status &> /dev/null; then
             log_info "HAL9 server is healthy"
             break
         fi

@@ -1,0 +1,70 @@
+# HAL9 Hybrid Mode Configuration
+# Uses mock for development, real API for production
+server_id: "hal9-hybrid"
+neurons:
+  - id: "neuron-1"
+    layer: "L4"
+    forward_connections: ["neuron-2"]
+    backward_connections: []
+    
+  - id: "neuron-2"
+    layer: "L3"
+    forward_connections: ["neuron-3"]
+    backward_connections: ["neuron-1"]
+    
+  - id: "neuron-3"
+    layer: "L2"
+    forward_connections: []
+    backward_connections: ["neuron-2"]
+
+# Claude configuration - Hybrid mode
+claude:
+  mode: "hybrid"  # Will use API when available, fallback to mock
+  
+  # Optional: Set API key (or use ANTHROPIC_API_KEY env var)
+  # api_key: "sk-ant-..."
+  
+  model: "claude-3-sonnet-20240229"  # Cheaper model for testing
+  temperature: 0.7
+  max_tokens: 2000  # Reduced for cost control
+  rate_limit: 30    # Lower rate limit
+  
+  # Cost controls - IMPORTANT for hybrid mode
+  cost_controls:
+    max_cost_per_hour: 1.0    # $1/hour limit
+    max_cost_per_day: 10.0    # $10/day limit
+    max_tokens_per_request: 2000
+    alert_threshold: 0.8      # Alert at 80% of limit
+  
+  # Mock responses for fallback
+  mock_responses:
+    L4:
+      - trigger: "default"
+        response: |
+          FORWARD_TO: neuron-2
+          CONTENT: [MOCK MODE] Strategic planning for your request
+        delay_ms: 100
+    
+    L3:
+      - trigger: "default"
+        response: |
+          FORWARD_TO: neuron-3
+          CONTENT: [MOCK MODE] Design specifications based on strategy
+        delay_ms: 100
+    
+    L2:
+      - trigger: "default"
+        response: |
+          RESULT: [MOCK MODE] Implementation complete
+          ```python
+          # Mock generated code
+          def solution():
+              return "Mock implementation"
+          ```
+        delay_ms: 100
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  metrics_interval: 30
+  log_level: "info"

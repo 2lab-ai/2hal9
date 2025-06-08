@@ -1,0 +1,126 @@
+groups:
+  - name: hal9_alerts
+    interval: 30s
+    rules:
+      # Server health alerts
+      - alert: HAL9ServerDown
+        expr: up{job="hal9-server"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: hal9
+        annotations:
+          summary: "HAL9 Server is down"
+          description: "HAL9 server {{ $labels.instance }} has been down for more than 2 minutes."
+
+      # High error rate
+      - alert: HAL9HighErrorRate
+        expr: rate(hal9_http_requests_total{status=~"5.."}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: hal9
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }} errors per second (threshold: 0.1)"
+
+      # Budget alerts
+      - alert: HAL9DailyBudgetExceeded
+        expr: hal9_claude_cost_dollars_total > 100
+        for: 1m
+        labels:
+          severity: critical
+          service: hal9
+          component: claude
+        annotations:
+          summary: "Daily Claude API budget exceeded"
+          description: "Total cost has reached ${{ $value }} (daily budget: $100)"
+
+      - alert: HAL9HourlyBudgetWarning
+        expr: hal9_claude_cost_rate_dollars_per_hour > 8
+        for: 5m
+        labels:
+          severity: warning
+          service: hal9
+          component: claude
+        annotations:
+          summary: "High Claude API cost rate"
+          description: "Current cost rate is ${{ $value }}/hour (warning threshold: $8/hour)"
+
+      # Performance alerts
+      - alert: HAL9HighLatency
+        expr: histogram_quantile(0.95, rate(hal9_signal_processing_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: hal9
+        annotations:
+          summary: "High signal processing latency"
+          description: "95th percentile latency is {{ $value }}s (threshold: 5s)"
+
+      - alert: HAL9NeuronUnhealthy
+        expr: hal9_neuron_health == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: hal9
+        annotations:
+          summary: "Neuron unhealthy"
+          description: "Neuron {{ $labels.neuron_id }} on layer {{ $labels.layer }} is unhealthy"
+
+      # Memory alerts
+      - alert: HAL9HighMemoryUsage
+        expr: hal9_server_memory_bytes > 8e9
+        for: 10m
+        labels:
+          severity: warning
+          service: hal9
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ humanize $value }} (threshold: 8GB)"
+
+      # Learning system alerts
+      - alert: HAL9LearningDegraded
+        expr: hal9_learning_effectiveness_ratio < 0.5
+        for: 15m
+        labels:
+          severity: warning
+          service: hal9
+          component: learning
+        annotations:
+          summary: "Learning effectiveness degraded"
+          description: "Learning effectiveness for {{ $labels.neuron_id }} is {{ $value }} (threshold: 0.5)"
+
+      # Security alerts
+      - alert: HAL9SecurityViolation
+        expr: increase(hal9_mcp_security_violations_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: hal9
+          component: security
+        annotations:
+          summary: "Security violation detected"
+          description: "{{ $value }} security violations detected in tool {{ $labels.tool }} (type: {{ $labels.violation_type }})"
+
+      - alert: HAL9AuthFailureSpike
+        expr: rate(hal9_auth_attempts_total{status="failure"}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: hal9
+          component: auth
+        annotations:
+          summary: "High authentication failure rate"
+          description: "Authentication failure rate is {{ $value }} per second for {{ $labels.type }}"
+
+      # Queue depth alerts
+      - alert: HAL9HighQueueDepth
+        expr: hal9_neuron_queue_size > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: hal9
+        annotations:
+          summary: "High neuron queue depth"
+          description: "Queue depth for {{ $labels.neuron_id }} is {{ $value }} (threshold: 100)"

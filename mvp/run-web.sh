@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# 2HAL9 MVP Web Interface Runner
+# HAL9 MVP Web Interface Runner
 
-echo "🌐 Starting 2HAL9 Web Interface..."
+echo "🌐 Starting HAL9 Web Interface..."
 echo
 
 # Build if needed

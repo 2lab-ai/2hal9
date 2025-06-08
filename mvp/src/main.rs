@@ -1,4 +1,4 @@
-//! 2HAL9 MVP - Simplified hierarchical AI orchestration demo
+// HAL9 MVP - Simplified hierarchical AI orchestration demo
 
 mod web;
 mod recorder;

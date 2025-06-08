@@ -1,4 +1,4 @@
-# 2HAL9 Architecture Document
+# HAL9 Architecture Document
 
 **Version**: 2.0  
 **Date**: January 2025  
@@ -6,7 +6,7 @@
 
 ## Overview
 
-This document describes the simplified architecture for the 2HAL9 MVP, focusing on proving the hierarchical AI orchestration concept with minimal complexity.
+This document describes the simplified architecture for the HAL9 MVP, focusing on proving the hierarchical AI orchestration concept with minimal complexity.
 
 ## MVP Architecture (Phase 1)
 
@@ -14,7 +14,7 @@ This document describes the simplified architecture for the 2HAL9 MVP, focusing 
 
 ```
 ┌─────────────────────────────────────────┐
-│          2HAL9 Server (Single)          │
+│          HAL9 Server (Single)          │
 ├─────────────────────────────────────────┤
 │                                         │
 │  ┌─────────┐  ┌─────────┐  ┌─────────┐│
@@ -37,7 +37,7 @@ This document describes the simplified architecture for the 2HAL9 MVP, focusing 
            ↑
            │ CLI Commands
 ┌──────────┴──────────┐
-│   2hal9 CLI Tool    │
+│   hal9 CLI Tool    │
 │  - start server     │
 │  - send signal      │
 │  - view logs        │
@@ -108,7 +108,7 @@ pub struct LocalRouter {
 
 ```
 ┌─────────────────┐         ┌─────────────────┐
-│  2HAL9 Server A │  TCP    │  2HAL9 Server B │
+│  HAL9 Server A │  TCP    │  HAL9 Server B │
 │   Neurons 1-3   │←─────→  │   Neurons 4-7   │
 └─────────────────┘         └─────────────────┘
 ```

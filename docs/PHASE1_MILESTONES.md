@@ -1,7 +1,7 @@
 # Phase 1: MVP Milestones & Issues
 
 **Timeline**: 3 months  
-**Scope**: Single 2HAL9 server with CLI interface  
+**Scope**: Single HAL9 server with CLI interface  
 **Goal**: Demonstrate hierarchical AI neuron orchestration with local communication
 
 ## Milestone Overview
