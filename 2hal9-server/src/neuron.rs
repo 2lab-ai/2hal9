@@ -5,15 +5,19 @@ use dashmap::DashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
-use uuid::Uuid;
 use chrono::Utc;
 
-use 2hal9_core::{
-    Error, Result, NeuronSignal, Layer, NeuronInterface, NeuronState, NeuronHealth,
-    NeuronConfig, PropagationType, SignalPayload, Activation, Gradient,
+use twohal9_core::{
+    Error, Result, NeuronSignal, Layer, NeuronInterface,
+    NeuronConfig, PropagationType, Gradient,
+    neuron::{NeuronState, NeuronHealth},
 };
 
-use crate::claude::ClaudeInterface;
+use crate::{
+    claude::ClaudeInterface,
+    circuit_breaker::{CircuitBreaker, CircuitBreakerConfig},
+    performance::{ResponseCache, PerformanceMonitor},
+};
 
 /// A managed neuron that wraps a Claude instance
 pub struct ManagedNeuron {
@@ -23,6 +27,10 @@ pub struct ManagedNeuron {
     claude: Box<dyn ClaudeInterface>,
     state: RwLock<NeuronState>,
     stats: RwLock<NeuronStats>,
+    metrics: Option<Arc<crate::metrics::Metrics>>,
+    circuit_breaker: CircuitBreaker,
+    response_cache: Option<ResponseCache>,
+    performance_monitor: PerformanceMonitor,
 }
 
 #[derive(Default)]
@@ -42,6 +50,21 @@ impl ManagedNeuron {
         let layer = Layer::from_str(&config.layer)
             .ok_or_else(|| Error::Config(format!("Invalid layer: {}", config.layer)))?;
             
+        let circuit_breaker = CircuitBreaker::new(
+            format!("neuron-{}", config.id),
+            CircuitBreakerConfig::default()
+        );
+        
+        // Enable caching for L2 neurons (implementation layer)
+        let response_cache = if layer == Layer::L2 {
+            Some(ResponseCache::new(
+                std::time::Duration::from_secs(300), // 5 minute TTL
+                1000 // max entries
+            ))
+        } else {
+            None
+        };
+        
         Ok(Self {
             id: config.id.clone(),
             layer,
@@ -52,7 +75,16 @@ impl ManagedNeuron {
                 started_at: Some(Utc::now()),
                 ..Default::default()
             }),
+            metrics: None,
+            circuit_breaker,
+            response_cache,
+            performance_monitor: PerformanceMonitor::new(),
         })
+    }
+    
+    /// Set metrics collector
+    pub fn set_metrics(&mut self, metrics: Arc<crate::metrics::Metrics>) {
+        self.metrics = Some(metrics);
     }
     
     /// Start the neuron
@@ -177,11 +209,49 @@ impl NeuronInterface for ManagedNeuron {
     }
     
     async fn process_signal(&self, signal: &NeuronSignal) -> Result<String> {
-        // Update state
+        let perf_timer = std::time::Instant::now();
+        
+        // Check circuit breaker first
+        if !self.circuit_breaker.allow_request().await {
+            warn!("Circuit breaker open for neuron {}", self.id);
+            if let Some(metrics) = &self.metrics {
+                metrics.record_error("circuit_breaker_open");
+            }
+            return Err(Error::CircuitBreakerOpen { 
+                service: format!("neuron-{}", self.id) 
+            });
+        }
+        
+        let start_time = std::time::Instant::now();
+        
+        // Update state and metrics
         *self.state.write().await = NeuronState::Processing;
+        if let Some(metrics) = &self.metrics {
+            metrics.record_neuron_processing_start();
+        }
         
         // Format prompt
         let prompt = self.format_prompt(signal);
+        let cache_key = format!("{}-{}", self.layer.as_str(), prompt.len());
+        
+        // Check cache for L2 neurons
+        if let Some(cache) = &self.response_cache {
+            if let Some(cached_response) = cache.get(&cache_key) {
+                debug!("Neuron {} using cached response", self.id);
+                
+                // Record metrics for cached response
+                if let Some(metrics) = &self.metrics {
+                    let duration = start_time.elapsed();
+                    metrics.record_processing_time(&self.id, duration);
+                    metrics.record_signal_processed();
+                }
+                
+                *self.state.write().await = NeuronState::Running;
+                self.performance_monitor.record("cache_hit", perf_timer.elapsed());
+                return Ok(cached_response);
+            }
+        }
+        
         debug!("Neuron {} processing signal: {}", self.id, signal.signal_id);
         
         // Send to Claude
@@ -193,6 +263,26 @@ impl NeuronInterface for ManagedNeuron {
                 stats.last_signal = Some(Utc::now());
                 drop(stats);
                 
+                // Record metrics
+                if let Some(metrics) = &self.metrics {
+                    let duration = start_time.elapsed();
+                    metrics.record_processing_time(&self.id, duration);
+                    metrics.record_latency(self.layer.as_str(), duration);
+                    
+                    // Record token usage if available
+                    if let Some(usage) = self.claude.last_token_usage() {
+                        metrics.record_token_usage(usage.prompt_tokens, usage.completion_tokens);
+                    }
+                }
+                
+                // Record success with circuit breaker
+                self.circuit_breaker.record_success().await;
+                
+                // Cache the response for L2 neurons
+                if let Some(cache) = &self.response_cache {
+                    cache.put(cache_key, resp.clone());
+                }
+                
                 resp
             }
             Err(e) => {
@@ -201,6 +291,15 @@ impl NeuronInterface for ManagedNeuron {
                 stats.errors_count += 1;
                 drop(stats);
                 
+                // Record error metrics
+                if let Some(metrics) = &self.metrics {
+                    metrics.record_error(&e.to_string());
+                    metrics.record_signal_failed();
+                }
+                
+                // Record failure with circuit breaker
+                self.circuit_breaker.record_failure().await;
+                
                 error!("Neuron {} failed to process signal: {}", self.id, e);
                 return Err(e);
             }
@@ -208,6 +307,14 @@ impl NeuronInterface for ManagedNeuron {
         
         // Return to running state
         *self.state.write().await = NeuronState::Running;
+        if let Some(metrics) = &self.metrics {
+            metrics.record_neuron_processing_end();
+            metrics.record_signal_processed();
+        }
+        
+        // Record performance
+        self.performance_monitor.record("process_signal", perf_timer.elapsed());
+        self.performance_monitor.record(&format!("layer_{}", self.layer.as_str()), perf_timer.elapsed());
         
         Ok(response)
     }
@@ -239,6 +346,8 @@ impl NeuronInterface for ManagedNeuron {
 /// Registry for managing multiple neurons
 pub struct NeuronRegistry {
     neurons: Arc<DashMap<String, Arc<ManagedNeuron>>>,
+    metrics: Option<Arc<crate::metrics::Metrics>>,
+    parallel_executor: crate::performance::ParallelExecutor,
 }
 
 impl NeuronRegistry {
@@ -246,12 +355,25 @@ impl NeuronRegistry {
     pub fn new() -> Self {
         Self {
             neurons: Arc::new(DashMap::new()),
+            metrics: None,
+            parallel_executor: crate::performance::ParallelExecutor::new(10), // 10 concurrent operations
         }
     }
     
+    /// Set metrics collector
+    pub fn set_metrics(&mut self, metrics: Arc<crate::metrics::Metrics>) {
+        self.metrics = Some(metrics);
+    }
+    
     /// Register a neuron
-    pub async fn register(&self, neuron: ManagedNeuron) -> Result<()> {
+    pub async fn register(&self, mut neuron: ManagedNeuron) -> Result<()> {
         let id = neuron.id.clone();
+        
+        // Set metrics if available
+        if let Some(metrics) = &self.metrics {
+            neuron.set_metrics(metrics.clone());
+        }
+        
         neuron.start().await?;
         self.neurons.insert(id.clone(), Arc::new(neuron));
         info!("Registered neuron: {}", id);
@@ -318,6 +440,42 @@ impl NeuronRegistry {
         }
         
         health_map
+    }
+    
+    /// List all neurons with their info
+    pub async fn list_all(&self) -> Vec<crate::server::NeuronInfo> {
+        let mut infos = Vec::new();
+        
+        for neuron in self.all() {
+            let state = *neuron.state.read().await;
+            let health = neuron.health().await.ok();
+            
+            infos.push(crate::server::NeuronInfo {
+                id: neuron.id.clone(),
+                layer: neuron.layer.as_str().to_string(),
+                state: format!("{:?}", state),
+                is_healthy: health.map(|h| h.errors_count == 0).unwrap_or(false),
+            });
+        }
+        
+        infos
+    }
+    
+    /// Get specific neuron info
+    pub async fn get_info(&self, id: &str) -> Option<crate::server::NeuronInfo> {
+        if let Some(neuron) = self.get(id) {
+            let state = *neuron.state.read().await;
+            let health = neuron.health().await.ok();
+            
+            Some(crate::server::NeuronInfo {
+                id: neuron.id.clone(),
+                layer: neuron.layer.as_str().to_string(),
+                state: format!("{:?}", state),
+                is_healthy: health.map(|h| h.errors_count == 0).unwrap_or(false),
+            })
+        } else {
+            None
+        }
     }
 }
 

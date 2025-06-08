@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  hal9-test:
+    build: .
+    container_name: hal9-test-server
+    environment:
+      - RUST_LOG=debug
+      - HAL9_CONFIG_PATH=/app/config/test.yaml
+      - RUST_BACKTRACE=1
+    volumes:
+      - ./examples/config-3neurons.yaml:/app/config/test.yaml:ro
+    command: |
+      sh -c "
+        2hal9-server &
+        SERVER_PID=$$!
+        sleep 5
+        
+        # Run tests
+        echo 'Running integration tests...'
+        cd /app
+        
+        # Test health endpoint
+        curl -f http://localhost:8080/health || exit 1
+        
+        # Test status
+        2hal9 status || exit 1
+        
+        # Test signal sending
+        2hal9 signal forward --from test-client --to test-neuron-1 --content 'test message' || exit 1
+        
+        # Check metrics
+        curl -f http://localhost:9090/metrics | grep hal9_signals_sent || exit 1
+        
+        echo 'All tests passed!'
+        
+        # Cleanup
+        kill $$SERVER_PID
+        exit 0
+      "
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge

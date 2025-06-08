@@ -4,11 +4,9 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::path::PathBuf;
-use std::time::Duration;
-use tracing::{error, info};
 
-use 2hal9_core::ServerConfig;
-use 2hal9_server::HAL9Server;
+use twohal9_core::ServerConfig;
+use twohal9_server::HAL9Server;
 
 pub async fn execute(config_path: PathBuf, daemon: bool) -> Result<()> {
     if daemon {

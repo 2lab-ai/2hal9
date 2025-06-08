@@ -1,13 +1,17 @@
 [package]
-name = "2hal9-server"
+name = "twohal9_server"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
+[[bin]]
+name = "hal9-server"
+path = "src/main.rs"
+
 [dependencies]
 # Core types
-2hal9-core = { path = "../2hal9-core" }
+twohal9_core = { path = "../2hal9-core" }
 
 # Async runtime
 tokio = { workspace = true }
@@ -27,6 +31,7 @@ uuid = { workspace = true }
 chrono = { workspace = true }
 dashmap = { workspace = true }
 once_cell = { workspace = true }
+parking_lot = "0.12"
 
 # Logging
 tracing = { workspace = true }
@@ -38,8 +43,21 @@ config = { workspace = true }
 # HTTP client for Claude API
 reqwest = { workspace = true }
 
+# HTTP server
+axum = { version = "0.7", features = ["ws"] }
+tower = { version = "0.4" }
+tower-http = { version = "0.5", features = ["cors"] }
+
 # Testing
 mockall = { workspace = true }
 
+# System info
+sys-info = "0.9"
+
 [dev-dependencies]
 tokio-test = { workspace = true }
+criterion = { version = "0.5", features = ["async_tokio"] }
+
+[[bench]]
+name = "performance_benchmark"
+harness = false

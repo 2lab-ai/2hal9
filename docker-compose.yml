@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  hal9-server:
+    build: .
+    container_name: hal9-server
+    restart: unless-stopped
+    environment:
+      - RUST_LOG=info
+      - HAL9_CONFIG_PATH=/app/config/config.yaml
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    ports:
+      - "8080:8080"  # API port
+      - "9090:9090"  # Metrics port
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+      - hal9-data:/app/data
+    networks:
+      - hal9-network
+    healthcheck:
+      test: ["CMD", "2hal9", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: hal9-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - hal9-network
+    depends_on:
+      - hal9-server
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: hal9-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - hal9-network
+    depends_on:
+      - prometheus
+
+  nginx:
+    image: nginx:alpine
+    container_name: hal9-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - hal9-network
+    depends_on:
+      - hal9-server
+
+volumes:
+  hal9-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  hal9-network:
+    driver: bridge

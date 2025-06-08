@@ -1,0 +1,168 @@
+# Enhanced 3-neuron configuration with custom mock responses
+server_id: "hal9-demo-enhanced"
+neurons:
+  - id: "neuron-1"
+    layer: "L4"
+    forward_connections: ["neuron-2"]
+    backward_connections: []
+    
+  - id: "neuron-2"
+    layer: "L3"
+    forward_connections: ["neuron-3"]
+    backward_connections: ["neuron-1"]
+    
+  - id: "neuron-3"
+    layer: "L2"
+    forward_connections: []
+    backward_connections: ["neuron-2"]
+
+# Claude configuration with custom mock responses
+claude:
+  mode: "mock"  # Use mock for testing
+  model: "claude-3-opus-20240229"
+  temperature: 0.7
+  max_tokens: 4096
+  rate_limit: 60
+  
+  # Custom mock responses per layer
+  mock_responses:
+    L4:
+      - trigger: "create web app"
+        response: |
+          FORWARD_TO: neuron-2
+          CONTENT: Strategic plan for web application:
+          1. Design responsive user interface
+          2. Implement backend API
+          3. Set up database schema
+          4. Deploy to cloud infrastructure
+        delay_ms: 150
+        
+      - trigger: "analyze data"
+        response: |
+          FORWARD_TO: neuron-2
+          CONTENT: Data analysis strategy:
+          1. Define data collection pipeline
+          2. Design analysis algorithms
+          3. Create visualization dashboard
+          4. Generate insights report
+        delay_ms: 200
+        
+      - trigger: "default"
+        response: |
+          FORWARD_TO: neuron-2
+          CONTENT: Breaking down request into strategic components
+        delay_ms: 100
+    
+    L3:
+      - trigger: "web"
+        response: |
+          FORWARD_TO: neuron-3
+          CONTENT: Web application design:
+          - Frontend: React with TypeScript
+          - Backend: FastAPI
+          - Database: PostgreSQL
+          - Authentication: JWT tokens
+          - API: RESTful endpoints
+        delay_ms: 150
+        
+      - trigger: "data"
+        response: |
+          FORWARD_TO: neuron-3
+          CONTENT: Data processing design:
+          - Pipeline: Apache Airflow
+          - Storage: S3 + PostgreSQL
+          - Processing: Pandas/NumPy
+          - Visualization: Plotly
+        delay_ms: 200
+        
+      - trigger: "default"
+        response: |
+          FORWARD_TO: neuron-3
+          CONTENT: Creating detailed design specifications
+        delay_ms: 100
+    
+    L2:
+      - trigger: "react"
+        response: |
+          RESULT: React component implementation
+          ```typescript
+          import React, { useState, useEffect } from 'react';
+          
+          interface AppProps {
+            title: string;
+          }
+          
+          export const App: React.FC<AppProps> = ({ title }) => {
+            const [data, setData] = useState<any[]>([]);
+            
+            useEffect(() => {
+              fetchData();
+            }, []);
+            
+            const fetchData = async () => {
+              const response = await fetch('/api/data');
+              const result = await response.json();
+              setData(result);
+            };
+            
+            return (
+              <div className="app">
+                <h1>{title}</h1>
+                <div className="data-grid">
+                  {data.map(item => (
+                    <div key={item.id}>{item.name}</div>
+                  ))}
+                </div>
+              </div>
+            );
+          };
+          ```
+        delay_ms: 300
+        
+      - trigger: "api"
+        response: |
+          RESULT: FastAPI implementation
+          ```python
+          from fastapi import FastAPI, HTTPException
+          from pydantic import BaseModel
+          from typing import List
+          
+          app = FastAPI(title="2HAL9 API")
+          
+          class DataModel(BaseModel):
+              id: int
+              name: str
+              value: float
+          
+          @app.get("/api/data", response_model=List[DataModel])
+          async def get_data():
+              # Implementation here
+              return [
+                  DataModel(id=1, name="Item 1", value=10.5),
+                  DataModel(id=2, name="Item 2", value=20.3),
+              ]
+          
+          @app.post("/api/data", response_model=DataModel)
+          async def create_data(data: DataModel):
+              # Save to database
+              return data
+          ```
+        delay_ms: 250
+        
+      - trigger: "default"
+        response: |
+          RESULT: Implementation complete
+          ```python
+          # Generated implementation
+          def process_request(input_data):
+              """Process the request based on specifications"""
+              result = transform_data(input_data)
+              return result
+          ```
+        delay_ms: 100
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  metrics_interval: 30
+  log_level: "info"

@@ -1,9 +1,8 @@
 //! Signal command implementation
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use colored::Colorize;
-use uuid::Uuid;
-use 2hal9_core::NeuronSignal;
+use twohal9_core::NeuronSignal;
 
 pub async fn execute(from: String, to: String, content: String, server: String) -> Result<()> {
     println!("{} signal:", "Sending".green());

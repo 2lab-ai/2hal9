@@ -30,6 +30,12 @@ pub enum Error {
     #[error("Timeout after {0} seconds")]
     Timeout(u64),
     
+    #[error("Cost limit exceeded: {reason}")]
+    CostLimit { reason: String },
+    
+    #[error("Circuit breaker open for {service}")]
+    CircuitBreakerOpen { service: String },
+    
     #[error("Invalid state: {0}")]
     InvalidState(String),
     
@@ -49,7 +55,8 @@ impl Error {
         matches!(self, 
             Error::RateLimit | 
             Error::Timeout(_) | 
-            Error::Communication(_)
+            Error::Communication(_) |
+            Error::CircuitBreakerOpen { .. }
         )
     }
     

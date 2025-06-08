@@ -3,10 +3,11 @@
 use dashmap::DashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
-use 2hal9_core::{Error, Result, NeuronSignal, NeuronConfig};
-use crate::neuron::{ManagedNeuron, NeuronRegistry};
+use twohal9_core::{Error, Result, NeuronSignal, NeuronConfig, NeuronInterface};
+use crate::neuron::NeuronRegistry;
+use crate::performance::{SignalBuffer, ParallelExecutor};
 
 /// Routing table for signal delivery
 pub struct RoutingTable {
@@ -56,6 +57,8 @@ pub struct SignalRouter {
     signal_tx: mpsc::Sender<NeuronSignal>,
     signal_rx: Option<mpsc::Receiver<NeuronSignal>>,
     shutdown_tx: Option<mpsc::Sender<()>>,
+    signal_buffer: Arc<SignalBuffer<NeuronSignal>>,
+    parallel_executor: Arc<ParallelExecutor>,
 }
 
 impl SignalRouter {
@@ -69,6 +72,11 @@ impl SignalRouter {
             signal_tx,
             signal_rx: Some(signal_rx),
             shutdown_tx: None,
+            signal_buffer: Arc::new(SignalBuffer::new(
+                10, // buffer up to 10 signals
+                std::time::Duration::from_millis(50) // flush every 50ms
+            )),
+            parallel_executor: Arc::new(ParallelExecutor::new(8)), // 8 parallel workers
         }
     }
     
@@ -83,25 +91,68 @@ impl SignalRouter {
         let registry = self.registry.clone();
         let routing_table = self.routing_table.clone();
         let signal_tx = self.signal_tx.clone();
+        let signal_buffer = self.signal_buffer.clone();
         
         info!("Starting signal router");
         
         tokio::spawn(async move {
+            // Create a timer for periodic buffer flushing
+            let mut flush_interval = tokio::time::interval(std::time::Duration::from_millis(50));
+            flush_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            
             loop {
                 tokio::select! {
                     Some(signal) = signal_rx.recv() => {
                         debug!("Processing signal: {} -> {}", signal.from_neuron, signal.to_neuron);
                         
-                        if let Err(e) = Self::process_signal(
-                            &registry,
-                            &routing_table,
-                            &signal_tx,
-                            signal
-                        ).await {
-                            error!("Failed to process signal: {}", e);
+                        // Buffer signals for batch processing
+                        let signal_buffer = signal_buffer.clone();
+                        let registry_clone = registry.clone();
+                        let routing_table_clone = routing_table.clone();
+                        let signal_tx_clone = signal_tx.clone();
+                        
+                        if let Some(batch) = signal_buffer.add(signal) {
+                            // Process batch in parallel
+                            tokio::spawn(async move {
+                                Self::process_signal_batch(
+                                    &registry_clone,
+                                    &routing_table_clone,
+                                    &signal_tx_clone,
+                                    batch
+                                ).await;
+                            });
+                        }
+                    }
+                    _ = flush_interval.tick() => {
+                        // Periodic flush of any buffered signals
+                        let buffered = signal_buffer.flush();
+                        if !buffered.is_empty() {
+                            debug!("Flushing {} buffered signals", buffered.len());
+                            let registry_clone = registry.clone();
+                            let routing_table_clone = routing_table.clone();
+                            let signal_tx_clone = signal_tx.clone();
+                            
+                            tokio::spawn(async move {
+                                Self::process_signal_batch(
+                                    &registry_clone,
+                                    &routing_table_clone,
+                                    &signal_tx_clone,
+                                    buffered
+                                ).await;
+                            });
                         }
                     }
                     _ = shutdown_rx.recv() => {
+                        // Flush any remaining signals
+                        let remaining = signal_buffer.flush();
+                        if !remaining.is_empty() {
+                            Self::process_signal_batch(
+                                &registry,
+                                &routing_table,
+                                &signal_tx,
+                                remaining
+                            ).await;
+                        }
                         info!("Signal router shutting down");
                         break;
                     }
@@ -110,6 +161,42 @@ impl SignalRouter {
         });
         
         Ok(())
+    }
+    
+    /// Process a batch of signals in parallel
+    async fn process_signal_batch(
+        registry: &Arc<NeuronRegistry>,
+        routing_table: &Arc<RoutingTable>,
+        signal_tx: &mpsc::Sender<NeuronSignal>,
+        signals: Vec<NeuronSignal>,
+    ) {
+        let start = std::time::Instant::now();
+        debug!("Processing batch of {} signals", signals.len());
+        
+        // Process signals in parallel
+        let tasks: Vec<_> = signals.into_iter().map(|signal| {
+            let registry = registry.clone();
+            let routing_table = routing_table.clone();
+            let signal_tx = signal_tx.clone();
+            
+            tokio::spawn(async move {
+                if let Err(e) = Self::process_signal(
+                    &registry,
+                    &routing_table,
+                    &signal_tx,
+                    signal
+                ).await {
+                    error!("Failed to process signal: {}", e);
+                }
+            })
+        }).collect();
+        
+        // Wait for all tasks to complete
+        for task in tasks {
+            let _ = task.await;
+        }
+        
+        debug!("Batch processed in {:?}", start.elapsed());
     }
     
     /// Process a single signal
@@ -131,24 +218,36 @@ impl SignalRouter {
                 // Parse response for new signals
                 let new_signals = neuron.parse_response(&response, &signal);
                 
-                // Queue new signals
-                for new_signal in new_signals {
-                    if let Err(e) = signal_tx.send(new_signal).await {
-                        error!("Failed to queue signal: {}", e);
+                // Queue new signals in parallel if multiple
+                if new_signals.len() > 1 {
+                    let signal_tx = signal_tx.clone();
+                    tokio::spawn(async move {
+                        for new_signal in new_signals {
+                            if let Err(e) = signal_tx.send(new_signal).await {
+                                error!("Failed to queue signal: {}", e);
+                            }
+                        }
+                    });
+                } else {
+                    // Queue single signal directly
+                    for new_signal in new_signals {
+                        if let Err(e) = signal_tx.send(new_signal).await {
+                            error!("Failed to queue signal: {}", e);
+                        }
                     }
                 }
             }
             Err(e) => {
-                error!("Neuron {} failed to process signal: {}", neuron.id(), e);
+                error!("Neuron failed to process signal: {}", e);
                 
                 // Generate error signal if appropriate
-                if e.is_recoverable() && !signal.backward_connections.is_empty() {
+                if e.is_recoverable() {
                     let error_signal = NeuronSignal::backward(
                         &signal.to_neuron,
                         &signal.from_neuron,
                         &signal.layer_to,
                         &signal.layer_from,
-                        2hal9_core::Gradient::new(e.to_string(), 1.0),
+                        twohal9_core::Gradient::new(e.to_string(), 1.0),
                     );
                     
                     if let Err(e) = signal_tx.send(error_signal).await {
@@ -181,10 +280,3 @@ impl SignalRouter {
     }
 }
 
-// Fix: Add backward_connections to signal parsing
-impl NeuronSignal {
-    fn backward_connections(&self) -> &[String] {
-        // This would be looked up from config in real implementation
-        &[]
-    }
-}

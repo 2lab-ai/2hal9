@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2HAL9 - Hierarchical AI Orchestration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 300px 1fr 400px;
+            height: 100vh;
+        }
+
+        /* Left Panel - Controls */
+        .controls {
+            background: #1a1a1a;
+            border-right: 1px solid #333;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .scenario-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .scenario-btn {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: left;
+        }
+
+        .scenario-btn:hover {
+            background: #3a3a3a;
+            border-color: #00d4ff;
+            transform: translateX(5px);
+        }
+
+        .scenario-btn.active {
+            background: #00d4ff;
+            color: #000;
+        }
+
+        /* Center - Visualization */
+        .visualization {
+            background: #0f0f0f;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #neuronCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .status-bar {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: 1px solid #333;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Right Panel - Output */
+        .output {
+            background: #1a1a1a;
+            border-left: 1px solid #333;
+            padding: 20px;
+            overflow-y: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 14px;
+        }
+
+        .output-section {
+            margin-bottom: 20px;
+        }
+
+        .output-header {
+            color: #00d4ff;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .code-block {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 15px;
+            overflow-x: auto;
+            white-space: pre;
+            color: #a8e6a3;
+        }
+
+        .signal-log {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .signal-log.created { color: #ffeb3b; }
+        .signal-log.processing { color: #00d4ff; }
+        .signal-log.completed { color: #4caf50; }
+
+        /* Neuron styles */
+        .neuron {
+            position: absolute;
+            width: 120px;
+            height: 60px;
+            background: #2a2a2a;
+            border: 2px solid #444;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .neuron.l4 { border-color: #e91e63; }
+        .neuron.l3 { border-color: #2196f3; }
+        .neuron.l2 { border-color: #4caf50; }
+
+        .neuron.active {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px currentColor;
+        }
+
+        .neuron-label {
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .neuron-icon {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        /* Signal animation */
+        .signal-path {
+            position: absolute;
+            width: 4px;
+            background: linear-gradient(to bottom, transparent, #00d4ff, transparent);
+            transform-origin: top;
+            animation: signal-flow 1s ease-in-out;
+        }
+
+        @keyframes signal-flow {
+            0% { opacity: 0; transform: scaleY(0); }
+            50% { opacity: 1; }
+            100% { opacity: 0; transform: scaleY(1); }
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid #333;
+            border-top: 3px solid #00d4ff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <div class="logo">🧠 2HAL9</div>
+            <h3 style="margin-bottom: 20px; color: #888;">Demo Scenarios</h3>
+            <div class="scenario-list">
+                <button class="scenario-btn" data-scenario="Create a task management web application">
+                    📝 Task Management App
+                </button>
+                <button class="scenario-btn" data-scenario="Build an e-commerce platform">
+                    🛒 E-commerce Platform
+                </button>
+                <button class="scenario-btn" data-scenario="Develop a real-time chat system">
+                    💬 Real-time Chat System
+                </button>
+            </div>
+            
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #333;">
+                <h3 style="margin-bottom: 10px; color: #888;">Legend</h3>
+                <div style="font-size: 14px; line-height: 1.8;">
+                    <div><span style="color: #e91e63;">●</span> L4 - Strategic</div>
+                    <div><span style="color: #2196f3;">●</span> L3 - Design</div>
+                    <div><span style="color: #4caf50;">●</span> L2 - Implementation</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="visualization">
+            <div class="status-bar" id="status">Ready</div>
+            <canvas id="neuronCanvas"></canvas>
+        </div>
+
+        <div class="output">
+            <div class="output-section">
+                <div class="output-header">Signal Flow</div>
+                <div id="signalLog"></div>
+            </div>
+            <div class="output-section">
+                <div class="output-header">Generated Code</div>
+                <div id="codeOutput"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class NeuronVisualization {
+            constructor() {
+                this.canvas = document.getElementById('neuronCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.neurons = new Map();
+                this.connections = [];
+                this.signals = [];
+                
+                this.setupCanvas();
+                this.createNeurons();
+                this.animate();
+            }
+
+            setupCanvas() {
+                const resize = () => {
+                    this.canvas.width = this.canvas.offsetWidth;
+                    this.canvas.height = this.canvas.offsetHeight;
+                };
+                resize();
+                window.addEventListener('resize', resize);
+            }
+
+            createNeurons() {
+                const width = this.canvas.width;
+                const height = this.canvas.height;
+                
+                // L4 Strategic
+                this.addNeuron('neuron-1', {
+                    x: width / 2,
+                    y: height * 0.2,
+                    layer: 'L4',
+                    label: 'Strategic',
+                    icon: '🧠'
+                });
+
+                // L3 Design
+                this.addNeuron('neuron-2', {
+                    x: width * 0.35,
+                    y: height * 0.5,
+                    layer: 'L3',
+                    label: 'Architecture',
+                    icon: '💡'
+                });
+                
+                this.addNeuron('neuron-3', {
+                    x: width * 0.65,
+                    y: height * 0.5,
+                    layer: 'L3',
+                    label: 'Interface',
+                    icon: '💡'
+                });
+
+                // L2 Implementation
+                this.addNeuron('neuron-4', {
+                    x: width / 2,
+                    y: height * 0.8,
+                    layer: 'L2',
+                    label: 'Implementation',
+                    icon: '⚙️'
+                });
+
+                // Create connections
+                this.connections = [
+                    ['neuron-1', 'neuron-2'],
+                    ['neuron-1', 'neuron-3'],
+                    ['neuron-2', 'neuron-4'],
+                    ['neuron-3', 'neuron-4']
+                ];
+            }
+
+            addNeuron(id, props) {
+                this.neurons.set(id, {
+                    id,
+                    ...props,
+                    active: false,
+                    pulsePhase: 0
+                });
+            }
+
+            activateNeuron(id) {
+                const neuron = this.neurons.get(id);
+                if (neuron) {
+                    neuron.active = true;
+                    neuron.pulsePhase = 0;
+                    setTimeout(() => {
+                        neuron.active = false;
+                    }, 1000);
+                }
+            }
+
+            addSignal(from, to) {
+                const fromNeuron = this.neurons.get(from);
+                const toNeuron = this.neurons.get(to);
+                
+                if (fromNeuron && toNeuron) {
+                    this.signals.push({
+                        from: { x: fromNeuron.x, y: fromNeuron.y },
+                        to: { x: toNeuron.x, y: toNeuron.y },
+                        progress: 0,
+                        speed: 0.02
+                    });
+                }
+            }
+
+            animate() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw connections
+                this.ctx.strokeStyle = '#333';
+                this.ctx.lineWidth = 2;
+                
+                for (const [from, to] of this.connections) {
+                    const fromNeuron = this.neurons.get(from);
+                    const toNeuron = this.neurons.get(to);
+                    
+                    if (fromNeuron && toNeuron) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(fromNeuron.x, fromNeuron.y);
+                        this.ctx.lineTo(toNeuron.x, toNeuron.y);
+                        this.ctx.stroke();
+                    }
+                }
+
+                // Draw and update signals
+                this.signals = this.signals.filter(signal => {
+                    signal.progress += signal.speed;
+                    
+                    if (signal.progress <= 1) {
+                        const x = signal.from.x + (signal.to.x - signal.from.x) * signal.progress;
+                        const y = signal.from.y + (signal.to.y - signal.from.y) * signal.progress;
+                        
+                        // Draw signal particle
+                        const gradient = this.ctx.createRadialGradient(x, y, 0, x, y, 15);
+                        gradient.addColorStop(0, '#00d4ff');
+                        gradient.addColorStop(1, 'transparent');
+                        
+                        this.ctx.fillStyle = gradient;
+                        this.ctx.beginPath();
+                        this.ctx.arc(x, y, 15, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        
+                        return true;
+                    }
+                    return false;
+                });
+
+                // Draw neurons
+                for (const neuron of this.neurons.values()) {
+                    this.drawNeuron(neuron);
+                }
+
+                requestAnimationFrame(() => this.animate());
+            }
+
+            drawNeuron(neuron) {
+                const { x, y, layer, label, icon, active } = neuron;
+                
+                // Update pulse animation
+                if (active) {
+                    neuron.pulsePhase += 0.1;
+                }
+                
+                // Set layer color
+                const colors = {
+                    'L4': '#e91e63',
+                    'L3': '#2196f3',
+                    'L2': '#4caf50'
+                };
+                const color = colors[layer] || '#666';
+                
+                // Draw neuron background
+                this.ctx.fillStyle = '#1a1a1a';
+                this.ctx.strokeStyle = color;
+                this.ctx.lineWidth = active ? 4 : 2;
+                
+                const width = 120;
+                const height = 60;
+                const radius = 8;
+                
+                // Draw rounded rectangle
+                this.ctx.beginPath();
+                this.ctx.moveTo(x - width/2 + radius, y - height/2);
+                this.ctx.lineTo(x + width/2 - radius, y - height/2);
+                this.ctx.quadraticCurveTo(x + width/2, y - height/2, x + width/2, y - height/2 + radius);
+                this.ctx.lineTo(x + width/2, y + height/2 - radius);
+                this.ctx.quadraticCurveTo(x + width/2, y + height/2, x + width/2 - radius, y + height/2);
+                this.ctx.lineTo(x - width/2 + radius, y + height/2);
+                this.ctx.quadraticCurveTo(x - width/2, y + height/2, x - width/2, y + height/2 - radius);
+                this.ctx.lineTo(x - width/2, y - height/2 + radius);
+                this.ctx.quadraticCurveTo(x - width/2, y - height/2, x - width/2 + radius, y - height/2);
+                this.ctx.closePath();
+                
+                this.ctx.fill();
+                this.ctx.stroke();
+                
+                // Draw pulse effect when active
+                if (active) {
+                    this.ctx.strokeStyle = color;
+                    this.ctx.globalAlpha = Math.max(0, 1 - neuron.pulsePhase / 10);
+                    this.ctx.lineWidth = 2;
+                    const scale = 1 + neuron.pulsePhase / 20;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x - width/2 * scale + radius, y - height/2 * scale);
+                    this.ctx.lineTo(x + width/2 * scale - radius, y - height/2 * scale);
+                    this.ctx.quadraticCurveTo(x + width/2 * scale, y - height/2 * scale, x + width/2 * scale, y - height/2 * scale + radius);
+                    this.ctx.lineTo(x + width/2 * scale, y + height/2 * scale - radius);
+                    this.ctx.quadraticCurveTo(x + width/2 * scale, y + height/2 * scale, x + width/2 * scale - radius, y + height/2 * scale);
+                    this.ctx.lineTo(x - width/2 * scale + radius, y + height/2 * scale);
+                    this.ctx.quadraticCurveTo(x - width/2 * scale, y + height/2 * scale, x - width/2 * scale, y + height/2 * scale - radius);
+                    this.ctx.lineTo(x - width/2 * scale, y - height/2 * scale + radius);
+                    this.ctx.quadraticCurveTo(x - width/2 * scale, y - height/2 * scale, x - width/2 * scale + radius, y - height/2 * scale);
+                    this.ctx.closePath();
+                    
+                    this.ctx.stroke();
+                    this.ctx.globalAlpha = 1;
+                }
+                
+                // Draw text
+                this.ctx.fillStyle = '#fff';
+                this.ctx.font = '24px sans-serif';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillText(icon, x, y - 8);
+                
+                this.ctx.font = '14px sans-serif';
+                this.ctx.fillStyle = '#aaa';
+                this.ctx.fillText(label, x, y + 16);
+            }
+        }
+
+        // WebSocket connection
+        class DemoClient {
+            constructor() {
+                this.ws = null;
+                this.viz = new NeuronVisualization();
+                this.setupUI();
+                this.connect();
+            }
+
+            connect() {
+                this.ws = new WebSocket('ws://localhost:3000/ws');
+                
+                this.ws.onopen = () => {
+                    this.updateStatus('Connected');
+                    this.ws.send(JSON.stringify({ type: 'GetStatus' }));
+                };
+
+                this.ws.onmessage = (event) => {
+                    const message = JSON.parse(event.data);
+                    this.handleMessage(message);
+                };
+
+                this.ws.onclose = () => {
+                    this.updateStatus('Disconnected - Retrying...');
+                    setTimeout(() => this.connect(), 3000);
+                };
+            }
+
+            handleMessage(message) {
+                switch (message.type) {
+                    case 'Signal':
+                        this.handleSignal(message.signal, message.event);
+                        break;
+                    case 'Status':
+                        this.updateStatus(message.message);
+                        break;
+                    case 'Hierarchy':
+                        this.showHierarchy(message.signals);
+                        break;
+                    case 'CodeOutput':
+                        this.showCode(message.layer, message.content);
+                        break;
+                }
+            }
+
+            handleSignal(signal, event) {
+                const log = document.getElementById('signalLog');
+                const entry = document.createElement('div');
+                entry.className = `signal-log ${event.toLowerCase()}`;
+                entry.textContent = `[${new Date().toLocaleTimeString()}] ${signal.layer} ${signal.from} → ${signal.to}: ${event}`;
+                log.appendChild(entry);
+                log.scrollTop = log.scrollHeight;
+
+                if (event === 'Processing') {
+                    this.viz.activateNeuron(signal.to);
+                    if (signal.from !== 'user') {
+                        this.viz.addSignal(signal.from, signal.to);
+                    }
+                }
+            }
+
+            showHierarchy(signals) {
+                // Build hierarchy visualization in output
+                const log = document.getElementById('signalLog');
+                const separator = document.createElement('div');
+                separator.style.borderTop = '1px solid #333';
+                separator.style.margin = '10px 0';
+                log.appendChild(separator);
+
+                const header = document.createElement('div');
+                header.style.color = '#00d4ff';
+                header.style.fontWeight = 'bold';
+                header.textContent = '📊 Signal Flow Hierarchy';
+                log.appendChild(header);
+
+                // Process signals into tree structure
+                // (simplified for demo)
+            }
+
+            showCode(layer, content) {
+                const output = document.getElementById('codeOutput');
+                const block = document.createElement('div');
+                block.className = 'code-block';
+                block.textContent = content;
+                output.appendChild(block);
+            }
+
+            updateStatus(status) {
+                document.getElementById('status').textContent = status;
+            }
+
+            setupUI() {
+                document.querySelectorAll('.scenario-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        // Remove active class from all buttons
+                        document.querySelectorAll('.scenario-btn').forEach(b => 
+                            b.classList.remove('active')
+                        );
+                        
+                        // Add active class to clicked button
+                        e.target.classList.add('active');
+                        
+                        // Clear output
+                        document.getElementById('signalLog').innerHTML = '';
+                        document.getElementById('codeOutput').innerHTML = '';
+                        
+                        // Start demo
+                        const scenario = e.target.dataset.scenario;
+                        this.startDemo(scenario);
+                    });
+                });
+            }
+
+            startDemo(scenario) {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({
+                        type: 'StartDemo',
+                        scenario: scenario
+                    }));
+                }
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            new DemoClient();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+{
+  "id": "ec06bc01-2423-42e1-891e-80ec56f25eee",
+  "scenario": "Create a task management web application",
+  "recorded_at": "2025-06-07T14:57:47.067629Z",
+  "duration_ms": 3020,
+  "events": [
+    {
+      "timestamp_ms": 0,
+      "event_type": {
+        "type": "Signal",
+        "signal": {
+          "id": "2223be4d-2eb4-49da-a050-aa1f7af20cb9",
+          "parent_id": null,
+          "from": "user",
+          "to": "neuron-1",
+          "content": "Create a task management web application",
+          "layer": "Input",
+          "timestamp": "2025-06-07T14:57:47.067643Z"
+        }
+      }
+    },
+    {
+      "timestamp_ms": 0,
+      "event_type": {
+        "type": "NeuronActivation",
+        "neuron_id": "neuron-1",
+        "layer": "L4"
+      }
+    },
+    {
+      "timestamp_ms": 503,
+      "event_type": {
+        "type": "Signal",
+        "signal": {
+          "id": "5f35f74f-95b6-4d92-968e-b2ce586b5668",
+          "parent_id": "2223be4d-2eb4-49da-a050-aa1f7af20cb9",
+          "from": "neuron-1",
+          "to": "neuron-2",
+          "content": "Design architecture for: Create a task management web application",
+          "layer": "L3",
+          "timestamp": "2025-06-07T14:57:47.571074Z"
+        }
+      }
+    },
+    {
+      "timestamp_ms": 503,
+      "event_type": {
+        "type": "Signal",
+        "signal": {
+          "id": "6195ce35-d42d-4cc4-9c8f-e18a5968ac0c",
+          "parent_id": "2223be4d-2eb4-49da-a050-aa1f7af20cb9",
+          "from": "neuron-1",
+          "to": "neuron-3",
+          "content": "Plan user interface for: Create a task management web application",
+          "layer": "L3",
+          "timestamp": "2025-06-07T14:57:47.571078Z"
+        }
+      }
+    },
+    {
+      "timestamp_ms": 503,
+      "event_type": {
+        "type": "NeuronActivation",
+        "neuron_id": "neuron-3",
+        "layer": "L3"
+      }
+    },
+    {
+      "timestamp_ms": 503,
+      "event_type": {
+        "type": "NeuronActivation",
+        "neuron_id": "neuron-2",
+        "layer": "L3"
+      }
+    },
+    {
+      "timestamp_ms": 1005,
+      "event_type": {
+        "type": "Signal",
+        "signal": {
+          "id": "3224a4ee-3cdb-4780-8dea-ab2d06cda453",
+          "parent_id": "5f35f74f-95b6-4d92-968e-b2ce586b5668",
+          "from": "neuron-2",
+          "to": "neuron-4",
+          "content": "Implement backend API with REST endpoints, database schema, and authentication",
+          "layer": "L2",
+          "timestamp": "2025-06-07T14:57:48.073109Z"
+        }
+      }
+    },
+    {
+      "timestamp_ms": 1005,
+      "event_type": {
+        "type": "NeuronActivation",
+        "neuron_id": "neuron-4",
+        "layer": "L2"
+      }
+    },
+    {
+      "timestamp_ms": 1005,
+      "event_type": {
+        "type": "Signal",
+        "signal": {
+          "id": "1df65428-d698-4237-b0ba-1234c0460175",
+          "parent_id": "6195ce35-d42d-4cc4-9c8f-e18a5968ac0c",
+          "from": "neuron-3",
+          "to": "neuron-4",
+          "content": "Implement frontend with React components, state management, and styling",
+          "layer": "L2",
+          "timestamp": "2025-06-07T14:57:48.073142Z"
+        }
+      }
+    },
+    {
+      "timestamp_ms": 1005,
+      "event_type": {
+        "type": "NeuronActivation",
+        "neuron_id": "neuron-4",
+        "layer": "L2"
+      }
+    }
+  ],
+  "metadata": {
+    "version": "1.0",
+    "platform": "macos",
+    "description": null
+  }
+}

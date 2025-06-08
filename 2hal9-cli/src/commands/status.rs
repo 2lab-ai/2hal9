@@ -1,8 +1,7 @@
 //! Status command implementation
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use colored::Colorize;
-use 2hal9_core::NeuronState;
 
 pub async fn execute(server: String, format: String) -> Result<()> {
     // For MVP, we'll implement a simple status check

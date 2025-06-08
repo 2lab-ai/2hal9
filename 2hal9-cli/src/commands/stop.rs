@@ -1,6 +1,6 @@
 //! Stop command implementation
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use colored::Colorize;
 
 pub async fn execute(server: String, force: bool) -> Result<()> {
