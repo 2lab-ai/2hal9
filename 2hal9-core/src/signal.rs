@@ -17,6 +17,9 @@ pub struct NeuronSignal {
     pub batch_id: Uuid,
     pub timestamp: DateTime<Utc>,
     pub payload: SignalPayload,
+    /// Additional metadata for distributed routing
+    #[serde(default)]
+    pub metadata: HashMap<String, String>,
 }
 
 impl NeuronSignal {
@@ -45,6 +48,7 @@ impl NeuronSignal {
                 },
                 gradient: None,
             },
+            metadata: HashMap::new(),
         }
     }
     
@@ -73,6 +77,7 @@ impl NeuronSignal {
                 },
                 gradient: Some(error),
             },
+            metadata: HashMap::new(),
         }
     }
 }

@@ -39,6 +39,12 @@ pub enum Error {
     #[error("Invalid state: {0}")]
     InvalidState(String),
     
+    #[error("Network error: {0}")]
+    Network(String),
+    
+    #[error("Serialization error: {0}")]
+    Serialization(String),
+    
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     

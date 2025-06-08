@@ -1,0 +1,58 @@
+# Distributed 2HAL9 Configuration - Server 1
+# This configuration demonstrates a distributed setup with neurons split across 2 servers
+
+server_id: "hal9-server-1"
+
+# Server 1 hosts the L4 strategic layer
+neurons:
+  - id: "strategic-main"
+    layer: "L4"
+    claude_command: "claude"
+    forward_connections: 
+      - "architect-1"    # Remote neuron on server 2
+      - "architect-2"    # Remote neuron on server 2
+    backward_connections: []
+    settings:
+      model: "claude-3-opus-20240229"
+      temperature: 0.7
+
+# Network configuration for distributed mode
+network:
+  enabled: true
+  bind_address: "0.0.0.0:9001"
+  discovery_enabled: true
+  discovery_address: "239.255.42.99:8888"
+  discovery_group: "production"
+  max_connections: 100
+  tls_enabled: false
+
+# Claude configuration
+claude:
+  mode: "api"
+  model: "claude-3-sonnet-20240229"
+  temperature: 0.7
+  max_tokens: 4000
+  rate_limit: 60
+  fallback_to_mock: true
+  cost_controls:
+    max_cost_per_hour: 10.0
+    max_cost_per_day: 100.0
+    max_tokens_per_request: 4000
+    alert_threshold: 0.8
+  
+  # Mock responses for testing/fallback
+  mock_responses:
+    L4:
+      - trigger: "default"
+        response: |
+          FORWARD_TO: architect-1, architect-2
+          CONTENT: Breaking down strategic objective into two parallel architecture tasks:
+          1. System architecture design
+          2. Data architecture design
+        delay_ms: 100
+
+# Monitoring
+monitoring:
+  enabled: true
+  metrics_interval: 30
+  log_level: "info"

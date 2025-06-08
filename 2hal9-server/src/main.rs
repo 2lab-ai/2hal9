@@ -34,8 +34,9 @@ async fn main() -> Result<()> {
     // Create HTTP API router
     let api_router = api::create_api_router(server.clone());
     
-    // Start HTTP server (hardcode address for now)
-    let http_addr = "127.0.0.1:8080";
+    // Start HTTP server - use env var or default
+    let http_port = std::env::var("HTTP_PORT").unwrap_or_else(|_| "8080".to_string());
+    let http_addr = format!("127.0.0.1:{}", http_port);
     
     info!("Starting HTTP server on {}", http_addr);
     
@@ -82,7 +83,7 @@ async fn load_config() -> Result<ServerConfig> {
 }
 
 fn create_default_config() -> ServerConfig {
-    use twohal9_core::{NeuronConfig, config::{ClaudeConfig, MonitoringConfig, MockResponse}};
+    use twohal9_core::{NeuronConfig, config::{ClaudeConfig, MonitoringConfig, MockResponse, NetworkConfig}};
     use std::collections::HashMap;
     
     // Create mock responses for demo
@@ -155,6 +156,7 @@ fn create_default_config() -> ServerConfig {
             cost_controls: Default::default(),
         },
         monitoring: MonitoringConfig::default(),
+        network: NetworkConfig::default(),
     }
 }
 

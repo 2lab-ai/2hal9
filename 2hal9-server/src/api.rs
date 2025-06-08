@@ -127,6 +127,9 @@ pub fn create_api_router(server: Arc<HAL9Server>) -> Router {
         .route("/api/v1/metrics", get(get_metrics))
         .route("/api/v1/metrics/export", get(export_metrics))
         
+        // Network status
+        .route("/api/v1/network/status", get(get_network_status))
+        
         // WebSocket endpoint for real-time updates
         .route("/api/v1/ws", get(websocket_handler))
         
@@ -206,8 +209,8 @@ async fn submit_signal(
 }
 
 async fn get_signal_trace(
-    State(server): State<Arc<HAL9Server>>,
-    Path(signal_id): Path<String>,
+    State(_server): State<Arc<HAL9Server>>,
+    Path(_signal_id): Path<String>,
 ) -> Result<impl IntoResponse, ServerError> {
     // This would require implementing signal tracing in the server
     // For now, return a placeholder
@@ -264,6 +267,23 @@ async fn export_metrics(
             Ok(Json(ApiResponse::<String>::error("Prometheus format not yet implemented")).into_response())
         }
         _ => Ok(Json(ApiResponse::<String>::error("Unsupported format")).into_response()),
+    }
+}
+
+async fn get_network_status(
+    State(server): State<Arc<HAL9Server>>,
+) -> Result<impl IntoResponse, ServerError> {
+    match server.network_status().await {
+        Some(status) => Ok(Json(ApiResponse::success(status))),
+        None => {
+            let disabled_status = crate::server::NetworkStatus {
+                enabled: false,
+                server_id: String::new(),
+                connected_servers: vec![],
+                remote_neurons: 0,
+            };
+            Ok(Json(ApiResponse::success(disabled_status)))
+        }
     }
 }
 
