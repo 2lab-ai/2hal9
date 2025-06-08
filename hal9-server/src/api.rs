@@ -14,8 +14,9 @@ use tower_http::cors::CorsLayer;
 use crate::{
     server::HAL9Server, 
     error::ServerError,
-    auth_middleware::{auth_middleware as auth_mw, optional_auth_middleware, AuthState},
+    auth_middleware::{auth_middleware as auth_mw, AuthState},
     api_auth,
+    api_codegen,
 };
 use hal9_core::NeuronSignal;
 
@@ -183,6 +184,23 @@ pub fn create_api_router(server: Arc<HAL9Server>) -> Router {
         
         router = router.merge(auth_router).merge(protected_auth_router);
     }
+    
+    // Add code generation routes if configured
+    let codegen_state = Arc::new(api_codegen::CodegenApiState {
+        server: server.clone(),
+    });
+    
+    let codegen_router = Router::new()
+        .route("/api/v1/codegen/health", get(api_codegen::codegen_health))
+        .route("/api/v1/codegen/templates", get(api_codegen::list_templates))
+        .route("/api/v1/codegen/project", post(api_codegen::generate_project))
+        .route("/api/v1/codegen/project/:id", get(api_codegen::get_project_status))
+        .route("/api/v1/codegen/complete", post(api_codegen::code_completion))
+        .route("/api/v1/codegen/review", post(api_codegen::review_code))
+        .route("/api/v1/codegen/refactor", post(api_codegen::refactor_code))
+        .with_state(codegen_state);
+    
+    router = router.merge(codegen_router);
     
     router
 }

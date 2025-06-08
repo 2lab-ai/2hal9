@@ -1,0 +1,236 @@
+# HAL9 Browser Automation Example Configuration
+
+server_id: "hal9-browser-demo"
+
+# Browser automation neurons
+neurons:
+  # L4: Web Automation Strategist
+  - id: "web-strategist"
+    layer: "L4"
+    system_prompt: |
+      You are the Web Automation Strategist. Your role is to:
+      1. Understand high-level web automation requests
+      2. Break down complex workflows into steps
+      3. Plan multi-page interactions
+      4. Handle authentication flows
+      5. Coordinate data extraction tasks
+      
+      When you receive a web automation request:
+      - Analyze the target website and requirements
+      - Create a step-by-step automation plan
+      - Consider error handling and retries
+      - Forward specific tasks to L3 neurons
+      
+      Available browser tools:
+      - browser_navigate: Navigate to URLs
+      - browser_click: Click elements
+      - browser_type: Type text
+      - browser_extract: Extract data
+      - browser_screenshot: Take screenshots
+      - browser_wait: Wait for conditions
+    forward_connections:
+      - "web-executor"
+      - "data-processor"
+    backward_connections: []
+    settings:
+      temperature: 0.7
+      enable_mcp_tools: true
+      mcp_permissions:
+        - "browser_navigate"
+        - "browser_screenshot"
+
+  # L3: Web Action Executor
+  - id: "web-executor"
+    layer: "L3"
+    system_prompt: |
+      You are the Web Action Executor. Your expertise:
+      1. Execute browser actions precisely
+      2. Handle dynamic page elements
+      3. Manage timing and waits
+      4. Deal with popups and alerts
+      5. Implement retry logic
+      
+      When you receive action instructions:
+      - Execute browser commands in sequence
+      - Wait for elements to be ready
+      - Handle errors gracefully
+      - Report results back
+      
+      Use browser tools to interact with pages.
+    forward_connections:
+      - "form-filler"
+      - "data-extractor"
+    backward_connections:
+      - "web-strategist"
+    settings:
+      temperature: 0.3
+      enable_mcp_tools: true
+      mcp_permissions:
+        - "browser_navigate"
+        - "browser_click"
+        - "browser_type"
+        - "browser_wait"
+        - "browser_screenshot"
+
+  # L2: Form Filler Specialist
+  - id: "form-filler"
+    layer: "L2"
+    system_prompt: |
+      You are the Form Filler Specialist. You excel at:
+      1. Identifying form fields
+      2. Filling forms accurately
+      3. Handling different input types
+      4. Managing dropdowns and checkboxes
+      5. Submitting forms
+      
+      When filling forms:
+      - Identify all required fields
+      - Use appropriate selectors
+      - Validate input before submission
+      - Handle form validation errors
+    forward_connections: []
+    backward_connections:
+      - "web-executor"
+    settings:
+      temperature: 0.1
+      enable_mcp_tools: true
+      mcp_permissions:
+        - "browser_click"
+        - "browser_type"
+        - "browser_wait"
+
+  # L2: Data Extractor
+  - id: "data-extractor"
+    layer: "L2"
+    system_prompt: |
+      You are the Data Extraction Specialist. You excel at:
+      1. Extracting structured data from pages
+      2. Parsing tables and lists
+      3. Getting text and attributes
+      4. Handling pagination
+      5. Formatting extracted data
+      
+      When extracting data:
+      - Use precise selectors
+      - Extract all relevant information
+      - Structure data clearly
+      - Handle missing elements gracefully
+    forward_connections: []
+    backward_connections:
+      - "web-executor"
+      - "data-processor"
+    settings:
+      temperature: 0.2
+      enable_mcp_tools: true
+      mcp_permissions:
+        - "browser_extract"
+        - "browser_wait"
+
+  # L3: Data Processor
+  - id: "data-processor"
+    layer: "L3"
+    system_prompt: |
+      You are the Data Processing neuron. Your role:
+      1. Process extracted web data
+      2. Clean and normalize information
+      3. Structure data for storage
+      4. Generate reports
+      5. Identify patterns
+      
+      When processing data:
+      - Clean extracted text
+      - Convert to structured formats
+      - Validate data quality
+      - Prepare final output
+    forward_connections:
+      - "data-extractor"
+    backward_connections:
+      - "web-strategist"
+    settings:
+      temperature: 0.5
+      enable_mcp_tools: true
+      mcp_permissions:
+        - "filesystem_write"
+
+# Browser configuration
+browser:
+  # Browser settings
+  config:
+    max_contexts: 5
+    browser_type: "chromium"
+    headless: true
+    viewport_width: 1920
+    viewport_height: 1080
+    default_timeout: 30000
+    
+    # Resource limits
+    resource_limits:
+      max_cpu_percent: 50
+      max_memory_mb: 1024
+      max_execution_time_secs: 300
+      max_concurrent_actions: 3
+    
+    # Security settings
+    security:
+      url_whitelist:
+        - "https://*.example.com/*"
+        - "https://demo.playwright.dev/*"
+        - "https://quotes.toscrape.com/*"
+      url_blacklist:
+        - "*/admin/*"
+        - "*/.git/*"
+        - "*/api/internal/*"
+      enable_credential_vault: true
+      enable_audit_log: true
+      rate_limit_per_minute: 30
+
+# Claude configuration
+claude:
+  mode: "mock"
+  api_key: ""
+  model: "claude-3-5-sonnet-20241022"
+  temperature: 0.3
+  max_tokens: 4000
+  mock_responses:
+    L4:
+      - trigger: "scrape.*quotes"
+        response: |
+          I'll help you scrape quotes from the website. Let me break this down:
+          
+          1. Navigate to the quotes website
+          2. Extract quotes and authors
+          3. Handle pagination if needed
+          4. Structure the data
+          
+          FORWARD_TO: web-executor
+          TASK: Navigate to https://quotes.toscrape.com and extract all quotes with authors
+    L3:
+      - trigger: "navigate.*extract"
+        response: |
+          Executing web scraping task:
+          
+          TOOL: browser_navigate https://quotes.toscrape.com
+          TOOL: browser_wait selector .quote
+          
+          FORWARD_TO: data-extractor
+          TASK: Extract all quotes and authors from the page
+    L2:
+      - trigger: "extract.*quotes"
+        response: |
+          Extracting quote data:
+          
+          TOOL: browser_extract .quote .text text
+          TOOL: browser_extract .quote .author text
+          
+          Found 10 quotes on this page.
+
+# Memory configuration
+memory:
+  enabled: true
+  database_path: "data/hal9_browser_memory.db"
+
+# Monitoring
+monitoring:
+  enabled: true
+  port: 9092
+  metrics_interval: 30
