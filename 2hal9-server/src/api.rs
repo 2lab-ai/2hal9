@@ -54,6 +54,7 @@ struct ServerStatus {
     uptime_seconds: u64,
     neurons: Vec<NeuronStatus>,
     metrics: MetricsSummary,
+    network_status: Option<crate::server::NetworkStatus>,
 }
 
 /// Individual neuron status
@@ -171,6 +172,7 @@ async fn get_status(
             signals_failed: status.metrics.signals_failed,
             average_latency_ms: calculate_average_latency(&status.metrics),
         },
+        network_status: status.network_status,
     };
     
     Ok(Json(ApiResponse::success(response)))

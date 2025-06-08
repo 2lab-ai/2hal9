@@ -27,13 +27,13 @@ pub struct Signal {
 }
 
 /// Deterministic mock neuron for each layer
-struct MockNeuron {
+pub struct MockNeuron {
     id: String,
     layer: String,
 }
 
 impl MockNeuron {
-    fn new(id: &str, layer: &str) -> Self {
+    pub fn new(id: &str, layer: &str) -> Self {
         Self {
             id: id.to_string(),
             layer: layer.to_string(),
@@ -41,7 +41,7 @@ impl MockNeuron {
     }
 
     /// Process signal with deterministic responses
-    async fn process(&self, signal: &Signal) -> Vec<Signal> {
+    pub async fn process(&self, signal: &Signal) -> Vec<Signal> {
         let start_time = std::time::Instant::now();
         
         // Add visual separation
@@ -91,37 +91,84 @@ impl MockNeuron {
                 ]
             }
             "L3" => {
-                // Design layer - create implementation tasks
+                // Design layer - create 2 implementation tasks per L3 neuron
                 println!("  {} Analyzing requirements...", "🔬".blue());
-                let implementation = if signal.content.contains("architecture") {
+                
+                // Each L3 neuron generates 2 L2 tasks based on its focus area
+                let implementations = if signal.content.contains("architecture") || signal.content.contains("backend") {
                     println!("  {} Backend system design identified", "→".green());
-                    if signal.content.contains("task") {
-                        "Implement backend API with REST endpoints, database schema, and authentication"
-                    } else if signal.content.contains("e-commerce") {
-                        "Implement e-commerce backend with product catalog, shopping cart, and Stripe checkout"
+                    println!("  {} Decomposing into 2 implementation tasks", "→".green());
+                    
+                    if signal.content.contains("TODO") || signal.content.contains("task") {
+                        vec![
+                            "Implement database schema with id, title, description, completed, created_at fields",
+                            "Implement repository pattern with create, read, update, delete methods"
+                        ]
+                    } else if signal.content.contains("e-commerce") || signal.content.contains("product") {
+                        vec![
+                            "Implement product schema with SKU, name, price, inventory fields",
+                            "Implement product service with CRUD and inventory tracking"
+                        ]
                     } else {
-                        "Implement real-time websocket server with Redis pub/sub for scalability"
+                        vec![
+                            "Implement message schema with sender, content, timestamp fields",
+                            "Implement message storage with Redis pub/sub for delivery"
+                        ]
+                    }
+                } else if signal.content.contains("API") || signal.content.contains("endpoint") {
+                    println!("  {} API design identified", "→".green());
+                    println!("  {} Decomposing into 2 implementation tasks", "→".green());
+                    
+                    if signal.content.contains("TODO") || signal.content.contains("task") {
+                        vec![
+                            "Implement REST endpoints: POST /todos, GET /todos, PUT /todos/:id, DELETE /todos/:id",
+                            "Implement validation middleware and error handling for API requests"
+                        ]
+                    } else if signal.content.contains("e-commerce") || signal.content.contains("product") {
+                        vec![
+                            "Implement product listing API with pagination and filters",
+                            "Implement product search with full-text and faceted search"
+                        ]
+                    } else {
+                        vec![
+                            "Implement WebSocket server for real-time connections",
+                            "Implement presence tracking and typing indicators"
+                        ]
                     }
                 } else {
                     println!("  {} Frontend interface design identified", "→".green());
+                    println!("  {} Decomposing into 2 implementation tasks", "→".green());
+                    
                     if signal.content.contains("task") {
-                        "Implement frontend with React components, state management, and styling"
+                        vec![
+                            "Implement React components for task list, task item, and task form",
+                            "Implement state management with Context API for task operations"
+                        ]
                     } else if signal.content.contains("e-commerce") {
-                        "Implement e-commerce frontend with product grid, cart management, and checkout flow"
+                        vec![
+                            "Implement product grid component with lazy loading",
+                            "Implement shopping cart with local storage persistence"
+                        ]
                     } else {
-                        "Implement real-time chat interface with WebSocket connection and message display"
+                        vec![
+                            "Implement chat message list with virtual scrolling",
+                            "Implement message input with emoji and file support"
+                        ]
                     }
                 };
                 
-                vec![Signal {
-                    id: Uuid::new_v4(),
-                    parent_id: Some(signal.id),
-                    from: self.id.clone(),
-                    to: "neuron-4".to_string(),
-                    content: implementation.to_string(),
-                    layer: "L2".to_string(),
-                    timestamp: Utc::now(),
-                }]
+                // Generate 2 L2 signals
+                implementations.iter().map(|&implementation| {
+                    Signal {
+                        id: Uuid::new_v4(),
+                        parent_id: Some(signal.id),
+                        from: self.id.clone(),
+                        to: "neuron-4".to_string(),
+                        content: implementation.to_string(),
+                        layer: "L2".to_string(),
+                        timestamp: Utc::now(),
+                    }
+                }).collect()
             }
             "L2" => {
                 // Implementation layer - generate code

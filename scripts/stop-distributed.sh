@@ -67,7 +67,7 @@ stop_servers() {
     fi
     
     # Clean up any stray processes
-    pkill -f "2hal9-server examples/distributed" 2>/dev/null || true
+    pkill -f "hal9-server examples/distributed" 2>/dev/null || true
     
     log_info "All servers stopped"
 }

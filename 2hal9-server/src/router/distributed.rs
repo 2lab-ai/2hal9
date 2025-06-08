@@ -63,14 +63,14 @@ impl DistributedRouter {
         server_id: String,
         local_router: Arc<SignalRouter>,
         transport: Arc<TcpTransport>,
-        discovery: ServiceDiscovery,
+        discovery: Arc<RwLock<ServiceDiscovery>>,
         config: DistributedConfig,
     ) -> Self {
         Self {
             server_id,
             local_router,
             transport,
-            discovery: Arc::new(RwLock::new(discovery)),
+            discovery,
             remote_neurons: Arc::new(DashMap::new()),
             config,
             shutdown_tx: None,

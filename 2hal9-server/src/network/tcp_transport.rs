@@ -56,6 +56,7 @@ impl Default for TransportConfig {
 /// TCP transport for distributed neuron communication
 pub struct TcpTransport {
     config: TransportConfig,
+    server_id: String,
     listener: Option<TcpListener>,
     connections: Arc<DashMap<String, Arc<Connection>>>,
     signal_tx: mpsc::Sender<(String, NeuronSignal)>,
@@ -73,11 +74,12 @@ struct Connection {
 
 impl TcpTransport {
     /// Create a new TCP transport
-    pub fn new(config: TransportConfig) -> Self {
+    pub fn new(config: TransportConfig, server_id: String) -> Self {
         let (signal_tx, signal_rx) = mpsc::channel(10000);
         
         Self {
             config,
+            server_id,
             listener: None,
             connections: Arc::new(DashMap::new()),
             signal_tx,
@@ -119,6 +121,7 @@ impl TcpTransport {
         let signal_tx = self.signal_tx.clone();
         let config = self.config.clone();
         let metrics = self.metrics.clone();
+        let server_id = self.server_id.clone();
         
         let (shutdown_tx, mut shutdown_rx) = mpsc::channel(1);
         self.shutdown_tx = Some(shutdown_tx);
@@ -143,6 +146,7 @@ impl TcpTransport {
                                 let signal_tx = signal_tx.clone();
                                 let config = config.clone();
                                 let metrics = metrics.clone();
+                                let server_id = server_id.clone();
                                 
                                 tokio::spawn(async move {
                                     if let Err(e) = Self::handle_connection(
@@ -151,7 +155,8 @@ impl TcpTransport {
                                         connections,
                                         signal_tx,
                                         config,
-                                        metrics
+                                        metrics,
+                                        server_id
                                     ).await {
                                         error!("Connection handler error: {}", e);
                                     }
@@ -182,13 +187,14 @@ impl TcpTransport {
         signal_tx: mpsc::Sender<(String, NeuronSignal)>,
         config: TransportConfig,
         metrics: Option<Arc<Metrics>>,
+        server_id: String,
     ) -> Result<()> {
         // Set TCP options
         stream.set_nodelay(true)
             .map_err(|e| Error::Network(format!("Failed to set TCP nodelay: {}", e)))?;
         
         // Perform handshake
-        let peer_id = Self::perform_handshake(&mut stream, &config).await?;
+        let peer_id = Self::perform_handshake(&mut stream, &config, &server_id).await?;
         info!("Handshake completed with peer {}", peer_id);
         
         // Create connection
@@ -212,11 +218,11 @@ impl TcpTransport {
     }
     
     /// Perform handshake with remote peer
-    async fn perform_handshake(stream: &mut TcpStream, config: &TransportConfig) -> Result<String> {
+    async fn perform_handshake(stream: &mut TcpStream, config: &TransportConfig, server_id: &str) -> Result<String> {
         // Send hello message
         let hello = NetworkMessage::Hello {
             version: "1.0".to_string(),
-            server_id: "test-server".to_string(), // TODO: Get from config
+            server_id: server_id.to_string(),
             capabilities: vec!["signal".to_string(), "metrics".to_string()],
         };
         
@@ -374,7 +380,7 @@ impl TcpTransport {
             .map_err(|e| Error::Network(format!("Failed to set TCP nodelay: {}", e)))?;
         
         // Perform handshake before creating connection
-        let peer_id = Self::perform_handshake(&mut stream, &self.config).await?;
+        let peer_id = Self::perform_handshake(&mut stream, &self.config, &self.server_id).await?;
         
         // Create connection with the stream
         let connection = Arc::new(Connection {

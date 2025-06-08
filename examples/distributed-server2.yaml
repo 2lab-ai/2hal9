@@ -79,7 +79,7 @@ network:
 
 # Claude configuration
 claude:
-  mode: "api"
+  mode: "mock"
   model: "claude-3-sonnet-20240229"
   temperature: 0.5
   max_tokens: 3000
@@ -111,6 +111,12 @@ claude:
               return "Distributed processing complete"
           ```
         delay_ms: 50
+
+# HTTP API configuration
+http:
+  enabled: true
+  bind_address: "127.0.0.1:8082"
+  cors_enabled: true
 
 # Monitoring
 monitoring:

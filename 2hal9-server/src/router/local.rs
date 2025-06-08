@@ -202,7 +202,7 @@ impl SignalRouter {
     /// Process a single signal
     async fn process_signal(
         registry: &Arc<NeuronRegistry>,
-        routing_table: &Arc<RoutingTable>,
+        _routing_table: &Arc<RoutingTable>,
         signal_tx: &mpsc::Sender<NeuronSignal>,
         signal: NeuronSignal,
     ) -> Result<()> {
