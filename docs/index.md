@@ -24,6 +24,9 @@ Guides for developers working on HAL9.
 In-depth technical documentation organized by component.
 
 #### [Architecture](./technical/architecture/)
+- **[Hierarchical Architecture Vision](./technical/architecture/HIERARCHICAL_ARCHITECTURE_VISION.md)** - CTO's vision for v3.0
+- **[Hierarchical Abstract Architecture](./technical/architecture/HIERARCHICAL_ABSTRACT_ARCHITECTURE.md)** - Detailed 5-layer design
+- **[Refactoring Implementation Plan](./technical/architecture/HIERARCHICAL_REFACTORING_PLAN.md)** - 21-week roadmap
 - System design patterns
 - Component interactions
 - Scaling strategies
