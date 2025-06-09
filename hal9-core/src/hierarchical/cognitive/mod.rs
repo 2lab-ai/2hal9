@@ -13,11 +13,27 @@ pub mod neurons;
 pub mod processing;
 pub mod learning;
 pub mod patterns;
+pub mod factory;
+
+// Individual neuron modules
+pub mod l1_reflexive;
+pub mod l2_implementation;
+pub mod l3_operational;
+pub mod l4_tactical;
+pub mod l5_strategic;
 
 pub use neurons::*;
 pub use processing::*;
 pub use learning::*;
 pub use patterns::*;
+pub use factory::*;
+
+// Re-export neuron types
+pub use l1_reflexive::L1ReflexiveNeuron;
+pub use l2_implementation::L2ImplementationNeuron;
+pub use l3_operational::L3OperationalNeuron;
+pub use l4_tactical::L4TacticalNeuron;
+pub use l5_strategic::L5StrategicNeuron;
 
 /// Abstract cognitive unit - base trait for all processing units
 #[async_trait]

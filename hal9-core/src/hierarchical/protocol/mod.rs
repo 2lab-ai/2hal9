@@ -11,11 +11,19 @@ pub mod messages;
 pub mod negotiation;
 pub mod versioning;
 pub mod streams;
+pub mod signal;
+pub mod gradient;
+pub mod consensus;
+pub mod manager;
+
+#[cfg(test)]
+mod tests;
 
 pub use messages::*;
 pub use negotiation::*;
 pub use versioning::*;
 pub use streams::*;
+pub use manager::*;
 
 /// Base protocol trait for all communication protocols
 #[async_trait]
