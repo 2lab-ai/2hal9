@@ -64,3 +64,10 @@ impl From<crate::playwright_stub::Error> for BrowserError {
         BrowserError::Playwright(err.to_string())
     }
 }
+
+// Convert from serde_json errors
+impl From<serde_json::Error> for BrowserError {
+    fn from(err: serde_json::Error) -> Self {
+        BrowserError::Other(anyhow::anyhow!("JSON error: {}", err))
+    }
+}

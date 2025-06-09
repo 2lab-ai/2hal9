@@ -4,8 +4,8 @@ use async_trait::async_trait;
 use serde_json::{json, Value};
 use std::sync::Arc;
 
-use hal9_core::mcp::{Tool, ToolDefinition, ToolResult, ToolContent};
-use hal9_core::Result;
+use hal9_core::mcp::tools::{Tool, ToolDefinition, ToolResult, ToolContent};
+use hal9_core::{Result, Error};
 use crate::BrowserController;
 use crate::controller::{BrowserAction, WaitCondition, ExtractType};
 
@@ -52,7 +52,7 @@ impl Tool for NavigateTool {
     
     async fn execute(&self, params: Value) -> Result<Value> {
         let url = params["url"].as_str()
-            .ok_or_else(|| anyhow::anyhow!("URL parameter is required"))?;
+            .ok_or_else(|| Error::InvalidInput("URL parameter is required".to_string()))?;
         
         let action = BrowserAction::Navigate { 
             url: url.to_string() 
@@ -63,7 +63,7 @@ impl Tool for NavigateTool {
                 "status": "success",
                 "result": result
             })),
-            Err(e) => Err(anyhow::anyhow!("Navigation failed: {}", e)),
+            Err(e) => Err(Error::ToolExecution(format!("Navigation failed: {}", e))),
         }
     }
 }
@@ -104,7 +104,7 @@ impl Tool for ClickTool {
     
     async fn execute(&self, params: Value) -> Result<Value> {
         let selector = params["selector"].as_str()
-            .ok_or_else(|| anyhow::anyhow!("Selector parameter is required"))?;
+            .ok_or_else(|| Error::InvalidInput("Selector parameter is required".to_string()))?;
         
         let action = BrowserAction::Click { 
             selector: selector.to_string() 
@@ -115,7 +115,7 @@ impl Tool for ClickTool {
                 "status": "success",
                 "result": result
             })),
-            Err(e) => Err(anyhow::anyhow!("Click failed: {}", e)),
+            Err(e) => Err(Error::ToolExecution(format!("Click failed: {}", e))),
         }
     }
 }
@@ -160,9 +160,9 @@ impl Tool for TypeTool {
     
     async fn execute(&self, params: Value) -> Result<Value> {
         let selector = params["selector"].as_str()
-            .ok_or_else(|| anyhow::anyhow!("Selector parameter is required"))?;
+            .ok_or_else(|| Error::InvalidInput("Selector parameter is required".to_string()))?;
         let text = params["text"].as_str()
-            .ok_or_else(|| anyhow::anyhow!("Text parameter is required"))?;
+            .ok_or_else(|| Error::InvalidInput("Text parameter is required".to_string()))?;
         
         let action = BrowserAction::Type { 
             selector: selector.to_string(),
@@ -174,7 +174,7 @@ impl Tool for TypeTool {
                 "status": "success",
                 "result": result
             })),
-            Err(e) => Err(anyhow::anyhow!("Type failed: {}", e)),
+            Err(e) => Err(Error::ToolExecution(format!("Type failed: {}", e))),
         }
     }
 }
@@ -225,13 +225,13 @@ impl Tool for ExtractTool {
     
     async fn execute(&self, params: Value) -> Result<Value> {
         let selector = params["selector"].as_str()
-            .ok_or_else(|| anyhow::anyhow!("Selector parameter is required"))?;
+            .ok_or_else(|| Error::InvalidInput("Selector parameter is required".to_string()))?;
         
         let extract_type = match params["type"].as_str() {
             Some("html") => ExtractType::Html,
             Some("attribute") => {
                 let attr = params["attribute"].as_str()
-                    .ok_or_else(|| anyhow::anyhow!("Attribute parameter required for type 'attribute'"))?;
+                    .ok_or_else(|| Error::InvalidInput("Attribute parameter required for type 'attribute'".to_string()))?;
                 ExtractType::Attribute(attr.to_string())
             }
             Some("all_text") => ExtractType::AllText,
@@ -248,7 +248,7 @@ impl Tool for ExtractTool {
                 "status": "success",
                 "result": result
             })),
-            Err(e) => Err(anyhow::anyhow!("Extract failed: {}", e)),
+            Err(e) => Err(Error::ToolExecution(format!("Extract failed: {}", e))),
         }
     }
 }
@@ -297,7 +297,7 @@ impl Tool for ScreenshotTool {
                 "status": "success",
                 "result": result
             })),
-            Err(e) => Err(anyhow::anyhow!("Screenshot failed: {}", e)),
+            Err(e) => Err(Error::ToolExecution(format!("Screenshot failed: {}", e))),
         }
     }
 }
@@ -347,21 +347,21 @@ impl Tool for WaitForTool {
     
     async fn execute(&self, params: Value) -> Result<Value> {
         let condition_type = params["condition"].as_str()
-            .ok_or_else(|| anyhow::anyhow!("Condition parameter is required"))?;
+            .ok_or_else(|| Error::InvalidInput("Condition parameter is required".to_string()))?;
         
         let condition = match condition_type {
             "selector" => {
                 let selector = params["selector"].as_str()
-                    .ok_or_else(|| anyhow::anyhow!("Selector required for 'selector' condition"))?;
+                    .ok_or_else(|| Error::InvalidInput("Selector required for 'selector' condition".to_string()))?;
                 WaitCondition::Selector(selector.to_string())
             }
             "navigation" => WaitCondition::Navigation,
             "duration" => {
                 let duration = params["duration"].as_u64()
-                    .ok_or_else(|| anyhow::anyhow!("Duration required for 'duration' condition"))?;
+                    .ok_or_else(|| Error::InvalidInput("Duration required for 'duration' condition".to_string()))?;
                 WaitCondition::Duration(duration)
             }
-            _ => return Err(anyhow::anyhow!("Invalid condition type")),
+            _ => return Err(Error::InvalidInput("Invalid condition type".to_string())),
         };
         
         let action = BrowserAction::WaitFor { condition };
@@ -371,16 +371,13 @@ impl Tool for WaitForTool {
                 "status": "success",
                 "result": result
             })),
-            Err(e) => Err(anyhow::anyhow!("Wait failed: {}", e)),
+            Err(e) => Err(Error::ToolExecution(format!("Wait failed: {}", e))),
         }
     }
 }
 
-/// Browser action types for tool execution
-use crate::controller::WaitCondition;
-
 /// Create all browser tools
-pub fn create_browser_tools(controller: Arc<BrowserController>) -> Vec<Box<dyn McpTool>> {
+pub fn create_browser_tools(controller: Arc<BrowserController>) -> Vec<Box<dyn Tool>> {
     vec![
         Box::new(NavigateTool::new(controller.clone())),
         Box::new(ClickTool::new(controller.clone())),
@@ -401,7 +398,7 @@ mod tests {
         let tool = NavigateTool::new(controller);
         
         assert_eq!(tool.name(), "browser_navigate");
-        let schema = tool.parameters_schema();
-        assert!(schema["properties"]["url"].is_object());
+        let definition = tool.definition();
+        assert!(definition.input_schema["properties"]["url"].is_object());
     }
 }
