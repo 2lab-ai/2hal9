@@ -1,0 +1,41 @@
+[workspace]
+members = [
+    "../../../L2_implementation/neurons/core",
+    "../../../L2_implementation/codegen/src/..",
+    "../../../L3_operational/architecture/server/..",
+    "../../../L3_operational/architecture/browser/..",
+    "../../../L3_operational/architecture/cli/..",
+    "../../../L4_tactical/planning/migration/tools/hal9-migrate",
+    "../../../L5_strategic/innovation/plugin-system",
+    "legacy-crates/hal9-core",
+    "legacy-crates/hal9-server",
+    "legacy-crates/hal9-cli",
+    "legacy-crates/hal9-browser",
+    "legacy-crates/hal9-codegen",
+    "legacy-crates/hal9-plugin-sdk",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["HAL9 Team"]
+license = "MIT"
+
+[workspace.dependencies]
+tokio = { version = "1.35", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+async-trait = "0.1"
+uuid = { version = "1.6", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "sqlite", "chrono", "uuid"] }
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["trace"] }
+hyper = "1.0"
+futures = "0.3"
+dashmap = "5.5"
+parking_lot = "0.12"
