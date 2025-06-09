@@ -15,6 +15,9 @@ pub mod transport;
 pub mod storage;
 pub mod resources;
 
+#[cfg(test)]
+mod tests;
+
 pub use runtime::*;
 pub use transport::*;
 pub use storage::*;
