@@ -2871,6 +2871,7 @@ dependencies = [
  "bcrypt",
  "bincode",
  "chrono",
+ "criterion",
  "dashmap",
  "flate2",
  "futures",

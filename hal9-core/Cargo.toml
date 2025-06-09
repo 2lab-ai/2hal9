@@ -65,3 +65,8 @@ petgraph = "0.6"
 
 [dev-dependencies]
 tokio-test = { workspace = true }
+criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
+
+[[bench]]
+name = "hierarchical_performance_benchmark"
+harness = false
