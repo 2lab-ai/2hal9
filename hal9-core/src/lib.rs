@@ -9,6 +9,9 @@ pub mod memory;
 pub mod learning;
 pub mod auth;
 
+// Hierarchical architecture modules
+pub mod hierarchical;
+
 pub use error::{Error, Result};
 pub use signal::{NeuronSignal, PropagationType, SignalPayload, Activation, Gradient};
 pub use config::{ServerConfig, NeuronConfig};
