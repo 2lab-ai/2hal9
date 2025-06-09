@@ -184,36 +184,36 @@ impl DatabaseOperations for DatabasePool {
     async fn insert_signal(&self, signal: &NeuronSignal) -> Result<()> {
         match self {
             Self::Sqlite(pool) => {
-                sqlx::query!(
+                sqlx::query(
                     r#"
                     INSERT INTO signals (id, from_neuron, to_neuron, layer_from, layer_to, content, timestamp)
                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-                    "#,
-                    signal.signal_id.to_string(),
-                    signal.from_neuron,
-                    signal.to_neuron,
-                    signal.layer_from,
-                    signal.layer_to,
-                    signal.payload.activation.content,
-                    signal.timestamp.timestamp()
+                    "#
                 )
+                .bind(signal.signal_id.to_string())
+                .bind(&signal.from_neuron)
+                .bind(&signal.to_neuron)
+                .bind(&signal.layer_from)
+                .bind(&signal.layer_to)
+                .bind(&signal.payload.activation.content)
+                .bind(signal.timestamp.timestamp())
                 .execute(pool)
                 .await?;
             }
             Self::Postgres(pool) => {
-                sqlx::query!(
+                sqlx::query(
                     r#"
                     INSERT INTO signals (id, from_neuron, to_neuron, layer_from, layer_to, content, timestamp)
                     VALUES ($1, $2, $3, $4, $5, $6, $7)
-                    "#,
-                    signal.signal_id,
-                    signal.from_neuron,
-                    signal.to_neuron,
-                    signal.layer_from,
-                    signal.layer_to,
-                    signal.payload.activation.content,
-                    signal.timestamp
+                    "#
                 )
+                .bind(signal.signal_id)
+                .bind(&signal.from_neuron)
+                .bind(&signal.to_neuron)
+                .bind(&signal.layer_from)
+                .bind(&signal.layer_to)
+                .bind(&signal.payload.activation.content)
+                .bind(signal.timestamp)
                 .execute(pool)
                 .await?;
             }
@@ -230,20 +230,20 @@ impl DatabaseOperations for DatabasePool {
     async fn update_neuron_state(&self, neuron_id: &str, state: &str) -> Result<()> {
         match self {
             Self::Sqlite(pool) => {
-                sqlx::query!(
-                    "UPDATE neurons SET state = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2",
-                    state,
-                    neuron_id
+                sqlx::query(
+                    "UPDATE neurons SET state = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2"
                 )
+                .bind(state)
+                .bind(neuron_id)
                 .execute(pool)
                 .await?;
             }
             Self::Postgres(pool) => {
-                sqlx::query!(
-                    "UPDATE neurons SET state = $1, updated_at = NOW() WHERE id = $2",
-                    state,
-                    neuron_id
+                sqlx::query(
+                    "UPDATE neurons SET state = $1, updated_at = NOW() WHERE id = $2"
                 )
+                .bind(state)
+                .bind(neuron_id)
                 .execute(pool)
                 .await?;
             }
@@ -259,19 +259,19 @@ impl DatabaseOperations for DatabasePool {
     async fn cleanup_old_data(&self, days: i64) -> Result<u64> {
         let count = match self {
             Self::Sqlite(pool) => {
-                let result = sqlx::query!(
-                    "DELETE FROM signals WHERE timestamp < datetime('now', '-' || ?1 || ' days')",
-                    days
+                let result = sqlx::query(
+                    "DELETE FROM signals WHERE timestamp < datetime('now', '-' || ?1 || ' days')"
                 )
+                .bind(days)
                 .execute(pool)
                 .await?;
                 result.rows_affected()
             }
             Self::Postgres(pool) => {
-                let result = sqlx::query!(
-                    "DELETE FROM signals WHERE timestamp < NOW() - INTERVAL '$1 days'",
-                    days
+                let result = sqlx::query(
+                    "DELETE FROM signals WHERE timestamp < NOW() - make_interval(days => $1)"
                 )
+                .bind(days as i32)
                 .execute(pool)
                 .await?;
                 result.rows_affected()
