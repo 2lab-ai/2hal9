@@ -99,24 +99,24 @@ impl BrowserController {
         drop(pool); // Release lock early
         
         // Execute action
-        let result = match action {
+        let result = match &action {
             BrowserAction::Navigate { url } => {
-                self.navigate(context, url).await
+                self.navigate(context, url.clone()).await
             }
             BrowserAction::Click { selector } => {
-                self.click(context, selector).await
+                self.click(context, selector.clone()).await
             }
             BrowserAction::Type { selector, text } => {
-                self.type_text(context, selector, text).await
+                self.type_text(context, selector.clone(), text.clone()).await
             }
             BrowserAction::Extract { selector, extract_type } => {
-                self.extract(context, selector, extract_type).await
+                self.extract(context, selector.clone(), extract_type.clone()).await
             }
             BrowserAction::Screenshot { full_page } => {
-                self.screenshot(context, full_page).await
+                self.screenshot(context, *full_page).await
             }
             BrowserAction::WaitFor { condition } => {
-                self.wait_for(context, condition).await
+                self.wait_for(context, condition.clone()).await
             }
         };
         

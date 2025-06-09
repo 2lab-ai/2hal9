@@ -207,7 +207,7 @@ impl CredentialVault {
         let rng = SystemRandom::new();
         let mut key_bytes = [0u8; 32];
         rng.fill(&mut key_bytes).unwrap();
-        let key = Key::from_slice(&key_bytes);
+        let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
         
         Self {
             credentials: HashMap::new(),
