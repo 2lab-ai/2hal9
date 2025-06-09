@@ -13,3 +13,6 @@ pub use session_manager::{DistributedSessionManager, Session};
 pub use connection_pool::{OptimizedConnectionPool, PoolConfig};
 pub use geo_routing::{GeoRouter, Region};
 pub use health_check::{HealthChecker, HealthStatus};
+
+#[cfg(test)]
+mod tests;

@@ -13,3 +13,6 @@ pub use incentives::{TokenEconomics, RewardDistribution};
 pub use proof::{ComputationProof, ProofVerifier};
 pub use storage::{IPFSStorage, DecentralizedStorage};
 pub use service::{BlockchainService, BlockchainConfig, BlockchainStats};
+
+#[cfg(test)]
+mod tests;
