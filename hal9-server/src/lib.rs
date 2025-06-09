@@ -9,7 +9,9 @@ pub mod circuit_breaker;
 pub mod claude;
 pub mod cost_tracker;
 pub mod database;
-pub mod enterprise;
+pub mod database_runtime;
+// TODO: Fix database abstraction issues
+// pub mod enterprise;
 pub mod error;
 pub mod memory_manager;
 pub mod metrics;
@@ -18,7 +20,8 @@ pub mod neuron;
 pub mod performance;
 pub mod prometheus_exporter;
 pub mod router;
-pub mod scaling;
+// TODO: Fix database abstraction issues
+// pub mod scaling;
 pub mod server;
 
 #[cfg(feature = "plugins")]
