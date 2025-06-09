@@ -7,7 +7,8 @@ use url::Url;
 use governor::{Quota, RateLimiter, clock::{QuantaInstant, QuantaClock}};
 use governor::state::{InMemoryState, NotKeyed};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
-use aes_gcm::aead::{Aead, NewAead};
+use aes_gcm::aead::Aead;
+use aes_gcm::KeyInit;
 use ring::rand::{SecureRandom, SystemRandom};
 use tracing::{info, warn, debug};
 

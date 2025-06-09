@@ -229,8 +229,10 @@ impl BrowserController {
         
         let page = context.page();
         
-        let screenshot_data = page.screenshot()
+        let screenshot_builder = page.screenshot().await;
+        let screenshot_data = screenshot_builder
             .full_page(full_page)
+            .r#await()
             .await
             .map_err(|e| BrowserError::Playwright(e.to_string()))?;
         

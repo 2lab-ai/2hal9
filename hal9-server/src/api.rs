@@ -1,4 +1,4 @@
-//! HTTP API endpoints for 2HAL9 server
+//! HTTP API endpoints for HAL9 server
 
 use axum::{
     extract::{State, Json, Path, Query},
@@ -19,6 +19,8 @@ use crate::{
     api_codegen,
 };
 use hal9_core::NeuronSignal;
+
+pub mod graphql;
 
 /// API response wrapper
 #[derive(Debug, Serialize)]
@@ -201,6 +203,30 @@ pub fn create_api_router(server: Arc<HAL9Server>) -> Router {
         .with_state(codegen_state);
     
     router = router.merge(codegen_router);
+    
+    // Add GraphQL endpoints if enabled
+    #[cfg(feature = "graphql")]
+    {
+        use crate::api::graphql::{create_graphql_schema, graphql_routes, EventBus};
+        use tokio::sync::RwLock;
+        
+        // Create GraphQL schema with all required services
+        let event_bus = Arc::new(EventBus::new(10000));
+        let graphql_schema = create_graphql_schema(
+            server.db.clone(),
+            auth_state.auth_service.clone(),
+            server.org_service.clone(),
+            server.team_service.clone(),
+            Arc::new(RwLock::new(server.neuron_manager.clone())),
+            server.router.clone(),
+            server.memory_manager.clone(),
+            server.metrics.clone(),
+            event_bus,
+        );
+        
+        // Add GraphQL routes
+        router = router.merge(graphql_routes(graphql_schema));
+    }
     
     router
 }

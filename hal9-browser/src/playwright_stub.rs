@@ -157,7 +157,7 @@ impl ScreenshotBuilder {
         self
     }
     
-    pub async fn await(self) -> Result<Vec<u8>, Error> {
+    pub async fn r#await(self) -> Result<Vec<u8>, Error> {
         Ok(vec![0u8; 100]) // Dummy image data
     }
 }
