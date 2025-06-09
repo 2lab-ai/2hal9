@@ -20,6 +20,7 @@ use crate::{
 };
 use hal9_core::NeuronSignal;
 
+#[cfg(feature = "graphql")]
 pub mod graphql;
 
 /// API response wrapper

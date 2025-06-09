@@ -1,6 +1,6 @@
 //! User management module
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use bcrypt::{hash, verify, DEFAULT_COST};

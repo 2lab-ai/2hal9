@@ -8,6 +8,9 @@ use std::time::Duration;
 use tracing::{info, warn, debug};
 use uuid::Uuid;
 
+/// Type alias for Redis connection pool
+pub type RedisPool = bb8::Pool<RedisConnectionManager>;
+
 /// Cache configuration
 #[derive(Debug, Clone)]
 pub struct CacheConfig {
