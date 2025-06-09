@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAL9 Migration Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            border-radius: 10px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            color: #00ff88;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+
+        .subtitle {
+            color: #a0a0a0;
+            font-size: 1.2em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.2);
+        }
+
+        .card h2 {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            color: #00ff88;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .metric-value {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .good { color: #00ff88; }
+        .warning { color: #ffaa00; }
+        .error { color: #ff4444; }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #333;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00cc66);
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #000;
+        }
+
+        .events {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .event {
+            padding: 10px;
+            margin-bottom: 5px;
+            background: #222;
+            border-radius: 5px;
+            border-left: 3px solid #666;
+        }
+
+        .event.info { border-left-color: #00ff88; }
+        .event.warn { border-left-color: #ffaa00; }
+        .event.error { border-left-color: #ff4444; }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .feature {
+            padding: 10px;
+            background: #222;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .feature.enabled {
+            border: 1px solid #00ff88;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 10px;
+        }
+
+        .status-indicator.active {
+            background: #00ff88;
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        .status-indicator.inactive {
+            background: #666;
+        }
+
+        .phase-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            background: #2a5298;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .updating {
+            animation: pulse 2s infinite;
+        }
+
+        .chart-container {
+            height: 200px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>HAL9 Migration Dashboard</h1>
+            <div class="subtitle">
+                Real-time monitoring of hierarchical architecture migration
+                <span class="phase-badge" id="current-phase">Loading...</span>
+            </div>
+        </header>
+
+        <div class="grid">
+            <!-- Migration Progress Card -->
+            <div class="card">
+                <h2>Migration Progress</h2>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-bar" style="width: 0%">0%</div>
+                </div>
+                <div class="metric">
+                    <span>Neurons Migrated</span>
+                    <span class="metric-value" id="neurons-migrated">0/0</span>
+                </div>
+            </div>
+
+            <!-- System Health Card -->
+            <div class="card">
+                <h2>System Health</h2>
+                <div class="metric">
+                    <span>Error Rate</span>
+                    <span class="metric-value" id="error-rate">0%</span>
+                </div>
+                <div class="metric">
+                    <span>Latency (p99)</span>
+                    <span class="metric-value" id="latency">0ms</span>
+                </div>
+                <div class="metric">
+                    <span>Throughput</span>
+                    <span class="metric-value" id="throughput">0 req/s</span>
+                </div>
+            </div>
+
+            <!-- Resource Usage Card -->
+            <div class="card">
+                <h2>Resource Usage</h2>
+                <div class="metric">
+                    <span>CPU Usage</span>
+                    <span class="metric-value" id="cpu-usage">0%</span>
+                </div>
+                <div class="metric">
+                    <span>Memory Usage</span>
+                    <span class="metric-value" id="memory-usage">0%</span>
+                </div>
+                <div class="metric">
+                    <span>Health Status</span>
+                    <span class="metric-value">
+                        <span id="health-status">Unknown</span>
+                        <span class="status-indicator" id="health-indicator"></span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Feature Flags Card -->
+            <div class="card">
+                <h2>Feature Flags</h2>
+                <div class="feature-grid" id="features-container">
+                    <!-- Features will be populated here -->
+                </div>
+            </div>
+
+            <!-- Recent Events Card -->
+            <div class="card">
+                <h2>Recent Events</h2>
+                <div class="events" id="events-container">
+                    <!-- Events will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Chart -->
+        <div class="card">
+            <h2>Performance Trends</h2>
+            <div class="chart-container">
+                <canvas id="performance-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API endpoints
+        const API_BASE = '';
+        
+        // Update intervals
+        const UPDATE_INTERVAL = 5000; // 5 seconds
+        
+        // Chart data
+        const chartData = {
+            labels: [],
+            errorRates: [],
+            latencies: [],
+            throughputs: []
+        };
+        const MAX_CHART_POINTS = 20;
+
+        // Update functions
+        async function updateStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/status`);
+                const data = await response.json();
+                
+                document.getElementById('current-phase').textContent = 
+                    data.phase.charAt(0).toUpperCase() + data.phase.slice(1);
+                
+                const progressPercent = Math.round(data.progress * 100);
+                const progressBar = document.getElementById('progress-bar');
+                progressBar.style.width = `${progressPercent}%`;
+                progressBar.textContent = `${progressPercent}%`;
+                
+                document.getElementById('neurons-migrated').textContent = 
+                    `${data.migrated}/${data.total}`;
+                
+                const healthIndicator = document.getElementById('health-indicator');
+                const healthStatus = document.getElementById('health-status');
+                if (data.health) {
+                    healthStatus.textContent = 'Healthy';
+                    healthStatus.className = 'good';
+                    healthIndicator.className = 'status-indicator active';
+                } else {
+                    healthStatus.textContent = 'Unhealthy';
+                    healthStatus.className = 'error';
+                    healthIndicator.className = 'status-indicator inactive';
+                }
+            } catch (error) {
+                console.error('Failed to update status:', error);
+            }
+        }
+
+        async function updateMetrics() {
+            try {
+                const response = await fetch(`${API_BASE}/api/metrics`);
+                const data = await response.json();
+                
+                // Update error rate
+                const errorRate = document.getElementById('error-rate');
+                const errorPercent = (data.error_rate * 100).toFixed(2);
+                errorRate.textContent = `${errorPercent}%`;
+                errorRate.className = `metric-value ${
+                    data.error_rate < 0.01 ? 'good' : 
+                    data.error_rate < 0.05 ? 'warning' : 'error'
+                }`;
+                
+                // Update latency
+                const latency = document.getElementById('latency');
+                latency.textContent = `${data.latency_p99.toFixed(1)}ms`;
+                latency.className = `metric-value ${
+                    data.latency_p99 < 10 ? 'good' : 
+                    data.latency_p99 < 50 ? 'warning' : 'error'
+                }`;
+                
+                // Update throughput
+                document.getElementById('throughput').textContent = 
+                    `${Math.round(data.throughput_rps)} req/s`;
+                
+                // Update resource usage
+                const cpuUsage = document.getElementById('cpu-usage');
+                const cpuPercent = Math.round(data.cpu_usage * 100);
+                cpuUsage.textContent = `${cpuPercent}%`;
+                cpuUsage.className = `metric-value ${
+                    data.cpu_usage < 0.7 ? 'good' : 
+                    data.cpu_usage < 0.85 ? 'warning' : 'error'
+                }`;
+                
+                const memUsage = document.getElementById('memory-usage');
+                const memPercent = Math.round(data.memory_usage * 100);
+                memUsage.textContent = `${memPercent}%`;
+                memUsage.className = `metric-value ${
+                    data.memory_usage < 0.8 ? 'good' : 
+                    data.memory_usage < 0.9 ? 'warning' : 'error'
+                }`;
+                
+                // Update chart data
+                const now = new Date().toLocaleTimeString();
+                chartData.labels.push(now);
+                chartData.errorRates.push(data.error_rate * 100);
+                chartData.latencies.push(data.latency_p99);
+                chartData.throughputs.push(data.throughput_rps / 100); // Scale down
+                
+                // Keep only recent data
+                if (chartData.labels.length > MAX_CHART_POINTS) {
+                    chartData.labels.shift();
+                    chartData.errorRates.shift();
+                    chartData.latencies.shift();
+                    chartData.throughputs.shift();
+                }
+                
+                updateChart();
+            } catch (error) {
+                console.error('Failed to update metrics:', error);
+            }
+        }
+
+        async function updateEvents() {
+            try {
+                const response = await fetch(`${API_BASE}/api/events`);
+                const events = await response.json();
+                
+                const container = document.getElementById('events-container');
+                container.innerHTML = events.map(event => {
+                    const levelClass = event.level.toLowerCase();
+                    return `
+                        <div class="event ${levelClass}">
+                            <strong>${event.timestamp}</strong> 
+                            [${event.level}] ${event.message}
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Failed to update events:', error);
+            }
+        }
+
+        async function updateFeatures() {
+            try {
+                const response = await fetch(`${API_BASE}/api/features`);
+                const features = await response.json();
+                
+                const container = document.getElementById('features-container');
+                container.innerHTML = features.map(feature => `
+                    <div class="feature ${feature.enabled ? 'enabled' : ''}">
+                        <span>${feature.name}</span>
+                        <span>
+                            ${feature.percentage !== null ? `${feature.percentage}%` : ''}
+                            <span class="status-indicator ${feature.enabled ? 'active' : 'inactive'}"></span>
+                        </span>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to update features:', error);
+            }
+        }
+
+        // Simple chart rendering (without external library)
+        function updateChart() {
+            const canvas = document.getElementById('performance-chart');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            const width = canvas.width;
+            const height = canvas.height;
+            const padding = 40;
+            const chartWidth = width - 2 * padding;
+            const chartHeight = height - 2 * padding;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+            
+            // Draw axes
+            ctx.strokeStyle = '#444';
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, height - padding);
+            ctx.lineTo(width - padding, height - padding);
+            ctx.stroke();
+            
+            if (chartData.labels.length < 2) return;
+            
+            // Draw lines
+            const datasets = [
+                { data: chartData.errorRates, color: '#ff4444', label: 'Error Rate %' },
+                { data: chartData.latencies, color: '#ffaa00', label: 'Latency ms' },
+                { data: chartData.throughputs, color: '#00ff88', label: 'Throughput /100' }
+            ];
+            
+            datasets.forEach(dataset => {
+                ctx.strokeStyle = dataset.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                
+                dataset.data.forEach((value, index) => {
+                    const x = padding + (index / (chartData.labels.length - 1)) * chartWidth;
+                    const y = height - padding - (value / 100) * chartHeight;
+                    
+                    if (index === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                
+                ctx.stroke();
+            });
+            
+            // Draw legend
+            ctx.font = '12px sans-serif';
+            datasets.forEach((dataset, index) => {
+                ctx.fillStyle = dataset.color;
+                ctx.fillRect(width - 150, 20 + index * 20, 10, 10);
+                ctx.fillText(dataset.label, width - 130, 28 + index * 20);
+            });
+        }
+
+        // Update all data
+        async function updateAll() {
+            await Promise.all([
+                updateStatus(),
+                updateMetrics(),
+                updateEvents(),
+                updateFeatures()
+            ]);
+        }
+
+        // Initialize and start updates
+        updateAll();
+        setInterval(updateAll, UPDATE_INTERVAL);
+
+        // Add visual feedback for updates
+        setInterval(() => {
+            document.querySelectorAll('.metric-value').forEach(el => {
+                el.classList.add('updating');
+                setTimeout(() => el.classList.remove('updating'), 1000);
+            });
+        }, UPDATE_INTERVAL);
+    </script>
+</body>
+</html>

@@ -12,6 +12,9 @@ pub mod auth;
 // Hierarchical architecture modules
 pub mod hierarchical;
 
+// Migration infrastructure
+pub mod migration;
+
 pub use error::{Error, Result};
 pub use signal::{NeuronSignal, PropagationType, SignalPayload, Activation, Gradient};
 pub use config::{ServerConfig, NeuronConfig};

@@ -5,6 +5,7 @@ members = [
     "hal9-cli",
     "hal9-codegen",
     "hal9-browser",
+    "hal9-migrate",
     "mvp"
 ]
 resolver = "2"
