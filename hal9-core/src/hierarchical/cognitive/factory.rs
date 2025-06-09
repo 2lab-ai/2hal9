@@ -105,7 +105,7 @@ impl<N: CognitiveUnit> CognitiveUnitAdapter<N> {
 impl<N> CognitiveUnit for CognitiveUnitAdapter<N>
 where
     N: CognitiveUnit<Input = CognitiveInput, Output = CognitiveOutput>,
-    N::State: CognitiveState + Into<BasicCognitiveState>,
+    N::State: CognitiveState,
 {
     type Input = CognitiveInput;
     type Output = CognitiveOutput;

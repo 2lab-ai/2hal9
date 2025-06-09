@@ -260,7 +260,7 @@ impl Protocol for SignalProtocol {
     }
     
     fn version(&self) -> ProtocolVersion {
-        self.version
+        self.version.clone()
     }
     
     async fn negotiate(&self, peer_capabilities: &ProtocolCapabilities) -> Result<NegotiatedProtocol> {
@@ -274,7 +274,7 @@ impl Protocol for SignalProtocol {
         };
         
         let negotiated = NegotiatedProtocol {
-            version: self.version,
+            version: self.version.clone(),
             compression,
             encryption: EncryptionType::None, // Signals are not sensitive
             max_message_size: peer_capabilities.max_message_size.min(1_000_000), // 1MB max

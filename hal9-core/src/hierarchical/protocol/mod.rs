@@ -72,7 +72,7 @@ pub trait TypedProtocol: Protocol {
 impl<T: Protocol> TypedProtocol for T {}
 
 /// Protocol version information
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ProtocolVersion {
     pub major: u16,
     pub minor: u16,
@@ -100,7 +100,7 @@ pub struct ProtocolCapabilities {
     pub ordered_delivery: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CompressionType {
     None,
     Gzip,
@@ -108,7 +108,7 @@ pub enum CompressionType {
     Lz4,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EncryptionType {
     None,
     Tls,

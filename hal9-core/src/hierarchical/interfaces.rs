@@ -8,6 +8,7 @@ use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 use std::any::Any;
 use std::collections::HashMap;
+use std::sync::Arc;
 use crate::Result;
 
 /// Base interface that all layers must implement
@@ -344,7 +345,7 @@ pub struct LegacyNeuronAdapter {
     message_receiver: tokio::sync::mpsc::Receiver<LayerMessage>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct AdapterMetrics {
     signals_adapted: u64,
     messages_converted: u64,
@@ -355,13 +356,14 @@ struct AdapterMetrics {
 impl LegacyNeuronAdapter {
     pub fn new(neuron: Box<dyn crate::neuron::NeuronInterface>, layer: LayerId) -> Self {
         let neuron_id = neuron.id();
+        let neuron_uuid = Uuid::parse_str(neuron_id).unwrap_or_else(|_| Uuid::new_v4());
         let (signal_tx, _signal_rx) = tokio::sync::mpsc::channel(100);
         let (_message_tx, message_rx) = tokio::sync::mpsc::channel(100);
         
         Self {
             legacy_neuron: neuron,
             layer_mapping: layer,
-            neuron_id,
+            neuron_id: neuron_uuid,
             metrics: std::sync::Arc::new(parking_lot::Mutex::new(AdapterMetrics::default())),
             signal_buffer: signal_tx,
             message_receiver: message_rx,
@@ -453,22 +455,24 @@ impl LegacyNeuronAdapter {
     }
     
     /// Run the adapter as a bidirectional bridge
-    pub async fn run_bridge(mut self) -> Result<()> {
+    pub async fn run_bridge(self) -> Result<()> {
         let (signal_tx, mut signal_rx) = tokio::sync::mpsc::channel::<crate::NeuronSignal>(100);
-        let message_sender = self.signal_buffer.clone();
-        let metrics = self.metrics.clone();
+        let adapter = Arc::new(tokio::sync::Mutex::new(self));
+        let adapter1 = adapter.clone();
+        let adapter2 = adapter.clone();
         
         // Task to process legacy signals
         let signal_task = tokio::spawn(async move {
             while let Some(signal) = signal_rx.recv().await {
-                match self.adapt_signal(&signal).await {
+                let mut adapter = adapter1.lock().await;
+                match adapter.adapt_signal(&signal).await {
                     Ok(message) => {
                         // Send to hierarchical system
                         tracing::debug!("Adapted signal {} to message", signal.signal_id);
                     }
                     Err(e) => {
                         tracing::error!("Failed to adapt signal: {}", e);
-                        metrics.lock().errors += 1;
+                        adapter.metrics.lock().errors += 1;
                     }
                 }
             }
@@ -476,16 +480,17 @@ impl LegacyNeuronAdapter {
         
         // Task to process hierarchical messages
         let message_task = tokio::spawn(async move {
-            while let Some(message) = self.message_receiver.recv().await {
-                match self.convert_message(&message).await {
+            let mut adapter = adapter2.lock().await;
+            while let Some(message) = adapter.message_receiver.recv().await {
+                match adapter.convert_message(&message).await {
                     Ok(signal) => {
-                        if let Err(e) = message_sender.send(signal).await {
+                        if let Err(e) = adapter.signal_buffer.send(signal).await {
                             tracing::error!("Failed to send converted signal: {}", e);
                         }
                     }
                     Err(e) => {
                         tracing::error!("Failed to convert message: {}", e);
-                        self.metrics.lock().errors += 1;
+                        adapter.metrics.lock().errors += 1;
                     }
                 }
             }
@@ -500,9 +505,7 @@ impl LegacyNeuronAdapter {
     fn determine_target_layer(&self, signal: &crate::NeuronSignal) -> LayerId {
         // Analyze signal metadata to determine target layer
         if let Some(target) = signal.metadata.get("target_layer") {
-            if let Some(layer_str) = target.as_str() {
-                return Self::map_layer(layer_str);
-            }
+            return Self::map_layer(target);
         }
         
         // Default to same layer
@@ -551,7 +554,7 @@ impl LayerInterface for LegacyNeuronAdapter {
             features: vec![
                 "legacy-signal-conversion".to_string(),
                 "bidirectional-bridge".to_string(),
-                format!("neuron-{}", self.legacy_neuron.kind()),
+                format!("neuron-{}", self.legacy_neuron.layer().as_str()),
             ],
             dependencies: vec![],
             resource_requirements: ResourceRequirements {
@@ -564,15 +567,38 @@ impl LayerInterface for LegacyNeuronAdapter {
     }
     
     async fn initialize(&mut self, _config: LayerConfig) -> Result<()> {
-        self.legacy_neuron.initialize().await
+        // Legacy neurons are pre-initialized
+        Ok(())
     }
     
     async fn process_upward(&mut self, input: LayerMessage) -> Result<LayerMessage> {
         // Convert to signal and process through legacy neuron
         let signal = self.convert_message(&input).await?;
         
-        match self.legacy_neuron.process(signal).await {
-            Ok(response) => self.adapt_signal(&response).await,
+        match self.legacy_neuron.process_signal(&signal).await {
+            Ok(response) => {
+                // Process_signal returns a string, need to convert back to signal
+                let response_signal = crate::NeuronSignal {
+                    signal_id: Uuid::new_v4(),
+                    from_neuron: self.legacy_neuron.id().to_string(),
+                    to_neuron: String::new(),
+                    layer_from: self.legacy_neuron.layer().as_str().to_string(),
+                    layer_to: String::new(),
+                    propagation_type: crate::PropagationType::Forward,
+                    batch_id: signal.batch_id,
+                    timestamp: chrono::Utc::now(),
+                    metadata: HashMap::new(),
+                    payload: crate::SignalPayload {
+                        activation: crate::Activation {
+                            content: response,
+                            strength: 0.8,
+                            features: HashMap::new(),
+                        },
+                        gradient: None,
+                    },
+                };
+                self.adapt_signal(&response_signal).await
+            }
             Err(e) => {
                 self.metrics.lock().errors += 1;
                 Err(e)
@@ -645,7 +671,7 @@ impl MigrationCoordinator {
     }
     
     /// Migrate neurons in batches
-    pub async fn migrate_batch(&mut self, batch_size: usize) -> Result<Vec<LegacyNeuronAdapter>> {
+    pub async fn migrate_batch(&mut self, batch_size: usize) -> Result<usize> {
         let mut batch_adapters = Vec::new();
         let neurons_to_migrate: Vec<_> = self.legacy_neurons.drain(..batch_size.min(self.legacy_neurons.len())).collect();
         
@@ -672,12 +698,13 @@ impl MigrationCoordinator {
             }
         }
         
-        self.adapters.extend(batch_adapters.clone());
-        Ok(batch_adapters)
+        let adapter_count = batch_adapters.len();
+        self.adapters.extend(batch_adapters);
+        Ok(adapter_count)
     }
     
     async fn migrate_single_neuron(&self, neuron: Box<dyn crate::neuron::NeuronInterface>) -> Result<LegacyNeuronAdapter> {
-        let layer = LegacyNeuronAdapter::map_layer(&neuron.layer());
+        let layer = LegacyNeuronAdapter::map_layer(neuron.layer().as_str());
         let adapter = LegacyNeuronAdapter::new(neuron, layer);
         
         // Validate adapter works
@@ -695,9 +722,9 @@ impl MigrationCoordinator {
                 activation: crate::Activation {
                     content: "test".to_string(),
                     strength: 0.5,
+                    features: HashMap::new(),
                 },
-                metadata: serde_json::json!({}),
-                memory_refs: vec![],
+                gradient: None,
             },
         };
         
@@ -898,7 +925,7 @@ mod tests {
         
         // Migrate in batches
         let batch1 = coordinator.migrate_batch(2).await.unwrap();
-        assert_eq!(batch1.len(), 2);
+        assert_eq!(batch1, 2);
         
         let progress = coordinator.progress();
         assert_eq!(progress.migrated_neurons, 2);
@@ -906,7 +933,7 @@ mod tests {
         
         // Migrate remaining
         let batch2 = coordinator.migrate_batch(10).await.unwrap();
-        assert_eq!(batch2.len(), 2);
+        assert_eq!(batch2, 2);
         
         let final_progress = coordinator.progress();
         assert_eq!(final_progress.migrated_neurons, 4);

@@ -217,15 +217,13 @@ impl Orchestrator for DefaultOrchestrator {
         self.topology_manager.add_node(unit.clone()).await?;
         
         // Update router topology
-        self.router.update_topology(TopologyChange::NodeAdded {
+        self.router.update_topology(routing::TopologyChange::NodeAdded { 
             id: unit_id,
-            properties: NodeProperties {
+            properties: routing::NodeProperties {
                 layer: unit.layer as u8,
-                capabilities: unit.capabilities.iter()
-                    .map(|c| c.name.clone())
-                    .collect(),
+                capabilities: unit.capabilities.iter().map(|c| c.name.clone()).collect(),
                 capacity: unit.resource_requirements.cpu_cores * 100.0,
-            },
+            }
         }).await?;
         
         Ok(unit_id)
@@ -236,7 +234,7 @@ impl Orchestrator for DefaultOrchestrator {
         self.topology_manager.remove_node(unit_id).await?;
         
         // Update router
-        self.router.update_topology(TopologyChange::NodeRemoved { id: unit_id }).await?;
+        self.router.update_topology(routing::TopologyChange::NodeRemoved { id: unit_id }).await?;
         
         Ok(())
     }
@@ -246,14 +244,14 @@ impl Orchestrator for DefaultOrchestrator {
         self.topology_manager.add_edge(from, to, connection.clone()).await?;
         
         // Update router
-        self.router.update_topology(TopologyChange::LinkAdded {
-            from,
+        self.router.update_topology(routing::TopologyChange::LinkAdded { 
+            from, 
             to,
-            properties: LinkProperties {
+            properties: routing::LinkProperties {
                 latency_ms: connection.latency_ms,
                 bandwidth_mbps: connection.bandwidth_limit.unwrap_or(1000.0),
-                reliability: 0.99, // Default reliability
-            },
+                reliability: 0.99,
+            }
         }).await?;
         
         Ok(())
@@ -264,7 +262,7 @@ impl Orchestrator for DefaultOrchestrator {
         self.topology_manager.remove_edge(from, to).await?;
         
         // Update router
-        self.router.update_topology(TopologyChange::LinkRemoved { from, to }).await?;
+        self.router.update_topology(routing::TopologyChange::LinkRemoved { from, to }).await?;
         
         Ok(())
     }

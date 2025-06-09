@@ -88,7 +88,6 @@ impl Default for StorageMetrics {
 }
 
 /// Metrics tracker for storage operations
-#[derive(Default)]
 struct MetricsTracker {
     read_count: AtomicU64,
     write_count: AtomicU64,
@@ -97,6 +96,20 @@ struct MetricsTracker {
     cache_hits: AtomicU64,
     cache_misses: AtomicU64,
     last_update: parking_lot::Mutex<Instant>,
+}
+
+impl Default for MetricsTracker {
+    fn default() -> Self {
+        Self {
+            read_count: AtomicU64::new(0),
+            write_count: AtomicU64::new(0),
+            read_latency_sum: AtomicU64::new(0),
+            write_latency_sum: AtomicU64::new(0),
+            cache_hits: AtomicU64::new(0),
+            cache_misses: AtomicU64::new(0),
+            last_update: parking_lot::Mutex::new(Instant::now()),
+        }
+    }
 }
 
 impl MetricsTracker {
@@ -312,7 +325,7 @@ impl PersistentStorage for SqliteStorage {
     
     async fn exists(&self, key: &str) -> Result<bool> {
         // Check cache first
-        if self.cache.contains_key(key).await {
+        if self.cache.contains_key(key) {
             return Ok(true);
         }
         
@@ -371,7 +384,7 @@ impl PersistentStorage for SqliteStorage {
             "#
         )
         .bind(key)
-        .fetch_optional(&mut tx)
+        .fetch_optional(tx.as_mut())
         .await
         .map_err(|e| Error::Storage(format!("Failed to get for CAS: {}", e)))?;
         
@@ -406,7 +419,7 @@ impl PersistentStorage for SqliteStorage {
         )
         .bind(key)
         .bind(&new_data)
-        .execute(&mut tx)
+        .execute(tx.as_mut())
         .await
         .map_err(|e| Error::Storage(format!("Failed to update in CAS: {}", e)))?;
         
@@ -503,14 +516,14 @@ impl StorageTransaction for SqliteTransaction {
                     )
                     .bind(key)
                     .bind(value)
-                    .execute(&mut tx)
+                    .execute(tx.as_mut())
                     .await
                     .map_err(|e| Error::Storage(format!("Failed to put in transaction: {}", e)))?;
                 }
                 TransactionOp::Delete { key } => {
                     sqlx::query("DELETE FROM kv_storage WHERE key = ?1")
                         .bind(key)
-                        .execute(&mut tx)
+                        .execute(tx.as_mut())
                         .await
                         .map_err(|e| Error::Storage(format!("Failed to delete in transaction: {}", e)))?;
                 }
@@ -690,7 +703,7 @@ impl PersistentStorage for PostgresStorage {
     
     async fn exists(&self, key: &str) -> Result<bool> {
         // Check cache first
-        if self.cache.contains_key(key).await {
+        if self.cache.contains_key(key) {
             return Ok(true);
         }
         
@@ -751,7 +764,7 @@ impl PersistentStorage for PostgresStorage {
             "#
         )
         .bind(key)
-        .fetch_optional(&mut tx)
+        .fetch_optional(tx.as_mut())
         .await
         .map_err(|e| Error::Storage(format!("Failed to get for CAS: {}", e)))?;
         
@@ -786,7 +799,7 @@ impl PersistentStorage for PostgresStorage {
         )
         .bind(key)
         .bind(&new_data)
-        .execute(&mut tx)
+        .execute(tx.as_mut())
         .await
         .map_err(|e| Error::Storage(format!("Failed to update in CAS: {}", e)))?;
         
@@ -878,14 +891,14 @@ impl StorageTransaction for PostgresTransaction {
                     )
                     .bind(key)
                     .bind(value)
-                    .execute(&mut tx)
+                    .execute(tx.as_mut())
                     .await
                     .map_err(|e| Error::Storage(format!("Failed to put in transaction: {}", e)))?;
                 }
                 TransactionOp::Delete { key } => {
                     sqlx::query("DELETE FROM kv_storage WHERE key = $1")
                         .bind(key)
-                        .execute(&mut tx)
+                        .execute(tx.as_mut())
                         .await
                         .map_err(|e| Error::Storage(format!("Failed to delete in transaction: {}", e)))?;
                 }

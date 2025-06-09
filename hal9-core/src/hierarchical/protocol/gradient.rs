@@ -407,7 +407,7 @@ impl Protocol for GradientProtocol {
     }
     
     fn version(&self) -> ProtocolVersion {
-        self.version
+        self.version.clone()
     }
     
     async fn negotiate(&self, peer_capabilities: &ProtocolCapabilities) -> Result<NegotiatedProtocol> {
@@ -421,7 +421,7 @@ impl Protocol for GradientProtocol {
         };
         
         let negotiated = NegotiatedProtocol {
-            version: self.version,
+            version: self.version.clone(),
             compression,
             encryption: EncryptionType::None, // Could add encryption for federated learning
             max_message_size: peer_capabilities.max_message_size.min(10_000_000), // 10MB max

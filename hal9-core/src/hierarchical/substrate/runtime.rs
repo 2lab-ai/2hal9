@@ -145,7 +145,8 @@ impl TokioRuntime {
         
         // Keep only last 1000 task durations for averaging
         if durations.len() > 1000 {
-            durations.drain(0..durations.len() - 1000);
+            let drain_count = durations.len() - 1000;
+            durations.drain(0..drain_count);
         }
     }
 }
@@ -178,7 +179,8 @@ impl AsyncRuntime for TokioRuntime {
             let mut durations = stats.task_durations.lock();
             durations.push(duration);
             if durations.len() > 1000 {
-                durations.drain(0..durations.len() - 1000);
+                let drain_count = durations.len() - 1000;
+                durations.drain(0..drain_count);
             }
         };
         
@@ -245,12 +247,12 @@ impl AsyncRuntime for TokioRuntime {
         };
         
         RuntimeMetrics {
-            active_tasks: self.handle.metrics().num_alive_tasks(),
+            active_tasks: (self.stats.total_spawned.load(Ordering::Relaxed) - self.stats.total_completed.load(Ordering::Relaxed)) as usize,
             total_spawned: self.stats.total_spawned.load(Ordering::Relaxed),
             total_completed: self.stats.total_completed.load(Ordering::Relaxed),
-            blocked_threads: self.handle.metrics().num_blocking_threads(),
+            blocked_threads: 0, // Not available in current tokio version
             worker_threads: self.handle.metrics().num_workers(),
-            task_queue_depth: self.handle.metrics().injection_queue_depth(),
+            task_queue_depth: 0, // Not available in current tokio version
             avg_task_duration_ms: avg_duration_ms,
         }
     }

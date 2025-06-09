@@ -159,6 +159,7 @@ struct ImpactDimension {
     baseline: f32,
 }
 
+#[derive(Debug, Clone)]
 enum MeasurementMethod {
     Quantitative(String), // Metric name
     Qualitative(Vec<String>), // Scale levels

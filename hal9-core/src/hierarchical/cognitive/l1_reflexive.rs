@@ -238,10 +238,12 @@ impl PatternMatcher {
     
     fn calculate_similarity(&self, pattern: &str, input: &str) -> f32 {
         // Simple similarity based on common words
+        let pattern_lower = pattern.to_lowercase();
+        let input_lower = input.to_lowercase();
         let pattern_words: std::collections::HashSet<_> = 
-            pattern.to_lowercase().split_whitespace().collect();
+            pattern_lower.split_whitespace().collect();
         let input_words: std::collections::HashSet<_> = 
-            input.to_lowercase().split_whitespace().collect();
+            input_lower.split_whitespace().collect();
         
         let intersection = pattern_words.intersection(&input_words).count();
         let union = pattern_words.union(&input_words).count();

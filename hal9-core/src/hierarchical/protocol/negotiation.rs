@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use parking_lot::RwLock;
 
 /// Protocol negotiation session
+#[derive(Clone)]
 pub struct NegotiationSession {
     pub id: uuid::Uuid,
     pub peer_id: String,

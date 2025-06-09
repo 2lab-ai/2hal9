@@ -137,7 +137,7 @@ impl DijkstraRouter {
     }
     
     fn find_shortest_path(&self, source: Uuid, targets: &[Uuid], requirements: &QosRequirements) -> Option<RoutingPath> {
-        #[derive(Clone, Eq, PartialEq)]
+        #[derive(Clone, PartialEq)]
         struct State {
             cost: OrderedFloat,
             node: Uuid,
@@ -145,6 +145,8 @@ impl DijkstraRouter {
             latency: f32,
             bandwidth: f32,
         }
+        
+        impl Eq for State {}
         
         impl Ord for State {
             fn cmp(&self, other: &Self) -> Ordering {
