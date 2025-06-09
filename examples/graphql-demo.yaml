@@ -1,0 +1,126 @@
+# HAL9 GraphQL API Demo Configuration
+# This configuration enables GraphQL API v2 with real-time subscriptions
+
+server:
+  host: localhost
+  port: 9000
+  mode: distributed
+  graphql:
+    enabled: true
+    playground: true
+    introspection: true
+    max_complexity: 1000
+    max_depth: 10
+    subscription:
+      enabled: true
+      keep_alive: 30s
+      buffer_size: 1000
+
+neurons:
+  - name: "strategic-planner"
+    type: "L4"
+    layer: "L4"
+    claude_model: "claude-3-opus-20240229"
+    config:
+      temperature: 0.7
+      max_tokens: 4096
+      capabilities:
+        - graphql_query_planning
+        - real_time_monitoring
+        - pattern_analysis
+  
+  - name: "reasoning-engine"
+    type: "L3"
+    layer: "L3"
+    claude_model: "claude-3-sonnet-20240229"
+    config:
+      temperature: 0.5
+      max_tokens: 2048
+      capabilities:
+        - query_optimization
+        - result_aggregation
+  
+  - name: "execution-unit"
+    type: "L2"
+    layer: "L2"
+    config:
+      temperature: 0.3
+      max_tokens: 1024
+      capabilities:
+        - data_fetching
+        - cache_management
+
+# GraphQL-specific features
+graphql:
+  schema:
+    federation:
+      enabled: true
+      service_name: "hal9"
+      service_url: "http://localhost:9000/graphql"
+    
+  subscriptions:
+    # Event types to publish
+    events:
+      - signal_updates
+      - neuron_state_changes
+      - metrics_updates
+      - learning_events
+    
+    # Event bus configuration
+    event_bus:
+      capacity: 10000
+      retention: 60s
+  
+  # Query optimization
+  optimization:
+    query_cache:
+      enabled: true
+      ttl: 300s
+      max_size: 1000
+    
+    dataloader:
+      enabled: true
+      batch_size: 100
+      delay: 10ms
+  
+  # Security
+  security:
+    query_depth_limit: 10
+    query_complexity_limit: 1000
+    introspection_enabled: true
+    rate_limiting:
+      enabled: true
+      window: 60s
+      max_requests: 1000
+
+# Monitoring for GraphQL
+monitoring:
+  graphql_metrics:
+    enabled: true
+    apollo_tracing: true
+    query_logging: true
+    slow_query_threshold: 1s
+  
+  dashboards:
+    - name: "GraphQL Performance"
+      metrics:
+        - graphql_query_duration
+        - graphql_query_complexity
+        - graphql_subscription_count
+        - graphql_error_rate
+
+# Enterprise features for GraphQL
+enterprise:
+  graphql:
+    persisted_queries:
+      enabled: true
+      ttl: 86400s
+    
+    schema_registry:
+      enabled: true
+      versioning: true
+      backward_compatibility_check: true
+    
+    field_usage_tracking:
+      enabled: true
+      retention: 30d
