@@ -231,10 +231,11 @@ mod tests {
             }
         }
         
-        // Verify L4 has 2 children (L3)
-        let l4_signal = signals.iter().find(|s| s.layer == "L4").expect("Should have L4 signal");
-        let l4_children = children_by_parent.get(&Some(l4_signal.id)).expect("L4 should have children");
-        assert_eq!(l4_children.len(), 2);
+        // The input signal goes to L4 neuron, which generates L3 signals
+        // Find L3 signals that have the input signal as parent
+        let input_signal = signals.iter().find(|s| s.layer == "Input").expect("Should have Input signal");
+        let l3_signals_from_input = children_by_parent.get(&Some(input_signal.id)).expect("Input should have children");
+        assert_eq!(l3_signals_from_input.len(), 2, "L4 neuron should generate 2 L3 signals");
         
         // Verify each L3 has 2 children (L2)
         for l3_signal in signals.iter().filter(|s| s.layer == "L3") {

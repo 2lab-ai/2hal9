@@ -206,7 +206,7 @@ impl DistributedSessionManager {
             .await?;
         
         for key in keys {
-            if let Ok(encrypted_data) = conn.get::<_, Vec<u8>>(&key).await {
+            if let Ok(encrypted_data) = conn.get::<Vec<u8>>(&key).await {
                 if let Ok(session) = self.decrypt_session(&encrypted_data) {
                     if session.expires_at < Utc::now() {
                         let _: RedisResult<()> = conn.del(&key).await;
@@ -237,7 +237,7 @@ impl DistributedSessionManager {
     async fn get_session_from_key(&self, key: &str) -> Result<Option<Session>> {
         let mut conn = self.redis_pool.get().await?;
         
-        if let Ok(encrypted_data) = conn.get::<_, Vec<u8>>(key).await {
+        if let Ok(encrypted_data) = conn.get::<Vec<u8>>(key).await {
             let session = self.decrypt_session(&encrypted_data)?;
             if session.expires_at > Utc::now() {
                 return Ok(Some(session));

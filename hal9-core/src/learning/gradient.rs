@@ -97,12 +97,12 @@ impl ErrorGradient {
 
 /// Gradient calculator for analyzing errors
 pub struct GradientCalculator {
-    config: super::BackwardPropagationConfig,
+    _config: super::BackwardPropagationConfig,
 }
 
 impl GradientCalculator {
     pub fn new(config: super::BackwardPropagationConfig) -> Self {
-        Self { config }
+        Self { _config: config }
     }
     
     /// Calculate gradient from a processing error
