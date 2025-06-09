@@ -1,0 +1,209 @@
+apiVersion: hal9.ai/v1
+kind: HAL9Cluster
+metadata:
+  name: hal9-production
+  namespace: hal9-prod
+spec:
+  # Target 1000+ concurrent users
+  replicas: 30
+  
+  # Multi-region deployment
+  regions:
+  - name: us-west
+    replicas: 12
+    nodeSelector:
+      region: us-west
+      node-type: compute-optimized
+  - name: eu-central
+    replicas: 10
+    nodeSelector:
+      region: eu-central
+      node-type: compute-optimized
+  - name: ap-south
+    replicas: 8
+    nodeSelector:
+      region: ap-south
+      node-type: compute-optimized
+  
+  # Neuron configuration
+  neuronConfig:
+    layers:
+    - name: L4-strategic
+      type: strategic
+      replicas: 3
+      resources:
+        requests:
+          memory: "4Gi"
+          cpu: "2"
+        limits:
+          memory: "8Gi"
+          cpu: "4"
+    - name: L3-reasoning
+      type: reasoning
+      replicas: 9
+      resources:
+        requests:
+          memory: "2Gi"
+          cpu: "1"
+        limits:
+          memory: "4Gi"
+          cpu: "2"
+    - name: L2-operational
+      type: operational
+      replicas: 18
+      resources:
+        requests:
+          memory: "1Gi"
+          cpu: "500m"
+        limits:
+          memory: "2Gi"
+          cpu: "1"
+  
+  # Database configuration
+  database:
+    type: postgresql
+    shards: 3
+    replicas: 2 # 1 primary + 1 replica per shard
+    storage:
+      class: fast-ssd
+      size: 100Gi
+    resources:
+      requests:
+        memory: "8Gi"
+        cpu: "4"
+      limits:
+        memory: "16Gi"
+        cpu: "8"
+    connectionPool:
+      maxConnections: 200
+      minConnections: 20
+  
+  # Redis configuration
+  redis:
+    mode: cluster
+    replicas: 6
+    storage:
+      class: fast-ssd
+      size: 10Gi
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "1"
+      limits:
+        memory: "4Gi"
+        cpu: "2"
+  
+  # Auto-scaling configuration
+  autoscaling:
+    enabled: true
+    minReplicas: 20
+    maxReplicas: 100
+    metrics:
+    - type: cpu
+      targetAverageUtilization: 70
+    - type: memory
+      targetAverageUtilization: 80
+    - type: custom
+      metric:
+        name: concurrent_users_per_pod
+        targetValue: "35"
+    behavior:
+      scaleUp:
+        stabilizationWindowSeconds: 60
+        policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+        - type: Pods
+          value: 10
+          periodSeconds: 60
+      scaleDown:
+        stabilizationWindowSeconds: 300
+        policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+  
+  # Load balancer configuration
+  loadBalancer:
+    type: nginx
+    replicas: 6
+    strategy: least_conn
+    healthCheck:
+      path: /health
+      interval: 10s
+      timeout: 5s
+      unhealthyThreshold: 3
+    rateLimit:
+      enabled: true
+      requestsPerSecond: 100
+      burst: 200
+  
+  # Monitoring configuration
+  monitoring:
+    enabled: true
+    prometheus:
+      retention: 30d
+      storage:
+        class: standard
+        size: 500Gi
+    grafana:
+      enabled: true
+      dashboards:
+      - hal9-overview
+      - hal9-performance
+      - hal9-neurons
+      - hal9-distributed
+    alerts:
+      enabled: true
+      slack:
+        webhook: "${SLACK_WEBHOOK_URL}"
+      pagerduty:
+        serviceKey: "${PAGERDUTY_SERVICE_KEY}"
+  
+  # Security configuration
+  security:
+    tls:
+      enabled: true
+      certManager:
+        enabled: true
+        issuer: letsencrypt-prod
+    networkPolicies:
+      enabled: true
+      allowFrom:
+      - namespaceSelector:
+          matchLabels:
+            name: hal9-prod
+      - podSelector:
+          matchLabels:
+            app: hal9-ingress
+    podSecurityPolicy:
+      enabled: true
+      runAsNonRoot: true
+      readOnlyRootFilesystem: true
+  
+  # Backup configuration
+  backup:
+    enabled: true
+    schedule: "0 2 * * *" # 2 AM daily
+    retention: 7 # days
+    storage:
+      type: s3
+      bucket: hal9-backups
+      region: us-west-2
+  
+  # Maintenance windows
+  maintenance:
+    windows:
+    - day: Sunday
+      startTime: "02:00"
+      duration: 2h
+      region: us-west
+    - day: Sunday
+      startTime: "04:00"
+      duration: 2h
+      region: eu-central
+    - day: Sunday
+      startTime: "06:00"
+      duration: 2h
+      region: ap-south

@@ -1,0 +1,110 @@
+{{- if .Values.security.serviceAccount.create -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "hal9.serviceAccountName" . }}
+  labels:
+    {{- include "hal9.labels" . | nindent 4 }}
+  {{- with .Values.security.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+---
+{{- if .Values.security.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "hal9.fullname" . }}
+  labels:
+    {{- include "hal9.labels" . | nindent 4 }}
+rules:
+# Allow reading config maps
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+# Allow reading secrets (for credentials)
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+# Allow listing pods for service discovery
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+# Allow listing services for discovery
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+# Allow listing endpoints for health checks
+- apiGroups: [""]
+  resources: ["endpoints"]
+  verbs: ["get", "list"]
+# Allow creating events for audit
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+# Allow leader election for distributed coordination
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["get", "list", "create", "update", "patch", "delete"]
+# Allow accessing custom resources
+- apiGroups: ["hal9.ai"]
+  resources: ["hal9clusters", "neurons"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "hal9.fullname" . }}
+  labels:
+    {{- include "hal9.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "hal9.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "hal9.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
+---
+{{- if .Values.security.rbac.clusterRole -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "hal9.fullname" . }}-cluster
+  labels:
+    {{- include "hal9.labels" . | nindent 4 }}
+rules:
+# Allow reading nodes for topology-aware scheduling
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list"]
+# Allow reading namespaces for multi-tenant support
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "list"]
+# Allow reading cluster-wide custom resources
+- apiGroups: ["hal9.ai"]
+  resources: ["hal9clusters", "neurons"]
+  verbs: ["get", "list", "watch"]
+# Allow reading storage classes for dynamic provisioning
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "hal9.fullname" . }}-cluster
+  labels:
+    {{- include "hal9.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "hal9.fullname" . }}-cluster
+subjects:
+- kind: ServiceAccount
+  name: {{ include "hal9.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}

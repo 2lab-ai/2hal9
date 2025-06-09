@@ -1,0 +1,165 @@
+{{- range $region := .Values.regions.list }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "hal9.fullname" $ }}-{{ $region.name }}
+  labels:
+    {{- include "hal9.labels" $ | nindent 4 }}
+    region: {{ $region.name }}
+spec:
+  {{- if not $.Values.server.autoscaling.enabled }}
+  replicas: {{ $region.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "hal9.selectorLabels" $ | nindent 6 }}
+      region: {{ $region.name }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") $ | sha256sum }}
+      labels:
+        {{- include "hal9.selectorLabels" $ | nindent 8 }}
+        region: {{ $region.name }}
+    spec:
+      {{- with $.Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "hal9.serviceAccountName" $ }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      {{- if $region.nodeSelector }}
+      nodeSelector:
+        {{- toYaml $region.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: hal9-server
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        image: "{{ $.Values.server.image.repository }}:{{ $.Values.server.image.tag | default $.Chart.AppVersion }}"
+        imagePullPolicy: {{ $.Values.server.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 9000
+          protocol: TCP
+        - name: metrics
+          containerPort: 9001
+          protocol: TCP
+        env:
+        - name: HAL9_REGION
+          value: {{ $region.name }}
+        - name: HAL9_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: HAL9_POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: HAL9_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "hal9.fullname" $ }}-db-secret
+              key: url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "hal9.fullname" $ }}-redis-secret
+              key: url
+        {{- with $.Values.server.env }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        livenessProbe:
+          {{- toYaml $.Values.server.livenessProbe | nindent 10 }}
+        readinessProbe:
+          {{- toYaml $.Values.server.readinessProbe | nindent 10 }}
+        resources:
+          {{- toYaml $.Values.server.resources | nindent 10 }}
+        volumeMounts:
+        - name: config
+          mountPath: /etc/hal9
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+        - name: cache
+          mountPath: /var/cache/hal9
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include "hal9.fullname" $ }}-config
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+---
+{{- if $.Values.server.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "hal9.fullname" $ }}-{{ $region.name }}-hpa
+  labels:
+    {{- include "hal9.labels" $ | nindent 4 }}
+    region: {{ $region.name }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "hal9.fullname" $ }}-{{ $region.name }}
+  minReplicas: {{ div $.Values.server.autoscaling.minReplicas (len $.Values.regions.list) }}
+  maxReplicas: {{ div $.Values.server.autoscaling.maxReplicas (len $.Values.regions.list) }}
+  metrics:
+  {{- if $.Values.server.autoscaling.targetCPUUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ $.Values.server.autoscaling.targetCPUUtilizationPercentage }}
+  {{- end }}
+  {{- if $.Values.server.autoscaling.targetMemoryUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: {{ $.Values.server.autoscaling.targetMemoryUtilizationPercentage }}
+  {{- end }}
+  {{- with $.Values.server.autoscaling.metrics }}
+    {{- toYaml . | nindent 2 }}
+  {{- end }}
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+      - type: Pods
+        value: 5
+        periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+      selectPolicy: Min
+{{- end }}
+{{- end }}

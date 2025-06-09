@@ -1,0 +1,166 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "hal9.fullname" . }}-config
+  labels:
+    {{- include "hal9.labels" . | nindent 4 }}
+data:
+  hal9.yaml: |
+    # HAL9 Configuration for 1000+ users
+    server:
+      host: 0.0.0.0
+      port: 9000
+      metrics_port: 9001
+      mode: distributed
+    
+    distributed:
+      regions:
+        {{- range $region := .Values.regions.list }}
+        - name: {{ $region.name }}
+          endpoint: {{ include "hal9.fullname" $ }}-{{ $region.name }}.{{ $.Release.Namespace }}.svc.cluster.local:9000
+        {{- end }}
+      
+      sharding:
+        enabled: true
+        shards: 3
+        replication_factor: 2
+        read_preference: secondary_preferred
+      
+      load_balancing:
+        strategy: least_connections
+        health_check_interval: 10s
+        failure_threshold: 3
+    
+    neurons:
+      layers:
+        {{- range $layer, $config := .Values.neurons.layers }}
+        - name: {{ $config.name }}
+          type: {{ $layer }}
+          replicas: {{ $config.replicas }}
+        {{- end }}
+    
+    database:
+      type: postgresql
+      {{- if .Values.postgresql.enabled }}
+      primary:
+        host: {{ include "hal9.fullname" . }}-postgresql
+        port: 5432
+        database: {{ .Values.postgresql.auth.database }}
+        username: {{ .Values.postgresql.auth.username }}
+        pool:
+          max_connections: 100
+          min_connections: 10
+          connect_timeout: 5s
+          idle_timeout: 300s
+          max_lifetime: 3600s
+      
+      replicas:
+        {{- range $i := until (int .Values.postgresql.readReplicas.replicaCount) }}
+        - host: {{ include "hal9.fullname" $ }}-postgresql-read-{{ $i }}
+          port: 5432
+        {{- end }}
+      {{- end }}
+    
+    redis:
+      {{- if .Values.redis.enabled }}
+      mode: {{ .Values.redis.architecture }}
+      master:
+        host: {{ include "hal9.fullname" . }}-redis-master
+        port: 6379
+      {{- if eq .Values.redis.architecture "replication" }}
+      replicas:
+        {{- range $i := until (int .Values.redis.replica.replicaCount) }}
+        - host: {{ include "hal9.fullname" $ }}-redis-replica-{{ $i }}
+          port: 6379
+        {{- end }}
+      {{- end }}
+      pool:
+        max_size: 50
+        min_idle: 10
+        connection_timeout: 5s
+      {{- end }}
+    
+    security:
+      jwt:
+        issuer: "hal9.ai"
+        audience: "hal9-api"
+        expiration: 3600
+        refresh_expiration: 86400
+      
+      rate_limiting:
+        enabled: true
+        window: 60s
+        max_requests: 1000
+        burst: 100
+      
+      cors:
+        enabled: true
+        allowed_origins:
+          - "https://hal9.ai"
+          - "https://*.hal9.ai"
+        allowed_methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+        allowed_headers:
+          - Authorization
+          - Content-Type
+          - X-Request-ID
+    
+    monitoring:
+      metrics:
+        enabled: true
+        namespace: hal9
+        subsystem: server
+      
+      tracing:
+        enabled: false
+        sampler: 0.1
+        endpoint: "http://jaeger-collector:14268/api/traces"
+      
+      logging:
+        level: info
+        format: json
+        output: stdout
+    
+    performance:
+      connection_pool:
+        database:
+          max_connections: 200
+          min_connections: 20
+        redis:
+          max_connections: 100
+          min_connections: 10
+      
+      caching:
+        enabled: true
+        strategies:
+          - type: write_through
+            ttl: 300s
+          - type: write_behind
+            batch_size: 100
+            flush_interval: 10s
+        
+      circuit_breaker:
+        enabled: true
+        failure_threshold: 5
+        success_threshold: 2
+        timeout: 30s
+        half_open_requests: 3
+    
+    enterprise:
+      features:
+        sso: true
+        audit_logging: true
+        compliance: true
+        multi_tenancy: true
+      
+      audit:
+        retention_days: 90
+        encryption: true
+        
+      compliance:
+        gdpr: true
+        soc2: true
+        hipaa: false

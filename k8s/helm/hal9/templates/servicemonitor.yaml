@@ -1,0 +1,161 @@
+{{- if and .Values.monitoring.enabled .Values.monitoring.serviceMonitor.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "hal9.fullname" . }}
+  labels:
+    {{- include "hal9.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if .Values.monitoring.serviceMonitor.namespace }}
+  namespace: {{ .Values.monitoring.serviceMonitor.namespace }}
+  {{- end }}
+spec:
+  endpoints:
+  {{- range $region := .Values.regions.list }}
+  - port: metrics
+    path: {{ $.Values.monitoring.serviceMonitor.path | default "/metrics" }}
+    interval: {{ $.Values.monitoring.serviceMonitor.interval | default "30s" }}
+    scrapeTimeout: {{ $.Values.monitoring.serviceMonitor.scrapeTimeout | default "10s" }}
+    honorLabels: {{ $.Values.monitoring.serviceMonitor.honorLabels | default true }}
+    {{- if $.Values.monitoring.serviceMonitor.metricRelabelings }}
+    metricRelabelings:
+    {{- toYaml $.Values.monitoring.serviceMonitor.metricRelabelings | nindent 4 }}
+    {{- end }}
+    {{- if $.Values.monitoring.serviceMonitor.relabelings }}
+    relabelings:
+    {{- toYaml $.Values.monitoring.serviceMonitor.relabelings | nindent 4 }}
+    {{- else }}
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_pod_label_region]
+      targetLabel: region
+    - sourceLabels: [__meta_kubernetes_pod_name]
+      targetLabel: pod
+    - sourceLabels: [__meta_kubernetes_namespace]
+      targetLabel: namespace
+    {{- end }}
+  {{- end }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      {{- include "hal9.selectorLabels" . | nindent 6 }}
+---
+{{- if .Values.monitoring.prometheusRule.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "hal9.fullname" . }}
+  labels:
+    {{- include "hal9.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if .Values.monitoring.prometheusRule.namespace }}
+  namespace: {{ .Values.monitoring.prometheusRule.namespace }}
+  {{- end }}
+spec:
+  groups:
+  - name: hal9.alerts
+    interval: 30s
+    rules:
+    # High error rate
+    - alert: HAL9HighErrorRate
+      expr: |
+        (
+          sum(rate(hal9_http_requests_total{status=~"5.."}[5m])) by (region)
+          /
+          sum(rate(hal9_http_requests_total[5m])) by (region)
+        ) > 0.05
+      for: 5m
+      labels:
+        severity: warning
+        service: hal9
+      annotations:
+        summary: "High error rate in HAL9 region {{ $labels.region }}"
+        description: "Error rate is {{ $value | humanizePercentage }} in region {{ $labels.region }}"
+    
+    # High latency
+    - alert: HAL9HighLatency
+      expr: |
+        histogram_quantile(0.95,
+          sum(rate(hal9_http_request_duration_seconds_bucket[5m])) by (region, le)
+        ) > 0.5
+      for: 5m
+      labels:
+        severity: warning
+        service: hal9
+      annotations:
+        summary: "High latency in HAL9 region {{ $labels.region }}"
+        description: "95th percentile latency is {{ $value | humanizeDuration }} in region {{ $labels.region }}"
+    
+    # Pod restarts
+    - alert: HAL9PodRestarts
+      expr: |
+        increase(kube_pod_container_status_restarts_total{
+          namespace="{{ .Release.Namespace }}",
+          pod=~"{{ include "hal9.fullname" . }}.*"
+        }[1h]) > 5
+      for: 5m
+      labels:
+        severity: critical
+        service: hal9
+      annotations:
+        summary: "HAL9 pod {{ $labels.pod }} is restarting frequently"
+        description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in the last hour"
+    
+    # Memory usage
+    - alert: HAL9HighMemoryUsage
+      expr: |
+        (
+          container_memory_working_set_bytes{
+            namespace="{{ .Release.Namespace }}",
+            pod=~"{{ include "hal9.fullname" . }}.*",
+            container="hal9-server"
+          }
+          / 
+          container_spec_memory_limit_bytes{
+            namespace="{{ .Release.Namespace }}",
+            pod=~"{{ include "hal9.fullname" . }}.*",
+            container="hal9-server"
+          }
+        ) > 0.8
+      for: 5m
+      labels:
+        severity: warning
+        service: hal9
+      annotations:
+        summary: "HAL9 pod {{ $labels.pod }} has high memory usage"
+        description: "Memory usage is {{ $value | humanizePercentage }} of limit"
+    
+    # Database connection pool exhaustion
+    - alert: HAL9DatabasePoolExhausted
+      expr: |
+        hal9_database_pool_connections_busy / hal9_database_pool_size > 0.9
+      for: 5m
+      labels:
+        severity: critical
+        service: hal9
+      annotations:
+        summary: "HAL9 database connection pool is nearly exhausted"
+        description: "{{ $value | humanizePercentage }} of database connections are in use"
+    
+    # Circuit breaker open
+    - alert: HAL9CircuitBreakerOpen
+      expr: |
+        hal9_circuit_breaker_state == 2
+      for: 1m
+      labels:
+        severity: critical
+        service: hal9
+      annotations:
+        summary: "HAL9 circuit breaker is open for {{ $labels.service }}"
+        description: "Circuit breaker for {{ $labels.service }} has been open for more than 1 minute"
+    
+    {{- with .Values.monitoring.prometheusRule.additionalRules }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}
+{{- end }}

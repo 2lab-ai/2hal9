@@ -1,0 +1,192 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hal9-system
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: hal9clusters.hal9.ai
+spec:
+  group: hal9.ai
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              replicas:
+                type: integer
+                minimum: 3
+                maximum: 100
+              regions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    replicas:
+                      type: integer
+                    nodeSelector:
+                      type: object
+              neuronConfig:
+                type: object
+                properties:
+                  layers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        type:
+                          type: string
+                        replicas:
+                          type: integer
+              database:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum: ["postgresql", "cockroachdb"]
+                  shards:
+                    type: integer
+                    minimum: 1
+                    maximum: 9
+                  replicas:
+                    type: integer
+              redis:
+                type: object
+                properties:
+                  mode:
+                    type: string
+                    enum: ["standalone", "cluster", "sentinel"]
+                  replicas:
+                    type: integer
+              monitoring:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                  prometheus:
+                    type: object
+                  grafana:
+                    type: object
+          status:
+            type: object
+            properties:
+              phase:
+                type: string
+              replicas:
+                type: integer
+              conditions:
+                type: array
+                items:
+                  type: object
+  scope: Namespaced
+  names:
+    plural: hal9clusters
+    singular: hal9cluster
+    kind: HAL9Cluster
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hal9-operator
+  namespace: hal9-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: hal9-operator
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets", "persistentvolumeclaims"]
+  verbs: ["*"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets", "daemonsets"]
+  verbs: ["*"]
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["*"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses", "networkpolicies"]
+  verbs: ["*"]
+- apiGroups: ["autoscaling"]
+  resources: ["horizontalpodautoscalers"]
+  verbs: ["*"]
+- apiGroups: ["policy"]
+  resources: ["poddisruptionbudgets"]
+  verbs: ["*"]
+- apiGroups: ["hal9.ai"]
+  resources: ["hal9clusters"]
+  verbs: ["*"]
+- apiGroups: ["monitoring.coreos.com"]
+  resources: ["servicemonitors", "prometheusrules"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hal9-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: hal9-operator
+subjects:
+- kind: ServiceAccount
+  name: hal9-operator
+  namespace: hal9-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hal9-operator
+  namespace: hal9-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hal9-operator
+  template:
+    metadata:
+      labels:
+        app: hal9-operator
+    spec:
+      serviceAccountName: hal9-operator
+      containers:
+      - name: operator
+        image: hal9/operator:latest
+        imagePullPolicy: Always
+        env:
+        - name: WATCH_NAMESPACE
+          value: "" # Watch all namespaces
+        - name: OPERATOR_NAME
+          value: "hal9-operator"
+        - name: LOG_LEVEL
+          value: "info"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
