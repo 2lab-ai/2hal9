@@ -36,7 +36,7 @@ pub struct VisionModel {
 }
 
 pub struct GoalHierarchy {
-    root_goals: Vec<Goal>,
+    pub root_goals: Vec<Goal>,
 }
 
 impl StrategicNeuron {

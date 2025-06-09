@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 use petgraph::graph::{DiGraph, NodeIndex};
+use petgraph::visit::EdgeRef;
 use crate::Result;
 use super::*;
 
@@ -294,8 +295,8 @@ impl TopologyManager for GraphTopology {
         let metrics = self.calculate_metrics();
         
         // Fitness function: balance connectivity and efficiency
-        let connectivity_score = metrics.average_degree / (metrics.node_count as f32).max(1.0);
-        let efficiency_score = 1.0 / (metrics.average_path_length + 1.0);
+        let connectivity_score = metrics.average_degree / (metrics.total_units as f32).max(1.0);
+        let efficiency_score = 1.0 / (metrics.diameter as f32 + 1.0);
         let clustering_bonus = metrics.clustering_coefficient;
         
         let fitness = connectivity_score * 0.4 + efficiency_score * 0.4 + clustering_bonus * 0.2;

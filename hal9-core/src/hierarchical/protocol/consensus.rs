@@ -86,7 +86,7 @@ pub enum ProposalStatus {
 }
 
 /// Consensus algorithm types
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ConsensusAlgorithm {
     /// Simple majority (>50%)
     SimpleMajority,
@@ -418,7 +418,7 @@ impl ConsensusProtocol {
 impl Clone for ConsensusProtocol {
     fn clone(&self) -> Self {
         Self {
-            version: self.version,
+            version: self.version.clone(),
             transport: Arc::clone(&self.transport),
             negotiated: self.negotiated.clone(),
             node_id: self.node_id,
@@ -446,12 +446,12 @@ impl Protocol for ConsensusProtocol {
     }
     
     fn version(&self) -> ProtocolVersion {
-        self.version
+        self.version.clone()
     }
     
     async fn negotiate(&self, peer_capabilities: &ProtocolCapabilities) -> Result<NegotiatedProtocol> {
         let negotiated = NegotiatedProtocol {
-            version: self.version,
+            version: self.version.clone(),
             compression: CompressionType::None, // Consensus messages are typically small
             encryption: EncryptionType::Tls, // Important for Byzantine fault tolerance
             max_message_size: peer_capabilities.max_message_size.min(100_000), // 100KB max

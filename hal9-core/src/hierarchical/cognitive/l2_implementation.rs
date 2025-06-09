@@ -176,8 +176,12 @@ impl CognitiveUnit for L2ImplementationNeuron {
     }
     
     async fn learn(&mut self, gradient: LearningGradient) -> Result<()> {
-        let mut state = self.state.write();
-        state.basic.metrics.learning_iterations += 1;
+        // Get learning iterations before dropping the lock
+        let learning_iterations = {
+            let mut state = self.state.write();
+            state.basic.metrics.learning_iterations += 1;
+            state.basic.metrics.learning_iterations
+        };
         
         // Learn from execution errors
         if gradient.error_signal.magnitude > 0.5 {
@@ -205,7 +209,7 @@ impl CognitiveUnit for L2ImplementationNeuron {
                     learning_rate: 0.05,
                     momentum: 0.9,
                     batch_size: 1,
-                    epoch: state.basic.metrics.learning_iterations as u32,
+                    epoch: learning_iterations as u32,
                     loss_type: crate::hierarchical::protocol::gradient::LossType::MeanSquaredError,
                 },
             };
@@ -282,7 +286,7 @@ mod tests {
     
     pub fn generate_function(&self, description: &str) -> Result<String> {
         // Parse description to extract function details
-        let name = self.extract_name(description).unwrap_or("generated_function");
+        let name = self.extract_name(description).unwrap_or("generated_function".to_string());
         let params = self.extract_params(description).unwrap_or("".to_string());
         let return_type = self.extract_return_type(description).unwrap_or("()");
         let body = self.generate_function_body(description);
@@ -293,14 +297,14 @@ mod tests {
             .unwrap();
         
         Ok(template
-            .replace("{name}", name)
+            .replace("{name}", &name)
             .replace("{params}", &params)
             .replace("{return_type}", return_type)
             .replace("{body}", &body))
     }
     
     pub fn generate_struct(&self, description: &str) -> Result<String> {
-        let name = self.extract_name(description).unwrap_or("GeneratedStruct");
+        let name = self.extract_name(description).unwrap_or("GeneratedStruct".to_string());
         let fields = self.extract_fields(description);
         let params = self.generate_constructor_params(&fields);
         let field_init = self.generate_field_init(&fields);
@@ -311,14 +315,14 @@ mod tests {
             .unwrap();
         
         Ok(template
-            .replace("{name}", name)
+            .replace("{name}", &name)
             .replace("{fields}", &fields)
             .replace("{params}", &params)
             .replace("{field_init}", &field_init))
     }
     
     pub fn generate_test(&self, description: &str) -> Result<String> {
-        let name = self.extract_name(description).unwrap_or("generated");
+        let name = self.extract_name(description).unwrap_or("generated".to_string());
         let test_body = self.generate_test_body(description);
         
         let template = self.templates.read()
@@ -327,7 +331,7 @@ mod tests {
             .unwrap();
         
         Ok(template
-            .replace("{name}", name)
+            .replace("{name}", &name)
             .replace("{test_body}", &test_body))
     }
     
@@ -353,7 +357,7 @@ mod tests {
     pub fn generate_general(&self, description: &str) -> Result<String> {
         // Fallback for general code generation
         Ok(format!("// TODO: Implement {}\n// Generated from: {}", 
-                   self.extract_name(description).unwrap_or("feature"),
+                   self.extract_name(description).unwrap_or("feature".to_string()),
                    description))
     }
     
@@ -362,10 +366,11 @@ mod tests {
     }
     
     // Helper methods
-    fn extract_name(&self, description: &str) -> Option<&str> {
+    fn extract_name(&self, description: &str) -> Option<String> {
         // Simple extraction - could be enhanced with NLP
         description.split_whitespace()
             .find(|word| word.chars().all(|c| c.is_alphanumeric() || c == '_'))
+            .map(|s| s.to_string())
     }
     
     fn extract_params(&self, description: &str) -> Option<String> {
@@ -390,23 +395,23 @@ mod tests {
     }
     
     fn generate_function_body(&self, description: &str) -> String {
-        "    // TODO: Implement function logic\n    todo!()"
+        "    // TODO: Implement function logic\n    todo!()".to_string()
     }
     
     fn extract_fields(&self, description: &str) -> String {
-        "    id: Uuid,\n    name: String,\n    value: i32,"
+        "    id: Uuid,\n    name: String,\n    value: i32,".to_string()
     }
     
     fn generate_constructor_params(&self, _fields: &str) -> String {
-        "name: String, value: i32"
+        "name: String, value: i32".to_string()
     }
     
     fn generate_field_init(&self, _fields: &str) -> String {
-        "            id: Uuid::new_v4(),\n            name,\n            value,"
+        "            id: Uuid::new_v4(),\n            name,\n            value,".to_string()
     }
     
     fn generate_test_body(&self, description: &str) -> String {
-        "        // TODO: Implement test\n        assert_eq!(1 + 1, 2);"
+        "        // TODO: Implement test\n        assert_eq!(1 + 1, 2);".to_string()
     }
 }
 

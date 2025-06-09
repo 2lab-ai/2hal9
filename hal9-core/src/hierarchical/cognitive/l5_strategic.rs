@@ -171,7 +171,7 @@ impl CognitiveUnit for L5StrategicNeuron {
                     );
                 }
                 
-                let metadata = [
+                let metadata: HashMap<String, serde_json::Value> = [
                     ("action".to_string(), serde_json::json!("vision_update")),
                     ("vision_length".to_string(), serde_json::json!(new_vision.len())),
                 ].into_iter().collect();

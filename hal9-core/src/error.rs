@@ -75,6 +75,9 @@ pub enum Error {
     #[error("Processing error: {0}")]
     Processing(String),
     
+    #[error("Runtime error: {0}")]
+    Runtime(String),
+    
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use uuid::Uuid;
 use tokio::sync::RwLock;
 use std::sync::Arc;
-use crate::Result;
+use crate::{Result, Error};
 use super::*;
 
 /// Flow controller for managing signal routing
@@ -139,6 +139,7 @@ struct RoutingTable {
     weights: HashMap<Uuid, f32>,
 }
 
+#[derive(Clone)]
 struct Route {
     path: Vec<Uuid>,
     cost: f32,
@@ -224,9 +225,9 @@ impl AdaptiveFlowController {
             .min_by(|a, b| {
                 let a_score = self.calculate_route_score(a, &loads);
                 let b_score = self.calculate_route_score(b, &loads);
-                a_score.partial_cmp(&b_score).unwrap()
+                a_score.partial_cmp(&b_score).unwrap_or(std::cmp::Ordering::Equal)
             })
-            .ok_or_else(|| crate::Error::Routing("No viable route found".to_string()))
+            .ok_or_else(|| Error::Routing("No viable route found".to_string()))
     }
     
     fn meets_constraints(&self, route: &Route, constraints: &RoutingConstraints, loads: &LoadTracker) -> bool {

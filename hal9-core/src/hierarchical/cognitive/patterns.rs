@@ -44,11 +44,15 @@ impl PatternFormation {
     
     pub fn observe_activation(&mut self, components: Vec<PatternComponent>) -> Option<Uuid> {
         // Check if this activation matches existing patterns
-        for (id, pattern) in self.patterns.iter_mut() {
-            if self.matches_pattern(&components, &pattern.components) {
+        let matching_id = self.patterns.iter()
+            .find(|(_, pattern)| self.matches_pattern(&components, &pattern.components))
+            .map(|(id, _)| *id);
+        
+        if let Some(id) = matching_id {
+            if let Some(pattern) = self.patterns.get_mut(&id) {
                 pattern.activation_count += 1;
-                return Some(*id);
             }
+            return Some(id);
         }
         
         // Check if we should form a new pattern

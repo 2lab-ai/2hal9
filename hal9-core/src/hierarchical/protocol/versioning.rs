@@ -84,15 +84,27 @@ impl VersionedMessage {
 }
 
 /// Example migration from v1.0.0 to v1.1.0
-pub struct V1_0ToV1_1Migration;
+pub struct V1_0ToV1_1Migration {
+    from: ProtocolVersion,
+    to: ProtocolVersion,
+}
+
+impl Default for V1_0ToV1_1Migration {
+    fn default() -> Self {
+        Self {
+            from: ProtocolVersion::new(1, 0, 0),
+            to: ProtocolVersion::new(1, 1, 0),
+        }
+    }
+}
 
 impl VersionMigration for V1_0ToV1_1Migration {
     fn from_version(&self) -> &ProtocolVersion {
-        &ProtocolVersion::new(1, 0, 0)
+        &self.from
     }
     
     fn to_version(&self) -> &ProtocolVersion {
-        &ProtocolVersion::new(1, 1, 0)
+        &self.to
     }
     
     fn migrate(&self, message: &[u8]) -> Result<Vec<u8>> {
