@@ -88,7 +88,7 @@ impl CachePool {
     }
     
     /// Get a connection from the pool
-    pub async fn get(&self) -> Result<bb8::PooledConnection<'_, RedisConnectionManager>> {
+    pub async fn get_connection(&self) -> Result<bb8::PooledConnection<'_, RedisConnectionManager>> {
         self.pool.get().await
             .map_err(|e| anyhow!("Failed to get Redis connection: {}", e))
     }
@@ -100,12 +100,12 @@ impl CachePool {
     
     /// Set a value with TTL
     pub async fn set<T: Serialize>(&self, key: &str, value: &T, ttl: Option<Duration>) -> Result<()> {
-        let mut conn = self.get().await?;
+        let mut conn = self.get_connection().await?;
         let key = self.build_key(key);
         let value = serde_json::to_string(value)?;
         let ttl = ttl.unwrap_or(self.config.default_ttl);
         
-        conn.set_ex(&key, value, ttl.as_secs() as usize).await?;
+        conn.set_ex(&key, value, ttl.as_secs()).await?;
         debug!("Cache SET: {} (TTL: {}s)", key, ttl.as_secs());
         
         Ok(())
@@ -113,7 +113,7 @@ impl CachePool {
     
     /// Get a value
     pub async fn get<T: for<'de> Deserialize<'de>>(&self, key: &str) -> Result<Option<T>> {
-        let mut conn = self.get().await?;
+        let mut conn = self.get_connection().await?;
         let key = self.build_key(key);
         
         let value: Option<String> = conn.get(&key).await?;
@@ -133,7 +133,7 @@ impl CachePool {
     
     /// Delete a value
     pub async fn delete(&self, key: &str) -> Result<()> {
-        let mut conn = self.get().await?;
+        let mut conn = self.get_connection().await?;
         let key = self.build_key(key);
         
         conn.del(&key).await?;
@@ -144,14 +144,18 @@ impl CachePool {
     
     /// Delete multiple values by pattern
     pub async fn delete_pattern(&self, pattern: &str) -> Result<u64> {
-        let mut conn = self.get().await?;
+        let mut conn = self.get_connection().await?;
         let pattern = self.build_key(pattern);
         
         // Use SCAN to find keys matching pattern
-        let keys: Vec<String> = conn.scan_match(&pattern)
-            .await?
-            .collect::<Vec<_>>()
-            .await;
+        let keys: Vec<String> = {
+            let mut scan_iter: redis::AsyncIter<String> = conn.scan_match(&pattern).await?;
+            let mut keys = Vec::new();
+            while let Some(key) = scan_iter.next_item().await {
+                keys.push(key);
+            }
+            keys
+        };
         
         if keys.is_empty() {
             return Ok(0);
@@ -166,7 +170,7 @@ impl CachePool {
     
     /// Check if key exists
     pub async fn exists(&self, key: &str) -> Result<bool> {
-        let mut conn = self.get().await?;
+        let mut conn = self.get_connection().await?;
         let key = self.build_key(key);
         
         let exists: bool = conn.exists(&key).await?;
@@ -175,7 +179,7 @@ impl CachePool {
     
     /// Increment a counter
     pub async fn incr(&self, key: &str) -> Result<i64> {
-        let mut conn = self.get().await?;
+        let mut conn = self.get_connection().await?;
         let key = self.build_key(key);
         
         let value: i64 = conn.incr(&key, 1).await?;
@@ -184,7 +188,7 @@ impl CachePool {
     
     /// Add to a set
     pub async fn sadd(&self, key: &str, member: &str) -> Result<()> {
-        let mut conn = self.get().await?;
+        let mut conn = self.get_connection().await?;
         let key = self.build_key(key);
         
         conn.sadd(&key, member).await?;
@@ -193,7 +197,7 @@ impl CachePool {
     
     /// Get set members
     pub async fn smembers(&self, key: &str) -> Result<Vec<String>> {
-        let mut conn = self.get().await?;
+        let mut conn = self.get_connection().await?;
         let key = self.build_key(key);
         
         let members: Vec<String> = conn.smembers(&key).await?;
@@ -202,7 +206,7 @@ impl CachePool {
     
     /// Push to list
     pub async fn lpush(&self, key: &str, value: &str) -> Result<()> {
-        let mut conn = self.get().await?;
+        let mut conn = self.get_connection().await?;
         let key = self.build_key(key);
         
         conn.lpush(&key, value).await?;
@@ -211,7 +215,7 @@ impl CachePool {
     
     /// Get list range
     pub async fn lrange(&self, key: &str, start: isize, stop: isize) -> Result<Vec<String>> {
-        let mut conn = self.get().await?;
+        let mut conn = self.get_connection().await?;
         let key = self.build_key(key);
         
         let values: Vec<String> = conn.lrange(&key, start, stop).await?;
@@ -220,7 +224,7 @@ impl CachePool {
     
     /// Set hash field
     pub async fn hset<T: Serialize>(&self, key: &str, field: &str, value: &T) -> Result<()> {
-        let mut conn = self.get().await?;
+        let mut conn = self.get_connection().await?;
         let key = self.build_key(key);
         let value = serde_json::to_string(value)?;
         
@@ -230,7 +234,7 @@ impl CachePool {
     
     /// Get hash field
     pub async fn hget<T: for<'de> Deserialize<'de>>(&self, key: &str, field: &str) -> Result<Option<T>> {
-        let mut conn = self.get().await?;
+        let mut conn = self.get_connection().await?;
         let key = self.build_key(key);
         
         let value: Option<String> = conn.hget(&key, field).await?;
@@ -246,7 +250,7 @@ impl CachePool {
     
     /// Get all hash fields
     pub async fn hgetall(&self, key: &str) -> Result<std::collections::HashMap<String, String>> {
-        let mut conn = self.get().await?;
+        let mut conn = self.get_connection().await?;
         let key = self.build_key(key);
         
         let values: std::collections::HashMap<String, String> = conn.hgetall(&key).await?;
@@ -255,7 +259,7 @@ impl CachePool {
     
     /// Publish message to channel
     pub async fn publish(&self, channel: &str, message: &str) -> Result<()> {
-        let mut conn = self.get().await?;
+        let mut conn = self.get_connection().await?;
         
         conn.publish(channel, message).await?;
         Ok(())
@@ -373,17 +377,18 @@ impl WriteBehindBuffer {
     /// Add item to buffer
     pub async fn push<T: Serialize>(&self, item: &T) -> Result<()> {
         let value = serde_json::to_string(item)?;
-        self.cache.lpush(&self.buffer_key, &value).await?;
+        let mut conn = self.cache.get_connection().await?;
+        conn.lpush(&self.buffer_key, &value).await?;
         Ok(())
     }
     
     /// Flush buffer and return items
     pub async fn flush<T: for<'de> Deserialize<'de>>(&self, batch_size: usize) -> Result<Vec<T>> {
-        let values = self.cache.lrange(&self.buffer_key, 0, batch_size as isize - 1).await?;
+        let mut conn = self.cache.get_connection().await?;
+        let values: Vec<String> = conn.lrange(&self.buffer_key, 0, batch_size as isize - 1).await?;
         
         if !values.is_empty() {
             // Remove flushed items
-            let mut conn = self.cache.get().await?;
             conn.ltrim(&self.buffer_key, values.len() as isize, -1).await?;
         }
         
