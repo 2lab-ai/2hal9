@@ -12,3 +12,6 @@ pub use manager::{PluginManager, PluginError};
 pub use runtime::{WasmRuntime, RuntimeConfig};
 pub use sandbox::{SecurityPolicy, ResourceLimits};
 pub use registry::{PluginRegistry, PluginPackage};
+
+#[cfg(test)]
+mod tests;
