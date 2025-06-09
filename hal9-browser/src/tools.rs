@@ -4,12 +4,14 @@ use async_trait::async_trait;
 use serde_json::{json, Value};
 use std::sync::Arc;
 
-use hal9_core::mcp::{McpTool, ToolResult};
-use crate::{BrowserController, BrowserAction, WaitCondition, ExtractType};
+use hal9_core::mcp::{Tool, ToolDefinition, ToolResult, ToolContent};
+use hal9_core::Result;
+use crate::BrowserController;
+use crate::controller::{BrowserAction, WaitCondition, ExtractType};
 
 /// Base trait for browser tools
 #[async_trait]
-trait BrowserTool: McpTool {
+trait BrowserTool: Tool {
     /// Get browser controller
     async fn get_controller(&self) -> Arc<BrowserController>;
 }
@@ -26,29 +28,29 @@ impl NavigateTool {
 }
 
 #[async_trait]
-impl McpTool for NavigateTool {
+impl Tool for NavigateTool {
     fn name(&self) -> &str {
         "browser_navigate"
     }
     
-    fn description(&self) -> &str {
-        "Navigate browser to a URL"
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition {
+            name: "browser_navigate".to_string(),
+            description: "Navigate browser to a URL".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "The URL to navigate to"
+                    }
+                },
+                "required": ["url"]
+            })
+        }
     }
     
-    fn parameters_schema(&self) -> Value {
-        json!({
-            "type": "object",
-            "properties": {
-                "url": {
-                    "type": "string",
-                    "description": "The URL to navigate to"
-                }
-            },
-            "required": ["url"]
-        })
-    }
-    
-    async fn execute(&self, params: Value) -> ToolResult {
+    async fn execute(&self, params: Value) -> Result<Value> {
         let url = params["url"].as_str()
             .ok_or_else(|| anyhow::anyhow!("URL parameter is required"))?;
         
@@ -78,29 +80,29 @@ impl ClickTool {
 }
 
 #[async_trait]
-impl McpTool for ClickTool {
+impl Tool for ClickTool {
     fn name(&self) -> &str {
         "browser_click"
     }
     
-    fn description(&self) -> &str {
-        "Click an element on the page"
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition {
+            name: "browser_click".to_string(),
+            description: "Click an element on the page".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "selector": {
+                        "type": "string",
+                        "description": "CSS selector or XPath of the element to click"
+                    }
+                },
+                "required": ["selector"]
+            })
+        }
     }
     
-    fn parameters_schema(&self) -> Value {
-        json!({
-            "type": "object",
-            "properties": {
-                "selector": {
-                    "type": "string",
-                    "description": "CSS selector or XPath of the element to click"
-                }
-            },
-            "required": ["selector"]
-        })
-    }
-    
-    async fn execute(&self, params: Value) -> ToolResult {
+    async fn execute(&self, params: Value) -> Result<Value> {
         let selector = params["selector"].as_str()
             .ok_or_else(|| anyhow::anyhow!("Selector parameter is required"))?;
         
@@ -130,33 +132,33 @@ impl TypeTool {
 }
 
 #[async_trait]
-impl McpTool for TypeTool {
+impl Tool for TypeTool {
     fn name(&self) -> &str {
         "browser_type"
     }
     
-    fn description(&self) -> &str {
-        "Type text into an input field"
-    }
-    
-    fn parameters_schema(&self) -> Value {
-        json!({
-            "type": "object",
-            "properties": {
-                "selector": {
-                    "type": "string",
-                    "description": "CSS selector or XPath of the input field"
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition {
+            name: "browser_type".to_string(),
+            description: "Type text into an input field".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "selector": {
+                        "type": "string",
+                        "description": "CSS selector or XPath of the input field"
+                    },
+                    "text": {
+                        "type": "string",
+                        "description": "Text to type"
+                    }
                 },
-                "text": {
-                    "type": "string",
-                    "description": "Text to type"
-                }
-            },
-            "required": ["selector", "text"]
-        })
+                "required": ["selector", "text"]
+            })
+        }
     }
     
-    async fn execute(&self, params: Value) -> ToolResult {
+    async fn execute(&self, params: Value) -> Result<Value> {
         let selector = params["selector"].as_str()
             .ok_or_else(|| anyhow::anyhow!("Selector parameter is required"))?;
         let text = params["text"].as_str()
@@ -189,39 +191,39 @@ impl ExtractTool {
 }
 
 #[async_trait]
-impl McpTool for ExtractTool {
+impl Tool for ExtractTool {
     fn name(&self) -> &str {
         "browser_extract"
     }
     
-    fn description(&self) -> &str {
-        "Extract data from page elements"
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition {
+            name: "browser_extract".to_string(),
+            description: "Extract data from page elements".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "selector": {
+                        "type": "string",
+                        "description": "CSS selector or XPath of elements to extract from"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["text", "html", "attribute", "all_text"],
+                        "description": "Type of data to extract",
+                        "default": "text"
+                    },
+                    "attribute": {
+                        "type": "string",
+                        "description": "Attribute name (required when type is 'attribute')"
+                    }
+                },
+                "required": ["selector"]
+            })
+        }
     }
     
-    fn parameters_schema(&self) -> Value {
-        json!({
-            "type": "object",
-            "properties": {
-                "selector": {
-                    "type": "string",
-                    "description": "CSS selector or XPath of elements to extract from"
-                },
-                "type": {
-                    "type": "string",
-                    "enum": ["text", "html", "attribute", "all_text"],
-                    "description": "Type of data to extract",
-                    "default": "text"
-                },
-                "attribute": {
-                    "type": "string",
-                    "description": "Attribute name (required when type is 'attribute')"
-                }
-            },
-            "required": ["selector"]
-        })
-    }
-    
-    async fn execute(&self, params: Value) -> ToolResult {
+    async fn execute(&self, params: Value) -> Result<Value> {
         let selector = params["selector"].as_str()
             .ok_or_else(|| anyhow::anyhow!("Selector parameter is required"))?;
         
@@ -263,29 +265,29 @@ impl ScreenshotTool {
 }
 
 #[async_trait]
-impl McpTool for ScreenshotTool {
+impl Tool for ScreenshotTool {
     fn name(&self) -> &str {
         "browser_screenshot"
     }
     
-    fn description(&self) -> &str {
-        "Take a screenshot of the current page"
-    }
-    
-    fn parameters_schema(&self) -> Value {
-        json!({
-            "type": "object",
-            "properties": {
-                "full_page": {
-                    "type": "boolean",
-                    "description": "Whether to capture the full page or just the viewport",
-                    "default": false
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition {
+            name: "browser_screenshot".to_string(),
+            description: "Take a screenshot of the current page".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "full_page": {
+                        "type": "boolean",
+                        "description": "Whether to capture the full page or just the viewport",
+                        "default": false
+                    }
                 }
-            }
-        })
+            })
+        }
     }
     
-    async fn execute(&self, params: Value) -> ToolResult {
+    async fn execute(&self, params: Value) -> Result<Value> {
         let full_page = params["full_page"].as_bool().unwrap_or(false);
         
         let action = BrowserAction::Screenshot { full_page };
@@ -312,38 +314,38 @@ impl WaitForTool {
 }
 
 #[async_trait]
-impl McpTool for WaitForTool {
+impl Tool for WaitForTool {
     fn name(&self) -> &str {
         "browser_wait"
     }
     
-    fn description(&self) -> &str {
-        "Wait for a condition before proceeding"
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition {
+            name: "browser_wait".to_string(),
+            description: "Wait for a condition before proceeding".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "condition": {
+                        "type": "string",
+                        "enum": ["selector", "navigation", "duration"],
+                        "description": "Type of condition to wait for"
+                    },
+                    "selector": {
+                        "type": "string",
+                        "description": "CSS selector (required when condition is 'selector')"
+                    },
+                    "duration": {
+                        "type": "integer",
+                        "description": "Duration in milliseconds (required when condition is 'duration')"
+                    }
+                },
+                "required": ["condition"]
+            })
+        }
     }
     
-    fn parameters_schema(&self) -> Value {
-        json!({
-            "type": "object",
-            "properties": {
-                "condition": {
-                    "type": "string",
-                    "enum": ["selector", "navigation", "duration"],
-                    "description": "Type of condition to wait for"
-                },
-                "selector": {
-                    "type": "string",
-                    "description": "CSS selector (required when condition is 'selector')"
-                },
-                "duration": {
-                    "type": "integer",
-                    "description": "Duration in milliseconds (required when condition is 'duration')"
-                }
-            },
-            "required": ["condition"]
-        })
-    }
-    
-    async fn execute(&self, params: Value) -> ToolResult {
+    async fn execute(&self, params: Value) -> Result<Value> {
         let condition_type = params["condition"].as_str()
             .ok_or_else(|| anyhow::anyhow!("Condition parameter is required"))?;
         
