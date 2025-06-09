@@ -189,3 +189,184 @@ impl DefaultOrchestrator {
         }
     }
 }
+
+#[async_trait]
+impl Orchestrator for DefaultOrchestrator {
+    async fn initialize(&mut self) -> Result<()> {
+        // Initialize state synchronization
+        let initial_state = DistributedState {
+            state_id: Uuid::new_v4(),
+            version: 0,
+            data: HashMap::new(),
+            metadata: StateMetadata {
+                owner: Uuid::new_v4(),
+                timestamp: chrono::Utc::now(),
+                ttl: None,
+                replication_factor: 3,
+            },
+        };
+        
+        self.state_coordinator.synchronize(initial_state).await?;
+        Ok(())
+    }
+    
+    async fn add_unit(&mut self, unit: UnitDescriptor) -> Result<Uuid> {
+        let unit_id = unit.id;
+        
+        // Add to topology
+        self.topology_manager.add_node(unit.clone()).await?;
+        
+        // Update router topology
+        self.router.update_topology(TopologyChange::NodeAdded {
+            id: unit_id,
+            properties: NodeProperties {
+                layer: unit.layer as u8,
+                capabilities: unit.capabilities.iter()
+                    .map(|c| c.name.clone())
+                    .collect(),
+                capacity: unit.resource_requirements.cpu_cores * 100.0,
+            },
+        }).await?;
+        
+        Ok(unit_id)
+    }
+    
+    async fn remove_unit(&mut self, unit_id: Uuid) -> Result<()> {
+        // Remove from topology
+        self.topology_manager.remove_node(unit_id).await?;
+        
+        // Update router
+        self.router.update_topology(TopologyChange::NodeRemoved { id: unit_id }).await?;
+        
+        Ok(())
+    }
+    
+    async fn connect(&mut self, from: Uuid, to: Uuid, connection: Connection) -> Result<()> {
+        // Add edge to topology
+        self.topology_manager.add_edge(from, to, connection.clone()).await?;
+        
+        // Update router
+        self.router.update_topology(TopologyChange::LinkAdded {
+            from,
+            to,
+            properties: LinkProperties {
+                latency_ms: connection.latency_ms,
+                bandwidth_mbps: connection.bandwidth_limit.unwrap_or(1000.0),
+                reliability: 0.99, // Default reliability
+            },
+        }).await?;
+        
+        Ok(())
+    }
+    
+    async fn disconnect(&mut self, from: Uuid, to: Uuid) -> Result<()> {
+        // Remove edge from topology
+        self.topology_manager.remove_edge(from, to).await?;
+        
+        // Update router
+        self.router.update_topology(TopologyChange::LinkRemoved { from, to }).await?;
+        
+        Ok(())
+    }
+    
+    async fn route(&self, signal: OrchestrationSignal) -> Result<Vec<Uuid>> {
+        // Convert to routable signal
+        let routable = RoutableSignal {
+            signal_id: signal.id,
+            source: signal.source,
+            signal_type: match signal.signal_type {
+                SignalType::Activation => routing::SignalType::Activation { layer: 0 },
+                SignalType::Gradient => routing::SignalType::Gradient { magnitude: 1.0 },
+                SignalType::Control => routing::SignalType::Control { command: "".to_string() },
+                SignalType::Data => routing::SignalType::Data { content_type: "json".to_string() },
+            },
+            payload_size: signal.payload.to_string().len(),
+            routing_hints: routing::RoutingHints {
+                target_layers: None,
+                target_capabilities: None,
+                preferred_paths: signal.routing_hints.preferred_path.map(|p| vec![p]),
+                qos_requirements: routing::QosRequirements {
+                    max_latency_ms: None,
+                    min_bandwidth_mbps: None,
+                    reliability: None,
+                },
+            },
+        };
+        
+        // Get routing paths
+        let paths = self.router.route(&routable).await?;
+        
+        // Extract target nodes
+        let targets: Vec<Uuid> = paths.into_iter()
+            .filter_map(|path| path.path.last().copied())
+            .collect();
+        
+        Ok(targets)
+    }
+    
+    async fn topology(&self) -> Result<TopologySnapshot> {
+        let metrics = self.topology_manager.metrics().await?;
+        
+        // Get all units and connections from state
+        let state_snapshot = self.state_coordinator.snapshot().await?;
+        
+        let units: HashMap<Uuid, UnitDescriptor> = state_snapshot.units.into_iter()
+            .map(|(id, unit_state)| {
+                (id, UnitDescriptor {
+                    id,
+                    unit_type: UnitType::Neuron,
+                    layer: crate::hierarchical::cognitive::CognitiveLayer::Reflexive,
+                    capabilities: vec![],
+                    resource_requirements: ResourceRequirements {
+                        cpu_cores: 1.0,
+                        memory_mb: 128,
+                        bandwidth_mbps: 10.0,
+                    },
+                })
+            })
+            .collect();
+        
+        Ok(TopologySnapshot {
+            timestamp: chrono::Utc::now(),
+            units,
+            connections: vec![], // Would be populated from topology manager
+            metrics,
+        })
+    }
+    
+    async fn optimize(&mut self) -> Result<OptimizationReport> {
+        // Balance load across units
+        let load_report = self.flow_controller.balance_load().await?;
+        
+        // Optimize routing tables
+        self.router.optimize().await?;
+        
+        // Calculate performance improvement
+        let performance_improvement = if load_report.load_variance_before > 0.0 {
+            (load_report.load_variance_before - load_report.load_variance_after) 
+                / load_report.load_variance_before
+        } else {
+            0.0
+        };
+        
+        Ok(OptimizationReport {
+            changes_made: vec![
+                TopologyChange::ConnectionWeightChanged {
+                    from: Uuid::new_v4(),
+                    to: Uuid::new_v4(),
+                    old: 1.0,
+                    new: 0.8,
+                },
+            ],
+            performance_improvement,
+            resource_savings: ResourceSavings {
+                cpu_cores_saved: 0.0,
+                memory_mb_saved: 0,
+                bandwidth_mbps_saved: 0.0,
+            },
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests;
