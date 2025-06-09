@@ -1,0 +1,118 @@
+{{- if .Values.security.networkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "hal9.fullname" . }}
+  labels:
+    {{- include "hal9.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "hal9.selectorLabels" . | nindent 6 }}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow traffic from pods with matching labels
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "hal9.selectorLabels" . | nindent 10 }}
+    ports:
+    - protocol: TCP
+      port: 9000
+  # Allow traffic from ingress controller
+  {{- if .Values.ingress.enabled }}
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: {{ .Values.security.networkPolicy.ingressNamespace | default "ingress-nginx" }}
+    {{- if .Values.security.networkPolicy.ingressPodSelector }}
+    - podSelector:
+        {{- toYaml .Values.security.networkPolicy.ingressPodSelector | nindent 8 }}
+    {{- end }}
+    ports:
+    - protocol: TCP
+      port: 9000
+    {{- if .Values.ingress.grpc.enabled }}
+    - protocol: TCP
+      port: 9090
+    {{- end }}
+  {{- end }}
+  # Allow traffic from monitoring namespace
+  {{- if .Values.monitoring.enabled }}
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: {{ .Values.monitoring.namespace | default "monitoring" }}
+    ports:
+    - protocol: TCP
+      port: 9001
+  {{- end }}
+  # Allow custom ingress rules
+  {{- with .Values.security.networkPolicy.ingress }}
+    {{- toYaml . | nindent 2 }}
+  {{- end }}
+  egress:
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow traffic to PostgreSQL
+  {{- if .Values.postgresql.enabled }}
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgresql
+          app.kubernetes.io/instance: {{ .Release.Name }}
+    ports:
+    - protocol: TCP
+      port: 5432
+  {{- end }}
+  # Allow traffic to Redis
+  {{- if .Values.redis.enabled }}
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: redis
+          app.kubernetes.io/instance: {{ .Release.Name }}
+    ports:
+    - protocol: TCP
+      port: 6379
+  {{- end }}
+  # Allow traffic to other HAL9 pods
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "hal9.selectorLabels" . | nindent 10 }}
+    ports:
+    - protocol: TCP
+      port: 9000
+  # Allow HTTPS traffic for external APIs
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+  # Allow custom egress rules
+  {{- with .Values.security.networkPolicy.egress }}
+    {{- toYaml . | nindent 2 }}
+  {{- end }}
+---
+{{- if .Values.security.networkPolicy.denyAllIngress -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "hal9.fullname" . }}-deny-all
+  labels:
+    {{- include "hal9.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "hal9.selectorLabels" . | nindent 6 }}
+  policyTypes:
+  - Ingress
+{{- end }}
+{{- end }}

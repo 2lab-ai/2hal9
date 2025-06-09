@@ -1,0 +1,394 @@
+# Default values for HAL9 deployment
+# This is optimized for 1000+ concurrent users
+
+# Global configuration
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: "fast-ssd"
+
+# HAL9 Server configuration
+server:
+  replicaCount: 30
+  
+  image:
+    repository: hal9/server
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  # Resource allocation per pod
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+  
+  # Auto-scaling configuration
+  autoscaling:
+    enabled: true
+    minReplicas: 20
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+    # Custom metrics
+    metrics:
+    - type: Pods
+      pods:
+        metric:
+          name: hal9_concurrent_users_per_pod
+        target:
+          type: AverageValue
+          averageValue: "35"
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 9000
+    metricsPort: 9001
+    grpcPort: 9090
+  
+  # Health checks
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 9000
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+  
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: 9000
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  
+  # Environment variables
+  env:
+    - name: HAL9_MODE
+      value: "distributed"
+    - name: HAL9_LOG_LEVEL
+      value: "info"
+    - name: HAL9_METRICS_ENABLED
+      value: "true"
+    - name: ANTHROPIC_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: hal9-secrets
+          key: anthropic-api-key
+
+# Neuron configuration
+neurons:
+  layers:
+    l4:
+      name: "strategic"
+      replicas: 3
+      resources:
+        requests:
+          memory: "4Gi"
+          cpu: "2000m"
+        limits:
+          memory: "8Gi"
+          cpu: "4000m"
+    l3:
+      name: "reasoning"
+      replicas: 9
+      resources:
+        requests:
+          memory: "2Gi"
+          cpu: "1000m"
+        limits:
+          memory: "4Gi"
+          cpu: "2000m"
+    l2:
+      name: "operational"
+      replicas: 18
+      resources:
+        requests:
+          memory: "1Gi"
+          cpu: "500m"
+        limits:
+          memory: "2Gi"
+          cpu: "1000m"
+
+# Multi-region configuration
+regions:
+  enabled: true
+  list:
+    - name: us-west
+      replicas: 12
+      nodeSelector:
+        topology.kubernetes.io/region: us-west-2
+    - name: eu-central
+      replicas: 10
+      nodeSelector:
+        topology.kubernetes.io/region: eu-central-1
+    - name: ap-south
+      replicas: 8
+      nodeSelector:
+        topology.kubernetes.io/region: ap-south-1
+
+# Database configuration
+postgresql:
+  enabled: true
+  auth:
+    database: hal9
+    username: hal9
+    existingSecret: hal9-postgresql-secret
+  architecture: replication
+  primary:
+    persistence:
+      enabled: true
+      size: 100Gi
+      storageClass: fast-ssd
+    resources:
+      requests:
+        memory: "8Gi"
+        cpu: "4000m"
+      limits:
+        memory: "16Gi"
+        cpu: "8000m"
+  readReplicas:
+    replicaCount: 2
+    persistence:
+      enabled: true
+      size: 100Gi
+    resources:
+      requests:
+        memory: "4Gi"
+        cpu: "2000m"
+      limits:
+        memory: "8Gi"
+        cpu: "4000m"
+  metrics:
+    enabled: true
+
+# Redis configuration
+redis:
+  enabled: true
+  architecture: replication
+  auth:
+    enabled: true
+    existingSecret: hal9-redis-secret
+  master:
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: fast-ssd
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "1000m"
+      limits:
+        memory: "4Gi"
+        cpu: "2000m"
+  replica:
+    replicaCount: 3
+    persistence:
+      enabled: true
+      size: 10Gi
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+  sentinel:
+    enabled: true
+    quorum: 2
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+  hosts:
+    - host: api.hal9.ai
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: hal9-tls
+      hosts:
+        - api.hal9.ai
+  grpc:
+    enabled: true
+    className: nginx
+    annotations: {}
+    hosts:
+      - host: grpc.hal9.ai
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: hal9-grpc-tls
+        hosts:
+          - grpc.hal9.ai
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  namespace: "monitoring"
+  serviceMonitor:
+    enabled: true
+    namespace: ""
+    labels: {}
+    interval: "30s"
+    scrapeTimeout: "10s"
+    path: "/metrics"
+    honorLabels: true
+    metricRelabelings: []
+    relabelings: []
+  prometheusRule:
+    enabled: true
+    namespace: ""
+    labels: {}
+    additionalRules: []
+  prometheus:
+    enabled: true
+    retention: 30d
+    storageSize: 500Gi
+  grafana:
+    enabled: true
+    adminPassword: changeme
+    persistence:
+      enabled: true
+      size: 10Gi
+    dashboardProviders:
+      dashboardproviders.yaml:
+        apiVersion: 1
+        providers:
+        - name: 'hal9'
+          folder: 'HAL9'
+          type: file
+          options:
+            path: /var/lib/grafana/dashboards/hal9
+    dashboards:
+      hal9:
+        hal9-overview:
+          json: |
+            ${HAL9_OVERVIEW_DASHBOARD}
+        hal9-performance:
+          json: |
+            ${HAL9_PERFORMANCE_DASHBOARD}
+
+# Security configuration
+security:
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+  rbac:
+    create: true
+    clusterRole: false
+  networkPolicy:
+    enabled: true
+    ingressNamespace: "ingress-nginx"
+    ingressPodSelector: {}
+    ingress: []
+    egress: []
+    denyAllIngress: false
+  jwt:
+    secret: "your-jwt-secret-here"
+    privateKey: |
+      -----BEGIN PRIVATE KEY-----
+      YOUR-PRIVATE-KEY-HERE
+      -----END PRIVATE KEY-----
+    publicKey: |
+      -----BEGIN PUBLIC KEY-----
+      YOUR-PUBLIC-KEY-HERE
+      -----END PUBLIC KEY-----
+  networkPolicies:
+    enabled: true
+  podSecurityPolicy:
+    enabled: false
+
+# Backup configuration
+backup:
+  enabled: true
+  schedule: "0 2 * * *"
+  retention: 7
+  s3:
+    bucket: hal9-backups
+    region: us-west-2
+    existingSecret: hal9-backup-secret
+
+# Session affinity
+sessionAffinity:
+  enabled: true
+  type: ClientIP
+  timeoutSeconds: 10800
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+  maxUnavailable: ""
+  unhealthyPodEvictionPolicy: "IfHealthyBudget"
+  global:
+    minAvailable: "50%"
+
+# Priority class
+priorityClassName: high-priority
+
+# Topology spread constraints
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: hal9
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: hal9
+
+# Enterprise features
+enterprise:
+  enabled: true
+  license: ""
+  sso:
+    enabled: true
+    saml:
+      certificate: |
+        -----BEGIN CERTIFICATE-----
+        YOUR-SAML-CERTIFICATE-HERE
+        -----END CERTIFICATE-----
+      privateKey: |
+        -----BEGIN PRIVATE KEY-----
+        YOUR-SAML-PRIVATE-KEY-HERE
+        -----END PRIVATE KEY-----
+    oidc:
+      clientSecret: "your-oidc-client-secret"
+  encryption:
+    enabled: true
+    masterKey: "your-32-byte-master-encryption-key-here"
+    dataKey: "your-32-byte-data-encryption-key-here"
+
+# Secrets management
+secrets:
+  create: true
+
+# External database (if not using internal PostgreSQL)
+externalDatabase:
+  url: ""
+
+# External Redis (if not using internal Redis)
+externalRedis:
+  url: ""
