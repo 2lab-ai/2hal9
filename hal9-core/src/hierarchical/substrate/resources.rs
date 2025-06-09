@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use tokio::sync::mpsc;
-use sysinfo::{System, SystemExt, CpuExt};
+use sysinfo::System;
 use crate::{Result, Error};
 
 /// Compute resource management abstraction

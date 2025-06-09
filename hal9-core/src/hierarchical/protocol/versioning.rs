@@ -84,9 +84,9 @@ impl VersionedMessage {
 }
 
 /// Example migration from v1.0.0 to v1.1.0
-pub struct V1_0_to_V1_1_Migration;
+pub struct V1_0ToV1_1Migration;
 
-impl VersionMigration for V1_0_to_V1_1_Migration {
+impl VersionMigration for V1_0ToV1_1Migration {
     fn from_version(&self) -> &ProtocolVersion {
         &ProtocolVersion::new(1, 0, 0)
     }

@@ -2,8 +2,6 @@
 
 use async_trait::async_trait;
 use tokio::sync::mpsc;
-use futures::stream::{Stream, StreamExt};
-use std::pin::Pin;
 use uuid::Uuid;
 use crate::{Result, Error};
 

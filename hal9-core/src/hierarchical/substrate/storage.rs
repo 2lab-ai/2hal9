@@ -49,9 +49,7 @@ pub trait PersistentStorage: Send + Sync + 'static {
 #[async_trait]
 pub trait StorageTransaction: Send {
     /// Add a put operation to the transaction
-    async fn put<V>(&mut self, key: &str, value: V) -> Result<()>
-    where
-        V: Serialize + Send + Sync;
+    async fn put(&mut self, key: &str, value: Vec<u8>) -> Result<()>;
     
     /// Add a delete operation to the transaction
     async fn delete(&mut self, key: &str) -> Result<()>;
@@ -471,16 +469,10 @@ enum TransactionOp {
 
 #[async_trait]
 impl StorageTransaction for SqliteTransaction {
-    async fn put<V>(&mut self, key: &str, value: V) -> Result<()>
-    where
-        V: Serialize + Send + Sync,
-    {
-        let data = bincode::serialize(&value)
-            .map_err(|e| Error::Serialization(e.to_string()))?;
-        
+    async fn put(&mut self, key: &str, value: Vec<u8>) -> Result<()> {
         self.operations.push(TransactionOp::Put {
             key: key.to_string(),
-            value: data,
+            value,
         });
         
         Ok(())
@@ -852,16 +844,10 @@ struct PostgresTransaction {
 
 #[async_trait]
 impl StorageTransaction for PostgresTransaction {
-    async fn put<V>(&mut self, key: &str, value: V) -> Result<()>
-    where
-        V: Serialize + Send + Sync,
-    {
-        let data = bincode::serialize(&value)
-            .map_err(|e| Error::Serialization(e.to_string()))?;
-        
+    async fn put(&mut self, key: &str, value: Vec<u8>) -> Result<()> {
         self.operations.push(TransactionOp::Put {
             key: key.to_string(),
-            value: data,
+            value,
         });
         
         Ok(())

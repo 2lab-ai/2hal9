@@ -5,8 +5,6 @@
 //! without changing higher layers.
 
 use async_trait::async_trait;
-use std::future::Future;
-use std::pin::Pin;
 use serde::{Serialize, Deserialize};
 use crate::Result;
 

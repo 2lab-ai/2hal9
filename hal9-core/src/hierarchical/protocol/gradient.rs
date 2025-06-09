@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::collections::HashMap;
 use uuid::Uuid;
 use crate::{Result, Error};
-use crate::hierarchical::substrate::MessageTransport;
+use crate::hierarchical::substrate::transport::{DefaultTransport, TypedTransport};
 use super::{Protocol, ProtocolVersion, ProtocolCapabilities, NegotiatedProtocol, CompressionType, EncryptionType};
 
 /// Gradient message for backward propagation
@@ -154,7 +154,7 @@ impl GradientAccumulator {
 /// Gradient protocol implementation
 pub struct GradientProtocol {
     version: ProtocolVersion,
-    transport: Arc<dyn MessageTransport>,
+    transport: Arc<DefaultTransport>,
     negotiated: Option<NegotiatedProtocol>,
     accumulator: parking_lot::Mutex<GradientAccumulator>,
     metrics: Arc<GradientMetrics>,
@@ -170,7 +170,7 @@ struct GradientMetrics {
 }
 
 impl GradientProtocol {
-    pub fn new(transport: Arc<dyn MessageTransport>, batch_size: usize) -> Self {
+    pub fn new(transport: Arc<DefaultTransport>, batch_size: usize) -> Self {
         Self {
             version: ProtocolVersion::new(1, 0, 0),
             transport,
@@ -430,11 +430,11 @@ impl Protocol for GradientProtocol {
         Ok(negotiated)
     }
     
-    async fn encode<M: super::messages::Message>(&self, _message: M) -> Result<Vec<u8>> {
+    async fn encode_raw(&self, _message_type: &str, _data: Vec<u8>) -> Result<Vec<u8>> {
         Err(Error::Protocol("Use send_gradient for gradient protocol".to_string()))
     }
     
-    async fn decode<M: super::messages::Message>(&self, _data: &[u8]) -> Result<M> {
+    async fn decode_raw(&self, _data: &[u8]) -> Result<(String, Vec<u8>)> {
         Err(Error::Protocol("Use receive_gradients for gradient protocol".to_string()))
     }
     
