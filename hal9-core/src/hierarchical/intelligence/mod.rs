@@ -270,6 +270,79 @@ impl DefaultIntelligenceCoordinator {
     }
 }
 
+#[async_trait]
+impl IntelligenceCoordinator for DefaultIntelligenceCoordinator {
+    async fn initialize(&mut self) -> Result<()> {
+        // Initialize all subsystems
+        // In a real implementation, these would be properly initialized
+        Ok(())
+    }
+    
+    async fn enable_meta_learning(&mut self, _config: MetaLearningConfig) -> Result<()> {
+        // Configure meta-learning parameters
+        self.metrics.meta_learning_efficiency = 0.5;
+        Ok(())
+    }
+    
+    async fn enable_self_organization(&mut self, _config: SelfOrganizationConfig) -> Result<()> {
+        // Configure self-organization parameters
+        self.metrics.self_organization_degree = 0.5;
+        Ok(())
+    }
+    
+    async fn set_goals(&mut self, goals: Vec<Goal>) -> Result<()> {
+        self.goals = goals;
+        Ok(())
+    }
+    
+    async fn observe_emergence(&self) -> Result<EmergenceReport> {
+        let patterns = self.emergence_detector.detect_patterns().await?;
+        let transitions = self.emergence_detector.identify_phase_transitions().await?;
+        let complexity = self.emergence_detector.measure_complexity().await?;
+        
+        Ok(EmergenceReport {
+            timestamp: chrono::Utc::now(),
+            emergent_properties: patterns.into_iter().map(|p| EmergentProperty {
+                id: p.pattern_id,
+                name: p.description.clone(),
+                description: p.description,
+                emergence_strength: p.significance,
+                contributing_factors: vec![],
+            }).collect(),
+            phase_transitions: transitions,
+            complexity_metrics: complexity,
+        })
+    }
+    
+    async fn create(&self, challenge: Challenge) -> Result<Vec<Solution>> {
+        let ideas = self.creativity_engine.generate_ideas(&challenge.constraints).await?;
+        
+        Ok(ideas.into_iter().map(|idea| Solution {
+            id: idea.id,
+            description: idea.description,
+            novelty_score: idea.novelty,
+            feasibility_score: 0.7, // Placeholder
+            implementation_plan: ImplementationPlan {
+                steps: vec![],
+                resource_requirements: ResourceEstimate {
+                    compute_hours: 10.0,
+                    memory_gb: 4.0,
+                    complexity_units: 100.0,
+                },
+                timeline: Timeline {
+                    estimated_duration: std::time::Duration::from_secs(3600),
+                    milestones: vec![],
+                },
+            },
+            expected_outcomes: vec![],
+        }).collect())
+    }
+    
+    async fn metrics(&self) -> Result<IntelligenceMetrics> {
+        Ok(self.metrics.clone())
+    }
+}
+
 /// Core intelligence traits that must be implemented
 #[async_trait]
 pub trait MetaLearner: Send + Sync {
@@ -423,3 +496,6 @@ pub struct NovelConcept {
     pub resulting_concept: Concept,
     pub novelty_score: f32,
 }
+
+#[cfg(test)]
+mod tests;
