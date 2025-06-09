@@ -3,7 +3,6 @@
 use async_trait::async_trait;
 use uuid::Uuid;
 use std::collections::HashMap;
-use lru::LruCache;
 use crate::Result;
 use super::*;
 
@@ -296,7 +295,7 @@ pub struct PatternMatcher {
 }
 
 pub struct ResponseCache {
-    cache: std::collections::LruCache<String, String>,
+    cache: lru::LruCache<String, String>,
 }
 
 impl CognitiveState for ImplementationState {

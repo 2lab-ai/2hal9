@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use crate::hierarchical::substrate::{ChannelTransport, MessageTransport};
+    use crate::hierarchical::substrate::transport::{ChannelTransport, DefaultTransport, TypedTransport};
     use std::sync::Arc;
     use tokio::time::{timeout, Duration};
     use uuid::Uuid;
@@ -388,7 +388,7 @@ mod tests {
         let mut registry = VersionRegistry::new(ProtocolVersion::new(1, 1, 0));
         
         // Register a migration
-        registry.register_migration(Box::new(V1_0_to_V1_1_Migration));
+        registry.register_migration(Box::new(V1_0ToV1_1Migration));
         
         // Test migration
         let old_message = serde_json::json!({

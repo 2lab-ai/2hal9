@@ -3,7 +3,6 @@
 //! This module provides a unified interface for managing protocols, negotiation,
 //! versioning, and message routing across the hierarchical architecture.
 
-use async_trait::async_trait;
 use std::sync::Arc;
 use std::collections::HashMap;
 use parking_lot::RwLock;
@@ -13,7 +12,7 @@ use super::{
     Protocol, ProtocolVersion, ProtocolCapabilities, NegotiatedProtocol,
     negotiation::{
         ProtocolNegotiator, SessionNegotiator, DefaultNegotiator,
-        ProtocolOffer, NegotiationRequest, NegotiationResponse, NegotiationAgreement,
+        ProtocolOffer, NegotiationResponse, NegotiationAgreement,
         ProtocolDescriptor, NegotiationPreferences,
     },
     CompressionType, EncryptionType,
@@ -22,7 +21,7 @@ use super::{
     gradient::GradientProtocol,
     consensus::ConsensusProtocol,
 };
-use crate::hierarchical::substrate::MessageTransport;
+use crate::hierarchical::substrate::transport::{DefaultTransport, TypedTransport};
 
 /// Protocol manager configuration
 pub struct ProtocolManagerConfig {
@@ -48,7 +47,7 @@ impl Default for ProtocolManagerConfig {
 /// Centralized protocol manager
 pub struct ProtocolManager {
     config: ProtocolManagerConfig,
-    transport: Arc<dyn MessageTransport>,
+    transport: Arc<DefaultTransport>,
     protocols: Arc<RwLock<HashMap<String, Arc<dyn Protocol>>>>,
     negotiator: Arc<SessionNegotiator>,
     version_registry: Arc<RwLock<VersionRegistry>>,
@@ -65,7 +64,7 @@ struct ConnectionState {
 }
 
 impl ProtocolManager {
-    pub fn new(config: ProtocolManagerConfig, transport: Arc<dyn MessageTransport>) -> Self {
+    pub fn new(config: ProtocolManagerConfig, transport: Arc<DefaultTransport>) -> Self {
         // Create supported protocol descriptors
         let supported_protocols = vec![
             ProtocolDescriptor {

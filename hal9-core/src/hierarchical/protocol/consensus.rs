@@ -12,7 +12,7 @@ use std::time::Duration;
 use uuid::Uuid;
 use tokio::sync::RwLock;
 use crate::{Result, Error};
-use crate::hierarchical::substrate::MessageTransport;
+use crate::hierarchical::substrate::transport::{DefaultTransport, TypedTransport};
 use super::{Protocol, ProtocolVersion, ProtocolCapabilities, NegotiatedProtocol, CompressionType, EncryptionType};
 
 /// Consensus message types
@@ -118,7 +118,7 @@ impl ConsensusAlgorithm {
 /// Consensus protocol implementation
 pub struct ConsensusProtocol {
     version: ProtocolVersion,
-    transport: Arc<dyn MessageTransport>,
+    transport: Arc<DefaultTransport>,
     negotiated: Option<NegotiatedProtocol>,
     node_id: Uuid,
     algorithm: ConsensusAlgorithm,
@@ -138,7 +138,7 @@ struct ConsensusMetrics {
 
 impl ConsensusProtocol {
     pub fn new(
-        transport: Arc<dyn MessageTransport>,
+        transport: Arc<DefaultTransport>,
         node_id: Uuid,
         algorithm: ConsensusAlgorithm,
     ) -> Self {
@@ -460,11 +460,11 @@ impl Protocol for ConsensusProtocol {
         Ok(negotiated)
     }
     
-    async fn encode<M: super::messages::Message>(&self, _message: M) -> Result<Vec<u8>> {
+    async fn encode_raw(&self, _message_type: &str, _data: Vec<u8>) -> Result<Vec<u8>> {
         Err(Error::Protocol("Use consensus-specific methods".to_string()))
     }
     
-    async fn decode<M: super::messages::Message>(&self, _data: &[u8]) -> Result<M> {
+    async fn decode_raw(&self, _data: &[u8]) -> Result<(String, Vec<u8>)> {
         Err(Error::Protocol("Use consensus-specific methods".to_string()))
     }
     

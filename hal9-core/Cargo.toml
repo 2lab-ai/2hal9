@@ -21,6 +21,9 @@ chrono = { workspace = true }
 # Async
 tokio = { workspace = true }
 async-trait = { workspace = true }
+tokio-util = { version = "0.7", features = ["rt"] }
+futures = "0.3"
+tokio-stream = "0.1"
 
 # Logging
 tracing = { workspace = true }
@@ -55,6 +58,10 @@ sysinfo = "0.30"
 
 # Cache
 lru = "0.12"
+moka = { version = "0.12", features = ["future"] }
+
+# Graph operations
+petgraph = "0.6"
 
 [dev-dependencies]
 tokio-test = { workspace = true }

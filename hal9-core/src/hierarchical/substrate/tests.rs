@@ -166,8 +166,8 @@ mod tests {
         
         // Test transaction
         let mut tx = storage.transaction().await?;
-        tx.put("tx-key1", "value1").await?;
-        tx.put("tx-key2", "value2").await?;
+        tx.put("tx-key1", bincode::serialize(&"value1").unwrap()).await?;
+        tx.put("tx-key2", bincode::serialize(&"value2").unwrap()).await?;
         tx.commit().await?;
         
         assert!(storage.exists("tx-key1").await?);

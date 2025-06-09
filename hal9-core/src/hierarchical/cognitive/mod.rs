@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 use std::collections::HashMap;
-use crate::{Result, Error};
+use crate::Result;
 
 pub mod neurons;
 pub mod processing;

@@ -24,6 +24,9 @@ pub use negotiation::*;
 pub use versioning::*;
 pub use streams::*;
 pub use manager::*;
+pub use signal::{SignalProtocol, SignalMessage, Activation};
+pub use gradient::{GradientProtocol, GradientMessage, Gradient};
+pub use consensus::{ConsensusProtocol, ConsensusMessage};
 
 /// Base protocol trait for all communication protocols
 #[async_trait]
@@ -37,15 +40,36 @@ pub trait Protocol: Send + Sync + 'static {
     /// Negotiate protocol parameters with peer
     async fn negotiate(&self, peer_capabilities: &ProtocolCapabilities) -> Result<NegotiatedProtocol>;
     
-    /// Encode a message for transmission
-    async fn encode<M: Message>(&self, message: M) -> Result<Vec<u8>>;
+    /// Encode raw message bytes for transmission
+    async fn encode_raw(&self, message_type: &str, data: Vec<u8>) -> Result<Vec<u8>>;
     
-    /// Decode a message from transmission
-    async fn decode<M: Message>(&self, data: &[u8]) -> Result<M>;
+    /// Decode raw message bytes from transmission
+    async fn decode_raw(&self, data: &[u8]) -> Result<(String, Vec<u8>)>;
     
     /// Get protocol capabilities
     fn capabilities(&self) -> ProtocolCapabilities;
 }
+
+/// Helper trait for typed protocol operations
+#[async_trait]
+pub trait TypedProtocol: Protocol {
+    /// Encode a typed message
+    async fn encode<M: Message>(&self, message: M) -> Result<Vec<u8>> {
+        let data = bincode::serialize(&message)
+            .map_err(|e| crate::Error::Serialization(e.to_string()))?;
+        self.encode_raw(std::any::type_name::<M>(), data).await
+    }
+    
+    /// Decode a typed message
+    async fn decode<M: Message>(&self, data: &[u8]) -> Result<M> {
+        let (_msg_type, raw_data) = self.decode_raw(data).await?;
+        bincode::deserialize(&raw_data)
+            .map_err(|e| crate::Error::Deserialization(e.to_string()))
+    }
+}
+
+/// Automatically implement TypedProtocol for all Protocol types
+impl<T: Protocol> TypedProtocol for T {}
 
 /// Protocol version information
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -100,31 +124,7 @@ pub struct NegotiatedProtocol {
     pub max_message_size: usize,
 }
 
-/// Signal protocol for neuron activation propagation
-pub struct SignalProtocol {
-    version: ProtocolVersion,
-}
-
-impl SignalProtocol {
-    pub fn new() -> Self {
-        Self {
-            version: ProtocolVersion::new(1, 0, 0),
-        }
-    }
-}
-
-/// Gradient protocol for backward propagation
-pub struct GradientProtocol {
-    version: ProtocolVersion,
-}
-
-impl GradientProtocol {
-    pub fn new() -> Self {
-        Self {
-            version: ProtocolVersion::new(1, 0, 0),
-        }
-    }
-}
+// Signal and Gradient protocols are defined in their respective modules
 
 /// Query protocol for request/response patterns
 pub struct QueryProtocol {
@@ -156,17 +156,4 @@ impl StreamProtocol {
     }
 }
 
-/// Consensus protocol for distributed agreement
-pub struct ConsensusProtocol {
-    version: ProtocolVersion,
-    quorum_size: usize,
-}
-
-impl ConsensusProtocol {
-    pub fn new(quorum_size: usize) -> Self {
-        Self {
-            version: ProtocolVersion::new(1, 0, 0),
-            quorum_size,
-        }
-    }
-}
+// Consensus protocol is defined in consensus.rs module

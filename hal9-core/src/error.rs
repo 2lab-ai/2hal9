@@ -57,6 +57,24 @@ pub enum Error {
     #[error("Not found: {0}")]
     NotFound(String),
     
+    #[error("Resource exhausted: {0}")]
+    ResourceExhausted(String),
+    
+    #[error("Resource not found: {0}")]
+    ResourceNotFound(String),
+    
+    #[error("Transport error: {0}")]
+    Transport(String),
+    
+    #[error("Storage error: {0}")]
+    Storage(String),
+    
+    #[error("Deserialization error: {0}")]
+    Deserialization(String),
+    
+    #[error("Processing error: {0}")]
+    Processing(String),
+    
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     

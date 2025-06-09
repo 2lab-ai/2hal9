@@ -121,7 +121,7 @@ enum ComplexityMethod {
     Kolmogorov,
     Fractal,
     Entropy,
-    Lempel-Ziv,
+    LempelZiv,
 }
 
 struct TimeSeries {

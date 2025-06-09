@@ -5,7 +5,6 @@
 
 use async_trait::async_trait;
 use uuid::Uuid;
-use std::collections::HashMap;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use crate::{Result, Error};

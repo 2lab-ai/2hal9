@@ -9,7 +9,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use uuid::Uuid;
 use crate::{Result, Error};
-use crate::hierarchical::substrate::MessageTransport;
+use crate::hierarchical::substrate::transport::{
+    TransportReceiver, TypedTransport, DefaultTransport
+};
 use super::{Protocol, ProtocolVersion, ProtocolCapabilities, NegotiatedProtocol, CompressionType, EncryptionType};
 
 /// Signal message for neuron activation
@@ -57,7 +59,7 @@ impl Activation {
 /// Signal protocol implementation
 pub struct SignalProtocol {
     version: ProtocolVersion,
-    transport: Arc<dyn MessageTransport>,
+    transport: Arc<DefaultTransport>,
     negotiated: Option<NegotiatedProtocol>,
     metrics: Arc<SignalMetrics>,
 }
@@ -71,7 +73,7 @@ struct SignalMetrics {
 }
 
 impl SignalProtocol {
-    pub fn new(transport: Arc<dyn MessageTransport>) -> Self {
+    pub fn new(transport: Arc<DefaultTransport>) -> Self {
         Self {
             version: ProtocolVersion::new(1, 0, 0),
             transport,
@@ -225,7 +227,7 @@ impl SignalProtocol {
 
 /// Receiver for signal messages
 pub struct SignalReceiver<'a> {
-    receiver: crate::hierarchical::substrate::TransportReceiver<Vec<u8>>,
+    receiver: TransportReceiver<Vec<u8>>,
     protocol: &'a SignalProtocol,
 }
 
@@ -281,11 +283,11 @@ impl Protocol for SignalProtocol {
         Ok(negotiated)
     }
     
-    async fn encode<M: super::messages::Message>(&self, _message: M) -> Result<Vec<u8>> {
+    async fn encode_raw(&self, _message_type: &str, _data: Vec<u8>) -> Result<Vec<u8>> {
         Err(Error::Protocol("Use send_signal for signal protocol".to_string()))
     }
     
-    async fn decode<M: super::messages::Message>(&self, _data: &[u8]) -> Result<M> {
+    async fn decode_raw(&self, _data: &[u8]) -> Result<(String, Vec<u8>)> {
         Err(Error::Protocol("Use receive_signals for signal protocol".to_string()))
     }
     

@@ -34,8 +34,11 @@ pub trait TopologyManager: Send + Sync {
     /// Get topology metrics
     async fn metrics(&self) -> Result<TopologyMetrics>;
     
-    /// Evolve topology based on fitness function
-    async fn evolve(&mut self, fitness_fn: &dyn Fn(&Self) -> f32) -> Result<()>;
+    /// Evolve topology based on fitness metrics
+    async fn evolve(&mut self, current_fitness: f32) -> Result<()>;
+    
+    /// Calculate fitness for current topology
+    async fn calculate_fitness(&self) -> Result<f32>;
 }
 
 pub type NodeId = Uuid;
@@ -267,23 +270,37 @@ impl TopologyManager for GraphTopology {
         Ok(self.calculate_metrics())
     }
     
-    async fn evolve(&mut self, fitness_fn: &dyn Fn(&Self) -> f32) -> Result<()> {
+    async fn evolve(&mut self, current_fitness: f32) -> Result<()> {
         // Simplified evolution - just mutate current topology
-        let current_fitness = fitness_fn(self);
         
         // Try a mutation
         if rand::random::<f32>() < self.evolution_config.mutation_rate {
             // Add or remove a random edge
             // This is a placeholder for more sophisticated evolution
-        }
-        
-        let new_fitness = fitness_fn(self);
-        if new_fitness < current_fitness {
-            // Revert mutation if fitness decreased
-            // Placeholder for actual reversion logic
+            
+            // Calculate new fitness after mutation
+            let new_fitness = self.calculate_fitness().await?;
+            if new_fitness < current_fitness {
+                // Revert mutation if fitness decreased
+                // Placeholder for actual reversion logic
+            }
         }
         
         Ok(())
+    }
+    
+    async fn calculate_fitness(&self) -> Result<f32> {
+        // Calculate fitness based on topology metrics
+        let metrics = self.calculate_metrics();
+        
+        // Fitness function: balance connectivity and efficiency
+        let connectivity_score = metrics.average_degree / (metrics.node_count as f32).max(1.0);
+        let efficiency_score = 1.0 / (metrics.average_path_length + 1.0);
+        let clustering_bonus = metrics.clustering_coefficient;
+        
+        let fitness = connectivity_score * 0.4 + efficiency_score * 0.4 + clustering_bonus * 0.2;
+        
+        Ok(fitness)
     }
 }
 

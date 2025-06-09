@@ -2,15 +2,8 @@
 
 use std::sync::Arc;
 use uuid::Uuid;
-use crate::{Result, Error};
+use crate::Result;
 use super::*;
-use super::neurons::{
-    L1ReflexiveNeuron,
-    L2ImplementationNeuron,
-    L3OperationalNeuron,
-    L4TacticalNeuron,
-    L5StrategicNeuron,
-};
 
 /// Default factory implementation for creating cognitive units
 pub struct DefaultCognitiveFactory {

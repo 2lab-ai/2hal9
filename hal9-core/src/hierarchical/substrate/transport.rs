@@ -12,25 +12,17 @@ use crate::{Result, Error};
 /// Message transport abstraction
 #[async_trait]
 pub trait MessageTransport: Send + Sync + 'static {
-    /// Send a message to a destination
-    async fn send<M>(&self, destination: &str, message: M) -> Result<()>
-    where
-        M: Serialize + Send + Sync + 'static;
+    /// Send raw bytes to a destination
+    async fn send_raw(&self, destination: &str, data: Vec<u8>) -> Result<()>;
     
-    /// Receive messages for a given endpoint
-    async fn receive<M>(&self, endpoint: &str) -> Result<TransportReceiver<M>>
-    where
-        M: for<'de> Deserialize<'de> + Send + 'static;
+    /// Receive raw bytes for a given endpoint
+    async fn receive_raw(&self, endpoint: &str) -> Result<RawTransportReceiver>;
     
     /// Subscribe to broadcast messages
-    async fn subscribe<M>(&self, topic: &str) -> Result<TransportReceiver<M>>
-    where
-        M: for<'de> Deserialize<'de> + Send + 'static;
+    async fn subscribe_raw(&self, topic: &str) -> Result<RawTransportReceiver>;
     
-    /// Publish to a topic
-    async fn publish<M>(&self, topic: &str, message: M) -> Result<()>
-    where
-        M: Serialize + Send + Sync + 'static;
+    /// Publish raw bytes to a topic
+    async fn publish_raw(&self, topic: &str, data: Vec<u8>) -> Result<()>;
     
     /// Connect to a remote endpoint
     async fn connect(&self, endpoint: &str) -> Result<()>;
@@ -42,25 +34,110 @@ pub trait MessageTransport: Send + Sync + 'static {
     fn metrics(&self) -> TransportMetrics;
 }
 
-/// Receiver for transport messages
-pub struct TransportReceiver<M> {
-    inner: Box<dyn ReceiverTrait<M>>,
+/// Helper trait for typed transport operations
+#[async_trait]
+pub trait TypedTransport: MessageTransport {
+    /// Send a typed message
+    async fn send<M>(&self, destination: &str, message: M) -> Result<()>
+    where
+        M: Serialize + Send + Sync + 'static,
+    {
+        let data = bincode::serialize(&message)
+            .map_err(|e| Error::Serialization(e.to_string()))?;
+        self.send_raw(destination, data).await
+    }
+    
+    /// Receive typed messages
+    async fn receive<M>(&self, endpoint: &str) -> Result<TransportReceiver<M>>
+    where
+        M: for<'de> Deserialize<'de> + Send + 'static,
+    {
+        let raw_receiver = self.receive_raw(endpoint).await?;
+        Ok(TransportReceiver::new(raw_receiver))
+    }
+    
+    /// Subscribe to typed messages
+    async fn subscribe<M>(&self, topic: &str) -> Result<TransportReceiver<M>>
+    where
+        M: for<'de> Deserialize<'de> + Send + 'static,
+    {
+        let raw_receiver = self.subscribe_raw(topic).await?;
+        Ok(TransportReceiver::new(raw_receiver))
+    }
+    
+    /// Publish typed messages
+    async fn publish<M>(&self, topic: &str, message: M) -> Result<()>
+    where
+        M: Serialize + Send + Sync + 'static,
+    {
+        let data = bincode::serialize(&message)
+            .map_err(|e| Error::Serialization(e.to_string()))?;
+        self.publish_raw(topic, data).await
+    }
 }
 
-impl<M> TransportReceiver<M> {
-    pub async fn recv(&mut self) -> Option<M> {
+/// Automatically implement TypedTransport for all MessageTransport types
+impl<T: MessageTransport> TypedTransport for T {}
+
+/// Default transport type for use throughout the system
+/// This provides a concrete type that can be used instead of dyn MessageTransport
+pub type DefaultTransport = ChannelTransport;
+
+/// Create a default transport instance
+pub fn create_default_transport() -> Arc<DefaultTransport> {
+    Arc::new(ChannelTransport::new())
+}
+
+/// Raw receiver for transport bytes
+pub struct RawTransportReceiver {
+    inner: Box<dyn RawReceiverTrait>,
+}
+
+impl RawTransportReceiver {
+    pub async fn recv(&mut self) -> Option<Vec<u8>> {
         self.inner.recv().await
     }
     
-    pub async fn recv_timeout(&mut self, timeout: Duration) -> Result<Option<M>> {
+    pub async fn recv_timeout(&mut self, timeout: Duration) -> Result<Option<Vec<u8>>> {
         self.inner.recv_timeout(timeout).await
     }
 }
 
 #[async_trait]
-trait ReceiverTrait<M>: Send {
-    async fn recv(&mut self) -> Option<M>;
-    async fn recv_timeout(&mut self, timeout: Duration) -> Result<Option<M>>;
+trait RawReceiverTrait: Send {
+    async fn recv(&mut self) -> Option<Vec<u8>>;
+    async fn recv_timeout(&mut self, timeout: Duration) -> Result<Option<Vec<u8>>>;
+}
+
+/// Typed receiver for transport messages
+pub struct TransportReceiver<M> {
+    raw_receiver: RawTransportReceiver,
+    _phantom: std::marker::PhantomData<M>,
+}
+
+impl<M> TransportReceiver<M> 
+where
+    M: for<'de> Deserialize<'de> + Send + 'static,
+{
+    pub fn new(raw_receiver: RawTransportReceiver) -> Self {
+        Self {
+            raw_receiver,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+    
+    pub async fn recv(&mut self) -> Option<M> {
+        self.raw_receiver.recv().await.and_then(|data| {
+            bincode::deserialize(&data).ok()
+        })
+    }
+    
+    pub async fn recv_timeout(&mut self, timeout: Duration) -> Result<Option<M>> {
+        match self.raw_receiver.recv_timeout(timeout).await? {
+            Some(data) => Ok(bincode::deserialize(&data).ok()),
+            None => Ok(None),
+        }
+    }
 }
 
 /// Transport performance metrics
@@ -142,27 +219,20 @@ impl MetricsTracker {
 }
 
 /// Channel receiver wrapper
-struct ChannelReceiver<M> {
+struct ChannelReceiver {
     rx: mpsc::UnboundedReceiver<Vec<u8>>,
-    _phantom: std::marker::PhantomData<M>,
 }
 
 #[async_trait]
-impl<M> ReceiverTrait<M> for ChannelReceiver<M>
-where
-    M: for<'de> Deserialize<'de> + Send + 'static,
-{
-    async fn recv(&mut self) -> Option<M> {
-        self.rx.recv().await.and_then(|data| {
-            bincode::deserialize(&data).ok()
-        })
+impl RawReceiverTrait for ChannelReceiver {
+    async fn recv(&mut self) -> Option<Vec<u8>> {
+        self.rx.recv().await
     }
     
-    async fn recv_timeout(&mut self, timeout: Duration) -> Result<Option<M>> {
+    async fn recv_timeout(&mut self, timeout: Duration) -> Result<Option<Vec<u8>>> {
         match tokio::time::timeout(timeout, self.rx.recv()).await {
-            Ok(Some(data)) => Ok(bincode::deserialize(&data).ok()),
-            Ok(None) => Ok(None),
-            Err(_) => Err(Error::Timeout),
+            Ok(result) => Ok(result),
+            Err(_) => Err(Error::Timeout(timeout.as_secs())),
         }
     }
 }
@@ -186,13 +256,7 @@ impl ChannelTransport {
 
 #[async_trait]
 impl MessageTransport for ChannelTransport {
-    async fn send<M>(&self, destination: &str, message: M) -> Result<()>
-    where
-        M: Serialize + Send + Sync + 'static,
-    {
-        let data = bincode::serialize(&message)
-            .map_err(|e| Error::Serialization(e.to_string()))?;
-        
+    async fn send_raw(&self, destination: &str, data: Vec<u8>) -> Result<()> {
         if let Some(sender) = self.endpoints.get(destination) {
             sender.send(data.clone())
                 .map_err(|_| Error::Transport("Channel closed".to_string()))?;
@@ -203,46 +267,28 @@ impl MessageTransport for ChannelTransport {
         }
     }
     
-    async fn receive<M>(&self, endpoint: &str) -> Result<TransportReceiver<M>>
-    where
-        M: for<'de> Deserialize<'de> + Send + 'static,
-    {
+    async fn receive_raw(&self, endpoint: &str) -> Result<RawTransportReceiver> {
         let (tx, rx) = mpsc::unbounded_channel();
         self.endpoints.insert(endpoint.to_string(), tx);
         
-        Ok(TransportReceiver {
-            inner: Box::new(ChannelReceiver {
-                rx,
-                _phantom: std::marker::PhantomData,
-            }),
+        Ok(RawTransportReceiver {
+            inner: Box::new(ChannelReceiver { rx }),
         })
     }
     
-    async fn subscribe<M>(&self, topic: &str) -> Result<TransportReceiver<M>>
-    where
-        M: for<'de> Deserialize<'de> + Send + 'static,
-    {
+    async fn subscribe_raw(&self, topic: &str) -> Result<RawTransportReceiver> {
         let (tx, rx) = mpsc::unbounded_channel();
         
         self.topics.entry(topic.to_string())
             .or_insert_with(Vec::new)
             .push(tx);
         
-        Ok(TransportReceiver {
-            inner: Box::new(ChannelReceiver {
-                rx,
-                _phantom: std::marker::PhantomData,
-            }),
+        Ok(RawTransportReceiver {
+            inner: Box::new(ChannelReceiver { rx }),
         })
     }
     
-    async fn publish<M>(&self, topic: &str, message: M) -> Result<()>
-    where
-        M: Serialize + Send + Sync + 'static,
-    {
-        let data = bincode::serialize(&message)
-            .map_err(|e| Error::Serialization(e.to_string()))?;
-        
+    async fn publish_raw(&self, topic: &str, data: Vec<u8>) -> Result<()> {
         if let Some(mut subscribers) = self.topics.get_mut(topic) {
             // Remove closed channels
             subscribers.retain(|tx| !tx.is_closed());
@@ -280,27 +326,20 @@ struct TcpConnection {
 }
 
 /// TCP receiver wrapper
-struct TcpReceiver<M> {
+struct TcpReceiver {
     rx: mpsc::UnboundedReceiver<Vec<u8>>,
-    _phantom: std::marker::PhantomData<M>,
 }
 
 #[async_trait]
-impl<M> ReceiverTrait<M> for TcpReceiver<M>
-where
-    M: for<'de> Deserialize<'de> + Send + 'static,
-{
-    async fn recv(&mut self) -> Option<M> {
-        self.rx.recv().await.and_then(|data| {
-            bincode::deserialize(&data).ok()
-        })
+impl RawReceiverTrait for TcpReceiver {
+    async fn recv(&mut self) -> Option<Vec<u8>> {
+        self.rx.recv().await
     }
     
-    async fn recv_timeout(&mut self, timeout: Duration) -> Result<Option<M>> {
+    async fn recv_timeout(&mut self, timeout: Duration) -> Result<Option<Vec<u8>>> {
         match tokio::time::timeout(timeout, self.rx.recv()).await {
-            Ok(Some(data)) => Ok(bincode::deserialize(&data).ok()),
-            Ok(None) => Ok(None),
-            Err(_) => Err(Error::Timeout),
+            Ok(result) => Ok(result),
+            Err(_) => Err(Error::Timeout(timeout.as_secs())),
         }
     }
 }
@@ -407,13 +446,7 @@ impl TcpTransport {
 
 #[async_trait]
 impl MessageTransport for TcpTransport {
-    async fn send<M>(&self, destination: &str, message: M) -> Result<()>
-    where
-        M: Serialize + Send + Sync + 'static,
-    {
-        let data = bincode::serialize(&message)
-            .map_err(|e| Error::Serialization(e.to_string()))?;
-        
+    async fn send_raw(&self, destination: &str, data: Vec<u8>) -> Result<()> {
         let envelope = TransportEnvelope {
             id: uuid::Uuid::new_v4(),
             source: "local".to_string(),
@@ -444,34 +477,22 @@ impl MessageTransport for TcpTransport {
         }
     }
     
-    async fn receive<M>(&self, endpoint: &str) -> Result<TransportReceiver<M>>
-    where
-        M: for<'de> Deserialize<'de> + Send + 'static,
-    {
+    async fn receive_raw(&self, endpoint: &str) -> Result<RawTransportReceiver> {
         let (tx, rx) = mpsc::unbounded_channel();
         self.listeners.insert(endpoint.to_string(), tx);
         
-        Ok(TransportReceiver {
-            inner: Box::new(TcpReceiver {
-                rx,
-                _phantom: std::marker::PhantomData,
-            }),
+        Ok(RawTransportReceiver {
+            inner: Box::new(TcpReceiver { rx }),
         })
     }
     
-    async fn subscribe<M>(&self, _topic: &str) -> Result<TransportReceiver<M>>
-    where
-        M: for<'de> Deserialize<'de> + Send + 'static,
-    {
+    async fn subscribe_raw(&self, _topic: &str) -> Result<RawTransportReceiver> {
         // TCP transport doesn't support pub/sub natively
         // Would need to implement a protocol on top
         Err(Error::Transport("TCP transport doesn't support pub/sub".to_string()))
     }
     
-    async fn publish<M>(&self, _topic: &str, _message: M) -> Result<()>
-    where
-        M: Serialize + Send + Sync + 'static,
-    {
+    async fn publish_raw(&self, _topic: &str, _data: Vec<u8>) -> Result<()> {
         // TCP transport doesn't support pub/sub natively
         Err(Error::Transport("TCP transport doesn't support pub/sub".to_string()))
     }

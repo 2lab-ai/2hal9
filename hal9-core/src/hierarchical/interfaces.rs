@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 use std::any::Any;
+use std::collections::HashMap;
 use crate::Result;
 
 /// Base interface that all layers must implement
@@ -392,8 +393,8 @@ impl LegacyNeuronAdapter {
                 "neuron_id": self.neuron_id,
                 "content": signal.payload.activation.content,
                 "strength": signal.payload.activation.strength,
-                "metadata": signal.payload.metadata,
-                "memory_refs": signal.payload.memory_refs,
+                "metadata": signal.metadata,
+                "gradient": signal.payload.gradient,
                 "legacy_format": true,
             }),
             timestamp: signal.timestamp,
@@ -423,20 +424,22 @@ impl LegacyNeuronAdapter {
         
         let signal = crate::NeuronSignal {
             signal_id: message.id,
-            source_id: self.neuron_id,
-            target_id: None, // Will be determined by routing
+            from_neuron: self.neuron_id.to_string(),
+            to_neuron: String::new(), // Will be determined by routing
+            layer_from: self.layer_mapping.name().to_string(),
+            layer_to: String::new(),
+            propagation_type: crate::PropagationType::Forward,
+            batch_id: Uuid::new_v4(),
             timestamp: message.timestamp,
-            payload: crate::NeuronPayload {
+            metadata: HashMap::new(),
+            payload: crate::SignalPayload {
                 activation: crate::Activation {
                     content: content.to_string(),
                     strength,
+                    features: HashMap::new(),
                 },
-                metadata: message.payload.get("metadata")
-                    .cloned()
-                    .unwrap_or_else(|| serde_json::json!({})),
-                memory_refs: message.payload.get("memory_refs")
-                    .and_then(|v| serde_json::from_value(v.clone()).ok())
-                    .unwrap_or_default(),
+                gradient: message.payload.get("gradient")
+                    .and_then(|v| serde_json::from_value(v.clone()).ok()),
             },
         };
         
@@ -496,7 +499,7 @@ impl LegacyNeuronAdapter {
     
     fn determine_target_layer(&self, signal: &crate::NeuronSignal) -> LayerId {
         // Analyze signal metadata to determine target layer
-        if let Some(target) = signal.payload.metadata.get("target_layer") {
+        if let Some(target) = signal.metadata.get("target_layer") {
             if let Some(layer_str) = target.as_str() {
                 return Self::map_layer(layer_str);
             }
@@ -507,9 +510,9 @@ impl LegacyNeuronAdapter {
     }
     
     fn map_signal_type(&self, signal: &crate::NeuronSignal) -> MessageType {
-        if signal.payload.metadata.get("is_query").and_then(|v| v.as_bool()).unwrap_or(false) {
+        if signal.metadata.get("is_query").map(|v| v == "true").unwrap_or(false) {
             MessageType::Query
-        } else if signal.payload.metadata.get("is_control").and_then(|v| v.as_bool()).unwrap_or(false) {
+        } else if signal.metadata.get("is_control").map(|v| v == "true").unwrap_or(false) {
             MessageType::Control
         } else {
             MessageType::Data
@@ -680,10 +683,15 @@ impl MigrationCoordinator {
         // Validate adapter works
         let test_signal = crate::NeuronSignal {
             signal_id: Uuid::new_v4(),
-            source_id: adapter.neuron_id,
-            target_id: None,
+            from_neuron: adapter.neuron_id.to_string(),
+            to_neuron: String::new(),
+            layer_from: adapter.layer_mapping.name().to_string(),
+            layer_to: String::new(),
+            propagation_type: crate::PropagationType::Forward,
+            batch_id: Uuid::new_v4(),
             timestamp: chrono::Utc::now(),
-            payload: crate::NeuronPayload {
+            metadata: HashMap::new(),
+            payload: crate::SignalPayload {
                 activation: crate::Activation {
                     content: "test".to_string(),
                     strength: 0.5,
@@ -828,16 +836,21 @@ mod tests {
         // Test signal adaptation
         let signal = crate::NeuronSignal {
             signal_id: Uuid::new_v4(),
-            source_id: adapter.neuron_id,
-            target_id: None,
+            from_neuron: adapter.neuron_id.to_string(),
+            to_neuron: String::new(),
+            layer_from: adapter.layer_mapping.name().to_string(),
+            layer_to: String::new(),
+            propagation_type: crate::PropagationType::Forward,
+            batch_id: Uuid::new_v4(),
             timestamp: chrono::Utc::now(),
-            payload: crate::NeuronPayload {
+            metadata: serde_json::json!({"key": "value"}).as_object().unwrap().iter().map(|(k, v)| (k.clone(), v.to_string())).collect(),
+            payload: crate::SignalPayload {
                 activation: crate::Activation {
                     content: "test content".to_string(),
                     strength: 0.8,
+                    features: HashMap::new(),
                 },
-                metadata: serde_json::json!({"key": "value"}),
-                memory_refs: vec![],
+                gradient: None,
             },
         };
         
