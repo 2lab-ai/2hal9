@@ -1,10 +1,10 @@
 //! JWT token management
 
+use crate::auth::types::{AuthError, AuthResult};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::auth::types::{AuthError, AuthResult};
 
 /// JWT claims structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,20 +43,16 @@ impl JwtManager {
             refresh_token_duration: Duration::days(7),
         }
     }
-    
+
     /// Create with custom durations
-    pub fn with_durations(
-        secret: String,
-        access_minutes: i64,
-        refresh_days: i64,
-    ) -> Self {
+    pub fn with_durations(secret: String, access_minutes: i64, refresh_days: i64) -> Self {
         Self {
             secret,
             access_token_duration: Duration::minutes(access_minutes),
             refresh_token_duration: Duration::days(refresh_days),
         }
     }
-    
+
     /// Generate access token
     pub fn generate_access_token(
         &self,
@@ -66,7 +62,7 @@ impl JwtManager {
     ) -> AuthResult<String> {
         let now = Utc::now();
         let exp = now + self.access_token_duration;
-        
+
         let claims = JwtClaims {
             sub: user_id.to_string(),
             username: username.to_string(),
@@ -77,10 +73,10 @@ impl JwtManager {
             jti: Uuid::new_v4().to_string(),
             token_type: "access".to_string(),
         };
-        
+
         self.encode_token(&claims)
     }
-    
+
     /// Generate refresh token
     pub fn generate_refresh_token(
         &self,
@@ -90,7 +86,7 @@ impl JwtManager {
     ) -> AuthResult<String> {
         let now = Utc::now();
         let exp = now + self.refresh_token_duration;
-        
+
         let claims = JwtClaims {
             sub: user_id.to_string(),
             username: username.to_string(),
@@ -101,14 +97,14 @@ impl JwtManager {
             jti: Uuid::new_v4().to_string(),
             token_type: "refresh".to_string(),
         };
-        
+
         self.encode_token(&claims)
     }
-    
+
     /// Validate and decode token
     pub fn validate_token(&self, token: &str) -> AuthResult<JwtClaims> {
         let validation = Validation::new(Algorithm::HS256);
-        
+
         decode::<JwtClaims>(
             token,
             &DecodingKey::from_secret(self.secret.as_bytes()),
@@ -120,36 +116,36 @@ impl JwtManager {
             _ => AuthError::InvalidToken,
         })
     }
-    
+
     /// Validate access token specifically
     pub fn validate_access_token(&self, token: &str) -> AuthResult<JwtClaims> {
         let claims = self.validate_token(token)?;
-        
+
         if claims.token_type != "access" {
             return Err(AuthError::InvalidToken);
         }
-        
+
         Ok(claims)
     }
-    
+
     /// Validate refresh token specifically
     pub fn validate_refresh_token(&self, token: &str) -> AuthResult<JwtClaims> {
         let claims = self.validate_token(token)?;
-        
+
         if claims.token_type != "refresh" {
             return Err(AuthError::InvalidToken);
         }
-        
+
         Ok(claims)
     }
-    
+
     /// Refresh access token using refresh token
     pub fn refresh_access_token(&self, refresh_token: &str) -> AuthResult<String> {
         let claims = self.validate_refresh_token(refresh_token)?;
-        
+
         self.generate_access_token(&claims.sub, &claims.username, &claims.role)
     }
-    
+
     /// Encode token
     fn encode_token(&self, claims: &JwtClaims) -> AuthResult<String> {
         encode(
@@ -179,7 +175,7 @@ impl JwtManager {
     ) -> AuthResult<TokenPair> {
         let access_token = self.generate_access_token(user_id, username, role)?;
         let refresh_token = self.generate_refresh_token(user_id, username, role)?;
-        
+
         Ok(TokenPair {
             access_token,
             refresh_token,
@@ -191,36 +187,41 @@ impl JwtManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_jwt_generation_and_validation() {
         let manager = JwtManager::new("test_secret".to_string());
-        
-        let token = manager.generate_access_token("user123", "testuser", "user")
+
+        let token = manager
+            .generate_access_token("user123", "testuser", "user")
             .expect("Failed to generate token");
-        
-        let claims = manager.validate_access_token(&token)
+
+        let claims = manager
+            .validate_access_token(&token)
             .expect("Failed to validate token");
-        
+
         assert_eq!(claims.sub, "user123");
         assert_eq!(claims.username, "testuser");
         assert_eq!(claims.role, "user");
         assert_eq!(claims.token_type, "access");
     }
-    
+
     #[test]
     fn test_refresh_token() {
         let manager = JwtManager::new("test_secret".to_string());
-        
-        let refresh = manager.generate_refresh_token("user123", "testuser", "user")
+
+        let refresh = manager
+            .generate_refresh_token("user123", "testuser", "user")
             .expect("Failed to generate refresh token");
-        
-        let new_access = manager.refresh_access_token(&refresh)
+
+        let new_access = manager
+            .refresh_access_token(&refresh)
             .expect("Failed to refresh token");
-        
-        let claims = manager.validate_access_token(&new_access)
+
+        let claims = manager
+            .validate_access_token(&new_access)
             .expect("Failed to validate new access token");
-        
+
         assert_eq!(claims.sub, "user123");
     }
 }

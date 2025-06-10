@@ -1,5 +1,5 @@
 //! HAL9 Plugin SDK
-//! 
+//!
 //! This module provides the SDK for developing HAL9 plugins in Rust.
 //! Plugins can extend HAL9 with custom neurons, tools, memory providers, and more.
 
@@ -29,7 +29,7 @@ macro_rules! hal9_plugin {
         ]
     ) => {
         use $crate::plugins::sdk::*;
-        
+
         #[no_mangle]
         pub extern "C" fn _get_plugin_metadata() -> *const u8 {
             let metadata = PluginMetadata {
@@ -49,11 +49,11 @@ macro_rules! hal9_plugin {
                     dependencies: vec![],
                 },
             };
-            
+
             let json = serde_json::to_string(&metadata).unwrap();
             json.as_ptr()
         }
-        
+
         #[no_mangle]
         pub extern "C" fn _get_metadata_len() -> usize {
             let metadata = PluginMetadata {
@@ -73,7 +73,7 @@ macro_rules! hal9_plugin {
                     dependencies: vec![],
                 },
             };
-            
+
             let json = serde_json::to_string(&metadata).unwrap();
             json.len()
         }
@@ -92,7 +92,7 @@ macro_rules! neuron_plugin {
                     Ok(s) => s,
                     Err(_) => return std::ptr::null_mut(),
                 };
-                
+
                 let mut plugin = $struct_name::default();
                 match plugin.process_signal(signal) {
                     Ok(result) => {
@@ -114,12 +114,12 @@ macro_rules! neuron_plugin {
 pub trait PluginBase {
     /// Get plugin metadata
     fn metadata(&self) -> PluginMetadata;
-    
+
     /// Initialize the plugin
     fn initialize(&mut self, context: PluginContext) -> Result<(), PluginError> {
         Ok(())
     }
-    
+
     /// Cleanup when plugin is unloaded
     fn cleanup(&mut self) -> Result<(), PluginError> {
         Ok(())
@@ -152,7 +152,12 @@ extern "C" {
     fn hal9_log_error(ptr: *const u8, len: usize);
     fn hal9_current_timestamp() -> i64;
     fn hal9_memory_get(key_ptr: *const u8, key_len: usize, value_ptr: *mut u8) -> i32;
-    fn hal9_memory_set(key_ptr: *const u8, key_len: usize, value_ptr: *const u8, value_len: usize) -> i32;
+    fn hal9_memory_set(
+        key_ptr: *const u8,
+        key_len: usize,
+        value_ptr: *const u8,
+        value_len: usize,
+    ) -> i32;
 }
 
 // ============ Logging Functions ============
@@ -184,23 +189,17 @@ pub fn log_error(message: &str) {
 // ============ Time Functions ============
 
 pub fn current_timestamp() -> i64 {
-    unsafe {
-        hal9_current_timestamp()
-    }
+    unsafe { hal9_current_timestamp() }
 }
 
 // ============ Memory Functions ============
 
 pub fn memory_get(key: &str) -> Result<Option<Vec<u8>>, PluginError> {
     let mut buffer = vec![0u8; 1024]; // Start with 1KB buffer
-    
+
     unsafe {
-        let result = hal9_memory_get(
-            key.as_ptr(),
-            key.len(),
-            buffer.as_mut_ptr(),
-        );
-        
+        let result = hal9_memory_get(key.as_ptr(), key.len(), buffer.as_mut_ptr());
+
         match result {
             0 => Ok(None), // Key not found
             n if n > 0 => {
@@ -223,13 +222,8 @@ pub fn memory_get(key: &str) -> Result<Option<Vec<u8>>, PluginError> {
 
 pub fn memory_set(key: &str, value: &[u8]) -> Result<(), PluginError> {
     unsafe {
-        let result = hal9_memory_set(
-            key.as_ptr(),
-            key.len(),
-            value.as_ptr(),
-            value.len(),
-        );
-        
+        let result = hal9_memory_set(key.as_ptr(), key.len(), value.as_ptr(), value.len());
+
         match result {
             0 => Ok(()),
             -1 => Err(PluginError {
@@ -284,12 +278,12 @@ pub fn err<T>(code: ErrorCode, message: impl Into<String>) -> Result<T, PluginEr
 #[cfg(feature = "example")]
 pub mod example {
     use super::*;
-    
+
     pub struct ExampleNeuron {
         config: serde_json::Value,
         state: NeuronState,
     }
-    
+
     impl Default for ExampleNeuron {
         fn default() -> Self {
             Self {
@@ -304,18 +298,18 @@ pub mod example {
             }
         }
     }
-    
+
     impl NeuronPlugin for ExampleNeuron {
         fn process_signal(&mut self, signal: PluginSignal) -> Result<PluginSignal, PluginError> {
             log_info(&format!("Processing signal: {}", signal.id));
-            
+
             // Process the signal
             let processed_content = format!("Processed: {}", signal.content);
-            
+
             // Update state
             self.state.processed_count += 1;
             self.state.last_activity = current_timestamp();
-            
+
             // Return processed signal
             Ok(PluginSignal {
                 id: signal.id,
@@ -325,35 +319,35 @@ pub mod example {
                 timestamp: current_timestamp(),
             })
         }
-        
+
         fn get_state(&self) -> NeuronState {
             self.state.clone()
         }
-        
+
         fn update_config(&mut self, config: serde_json::Value) -> Result<(), PluginError> {
             self.config = config;
             Ok(())
         }
     }
-    
+
     impl PluginLifecycle for ExampleNeuron {
         fn on_load(&mut self, context: PluginContext) -> Result<(), PluginError> {
             log_info("Example neuron loaded");
             Ok(())
         }
-        
+
         fn on_activate(&mut self) -> Result<(), PluginError> {
             log_info("Example neuron activated");
             self.state.state = "active".to_string();
             Ok(())
         }
-        
+
         fn on_deactivate(&mut self) -> Result<(), PluginError> {
             log_info("Example neuron deactivated");
             self.state.state = "inactive".to_string();
             Ok(())
         }
-        
+
         fn on_unload(&mut self) -> Result<(), PluginError> {
             log_info("Example neuron unloaded");
             Ok(())

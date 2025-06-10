@@ -1,19 +1,19 @@
 //! Processing patterns and strategies for cognitive units
 
+use super::*;
+use crate::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use crate::Result;
-use super::*;
 
 /// Processing pattern trait
 #[async_trait]
 pub trait ProcessingPattern: Send + Sync {
     /// Pattern identifier
     fn id(&self) -> &str;
-    
+
     /// Check if pattern applies to input
     fn matches(&self, input: &CognitiveInput) -> bool;
-    
+
     /// Apply pattern to process input
     async fn apply(&self, input: CognitiveInput) -> Result<CognitiveOutput>;
 }
@@ -127,24 +127,34 @@ impl ProcessingStrategySelector {
             strategies: HashMap::new(),
         }
     }
-    
-    pub fn register_strategy(&mut self, layer: CognitiveLayer, pattern: Box<dyn ProcessingPattern>) {
-        self.strategies.entry(layer)
-            .or_default()
-            .push(pattern);
+
+    pub fn register_strategy(
+        &mut self,
+        layer: CognitiveLayer,
+        pattern: Box<dyn ProcessingPattern>,
+    ) {
+        self.strategies.entry(layer).or_default().push(pattern);
     }
-    
-    pub async fn select_and_apply(&self, layer: CognitiveLayer, input: CognitiveInput) -> Result<CognitiveOutput> {
-        let patterns = self.strategies.get(&layer)
+
+    pub async fn select_and_apply(
+        &self,
+        layer: CognitiveLayer,
+        input: CognitiveInput,
+    ) -> Result<CognitiveOutput> {
+        let patterns = self
+            .strategies
+            .get(&layer)
             .ok_or_else(|| crate::Error::Config(format!("No strategies for layer {:?}", layer)))?;
-        
+
         for pattern in patterns {
             if pattern.matches(&input) {
                 return pattern.apply(input).await;
             }
         }
-        
-        Err(crate::Error::Processing("No matching pattern found".to_string()))
+
+        Err(crate::Error::Processing(
+            "No matching pattern found".to_string(),
+        ))
     }
 }
 
@@ -161,13 +171,15 @@ impl AttentionMechanism {
             attention_window: window_size,
         }
     }
-    
+
     pub fn attend(&mut self, feature: &str, importance: f32) {
         self.focus_weights.insert(feature.to_string(), importance);
     }
-    
+
     pub fn get_focus(&self) -> Vec<(&str, f32)> {
-        let mut items: Vec<_> = self.focus_weights.iter()
+        let mut items: Vec<_> = self
+            .focus_weights
+            .iter()
             .map(|(k, v)| (k.as_str(), *v))
             .collect();
         items.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());

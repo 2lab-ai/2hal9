@@ -31,9 +31,9 @@ pub mod plugins;
 pub mod blockchain;
 
 #[cfg(feature = "graphql")]
-pub mod api_graphql;
+pub use api::graphql;
 
-pub use server::HAL9Server;
-pub use claude::{ClaudeInterface, MockClaude, ClaudeAPIClient};
+pub use claude::{ClaudeAPIClient, ClaudeInterface, MockClaude};
 pub use neuron::{ManagedNeuron, NeuronRegistry};
-pub use router::{SignalRouter, RoutingTable};
+pub use router::{RoutingTable, SignalRouter};
+pub use server::HAL9Server;

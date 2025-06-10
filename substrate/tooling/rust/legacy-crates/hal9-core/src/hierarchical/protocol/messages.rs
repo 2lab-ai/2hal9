@@ -1,24 +1,24 @@
 //! Message definitions and traits for protocol layer
 
-use serde::{Serialize, Deserialize};
-use uuid::Uuid;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 /// Base message trait that all protocol messages must implement
 pub trait Message: Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static {
     /// Get message ID
     fn id(&self) -> &Uuid;
-    
+
     /// Get message type identifier
     fn message_type(&self) -> &str;
-    
+
     /// Get message timestamp
     fn timestamp(&self) -> &DateTime<Utc>;
-    
+
     /// Get message priority
     fn priority(&self) -> MessagePriority;
-    
+
     /// Validate message integrity
     fn validate(&self) -> bool {
         true // Default implementation
@@ -60,12 +60,12 @@ impl MessageHeader {
             metadata: HashMap::new(),
         }
     }
-    
+
     pub fn with_correlation(mut self, correlation_id: Uuid) -> Self {
         self.correlation_id = Some(correlation_id);
         self
     }
-    
+
     pub fn with_priority(mut self, priority: MessagePriority) -> Self {
         self.priority = priority;
         self
@@ -87,15 +87,15 @@ impl Message for ActivationMessage {
     fn id(&self) -> &Uuid {
         &self.header.id
     }
-    
+
     fn message_type(&self) -> &str {
         "activation"
     }
-    
+
     fn timestamp(&self) -> &DateTime<Utc> {
         &self.header.timestamp
     }
-    
+
     fn priority(&self) -> MessagePriority {
         self.header.priority
     }
@@ -123,15 +123,15 @@ impl Message for GradientMessage {
     fn id(&self) -> &Uuid {
         &self.header.id
     }
-    
+
     fn message_type(&self) -> &str {
         "gradient"
     }
-    
+
     fn timestamp(&self) -> &DateTime<Utc> {
         &self.header.timestamp
     }
-    
+
     fn priority(&self) -> MessagePriority {
         self.header.priority
     }
@@ -150,15 +150,15 @@ impl Message for QueryMessage {
     fn id(&self) -> &Uuid {
         &self.header.id
     }
-    
+
     fn message_type(&self) -> &str {
         "query"
     }
-    
+
     fn timestamp(&self) -> &DateTime<Utc> {
         &self.header.timestamp
     }
-    
+
     fn priority(&self) -> MessagePriority {
         self.header.priority
     }
@@ -182,15 +182,15 @@ impl Message for ResponseMessage {
     fn id(&self) -> &Uuid {
         &self.header.id
     }
-    
+
     fn message_type(&self) -> &str {
         "response"
     }
-    
+
     fn timestamp(&self) -> &DateTime<Utc> {
         &self.header.timestamp
     }
-    
+
     fn priority(&self) -> MessagePriority {
         self.header.priority
     }
@@ -210,15 +210,15 @@ impl Message for StreamChunk {
     fn id(&self) -> &Uuid {
         &self.header.id
     }
-    
+
     fn message_type(&self) -> &str {
         "stream_chunk"
     }
-    
+
     fn timestamp(&self) -> &DateTime<Utc> {
         &self.header.timestamp
     }
-    
+
     fn priority(&self) -> MessagePriority {
         self.header.priority
     }
@@ -245,15 +245,15 @@ impl Message for ControlMessage {
     fn id(&self) -> &Uuid {
         &self.header.id
     }
-    
+
     fn message_type(&self) -> &str {
         "control"
     }
-    
+
     fn timestamp(&self) -> &DateTime<Utc> {
         &self.header.timestamp
     }
-    
+
     fn priority(&self) -> MessagePriority {
         MessagePriority::High // Control messages are high priority
     }

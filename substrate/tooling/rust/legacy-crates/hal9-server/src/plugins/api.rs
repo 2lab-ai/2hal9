@@ -94,23 +94,23 @@ pub enum Permission {
     NetworkHttps,
     NetworkTcp,
     NetworkUdp,
-    
+
     // File system
     FileRead(String),   // Path pattern
     FileWrite(String),  // Path pattern
     FileCreate(String), // Path pattern
-    
+
     // System resources
     SystemTime,
     SystemRandom,
     SystemEnv(String), // Environment variable
-    
+
     // HAL9 APIs
     Hal9Signal,
     Hal9Memory,
     Hal9Metrics,
     Hal9Learning,
-    
+
     // Inter-plugin communication
     PluginCall(String), // Target plugin ID
 }
@@ -168,13 +168,13 @@ pub enum ValueType {
 pub trait PluginLifecycle {
     /// Called when plugin is loaded
     fn on_load(&mut self, context: PluginContext) -> Result<(), PluginError>;
-    
+
     /// Called when plugin is activated
     fn on_activate(&mut self) -> Result<(), PluginError>;
-    
+
     /// Called when plugin is deactivated
     fn on_deactivate(&mut self) -> Result<(), PluginError>;
-    
+
     /// Called when plugin is unloaded
     fn on_unload(&mut self) -> Result<(), PluginError>;
 }
@@ -183,10 +183,10 @@ pub trait PluginLifecycle {
 pub trait NeuronPlugin: PluginLifecycle {
     /// Process a signal
     fn process_signal(&mut self, signal: PluginSignal) -> Result<PluginSignal, PluginError>;
-    
+
     /// Get neuron state
     fn get_state(&self) -> NeuronState;
-    
+
     /// Update configuration
     fn update_config(&mut self, config: serde_json::Value) -> Result<(), PluginError>;
 }
@@ -194,23 +194,37 @@ pub trait NeuronPlugin: PluginLifecycle {
 /// Tool provider plugin interface
 pub trait ToolPlugin: PluginLifecycle {
     /// Execute tool with parameters
-    fn execute(&mut self, params: HashMap<String, serde_json::Value>) -> Result<serde_json::Value, PluginError>;
-    
+    fn execute(
+        &mut self,
+        params: HashMap<String, serde_json::Value>,
+    ) -> Result<serde_json::Value, PluginError>;
+
     /// Validate parameters before execution
-    fn validate_params(&self, params: &HashMap<String, serde_json::Value>) -> Result<(), PluginError>;
+    fn validate_params(
+        &self,
+        params: &HashMap<String, serde_json::Value>,
+    ) -> Result<(), PluginError>;
 }
 
 /// Memory provider plugin interface
 pub trait MemoryPlugin: PluginLifecycle {
     /// Store memory entry
-    fn store(&mut self, key: String, value: Vec<u8>, metadata: HashMap<String, String>) -> Result<(), PluginError>;
-    
+    fn store(
+        &mut self,
+        key: String,
+        value: Vec<u8>,
+        metadata: HashMap<String, String>,
+    ) -> Result<(), PluginError>;
+
     /// Retrieve memory entry
-    fn retrieve(&self, key: &str) -> Result<Option<(Vec<u8>, HashMap<String, String>)>, PluginError>;
-    
+    fn retrieve(
+        &self,
+        key: &str,
+    ) -> Result<Option<(Vec<u8>, HashMap<String, String>)>, PluginError>;
+
     /// Search memory entries
     fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>, PluginError>;
-    
+
     /// Delete memory entry
     fn delete(&mut self, key: &str) -> Result<bool, PluginError>;
 }
@@ -297,26 +311,36 @@ impl std::error::Error for PluginError {}
 /// Functions provided by the host to plugins
 pub mod host_functions {
     use super::*;
-    
+
     /// Logging functions
     pub fn log_debug(message: &str) {}
     pub fn log_info(message: &str) {}
     pub fn log_warn(message: &str) {}
     pub fn log_error(message: &str) {}
-    
+
     /// Signal functions
-    pub fn send_signal(signal: PluginSignal) -> Result<Uuid, PluginError> { todo!() }
-    pub fn receive_signal() -> Result<Option<PluginSignal>, PluginError> { todo!() }
-    
+    pub fn send_signal(signal: PluginSignal) -> Result<Uuid, PluginError> {
+        todo!()
+    }
+    pub fn receive_signal() -> Result<Option<PluginSignal>, PluginError> {
+        todo!()
+    }
+
     /// Memory functions
-    pub fn memory_get(key: &str) -> Result<Option<Vec<u8>>, PluginError> { todo!() }
-    pub fn memory_set(key: &str, value: Vec<u8>) -> Result<(), PluginError> { todo!() }
-    
+    pub fn memory_get(key: &str) -> Result<Option<Vec<u8>>, PluginError> {
+        todo!()
+    }
+    pub fn memory_set(key: &str, value: Vec<u8>) -> Result<(), PluginError> {
+        todo!()
+    }
+
     /// Metrics functions
-    pub fn metric_increment(name: &str, value: f64, labels: HashMap<String, String>) { }
-    pub fn metric_gauge(name: &str, value: f64, labels: HashMap<String, String>) { }
-    
+    pub fn metric_increment(name: &str, value: f64, labels: HashMap<String, String>) {}
+    pub fn metric_gauge(name: &str, value: f64, labels: HashMap<String, String>) {}
+
     /// Time functions
-    pub fn current_timestamp() -> i64 { 0 }
-    pub fn sleep_ms(ms: u64) { }
+    pub fn current_timestamp() -> i64 {
+        0
+    }
+    pub fn sleep_ms(ms: u64) {}
 }

@@ -62,11 +62,11 @@ impl CircuitBreaker {
             service_name,
         }
     }
-    
+
     /// Check if request is allowed
     pub async fn allow_request(&self) -> bool {
         let mut state = self.state.write().await;
-        
+
         match *state {
             CircuitState::Closed => true,
             CircuitState::Open => {
@@ -75,7 +75,10 @@ impl CircuitBreaker {
                     if last_failure.elapsed() >= self.config.timeout {
                         *state = CircuitState::HalfOpen;
                         *self.successes.write().await = 0;
-                        info!("Circuit breaker for {} transitioning to half-open", self.service_name);
+                        info!(
+                            "Circuit breaker for {} transitioning to half-open",
+                            self.service_name
+                        );
                         true
                     } else {
                         false
@@ -87,61 +90,67 @@ impl CircuitBreaker {
             CircuitState::HalfOpen => true,
         }
     }
-    
+
     /// Record a successful request
     pub async fn record_success(&self) {
         let state = *self.state.read().await;
-        
+
         if state == CircuitState::HalfOpen {
             let mut successes = self.successes.write().await;
             *successes += 1;
-            
+
             if *successes >= self.config.success_threshold {
                 *self.state.write().await = CircuitState::Closed;
                 *self.failures.write().await = Vec::new();
-                info!("Circuit breaker for {} closed after {} successes", 
-                    self.service_name, successes);
+                info!(
+                    "Circuit breaker for {} closed after {} successes",
+                    self.service_name, successes
+                );
             }
         }
     }
-    
+
     /// Record a failed request
     pub async fn record_failure(&self) {
         let now = Instant::now();
         let mut failures = self.failures.write().await;
-        
+
         // Remove old failures outside the window
         failures.retain(|&failure| now.duration_since(failure) < self.config.window);
-        
+
         // Add new failure
         failures.push(now);
         *self.last_failure.write().await = Some(now);
-        
+
         let failure_count = failures.len() as u32;
-        
+
         // Check if we should open the circuit
         if failure_count >= self.config.failure_threshold {
             let mut state = self.state.write().await;
             if *state != CircuitState::Open {
                 *state = CircuitState::Open;
-                warn!("Circuit breaker for {} opened after {} failures", 
-                    self.service_name, failure_count);
+                warn!(
+                    "Circuit breaker for {} opened after {} failures",
+                    self.service_name, failure_count
+                );
             }
         }
-        
+
         // If in half-open state, immediately go back to open
         if *self.state.read().await == CircuitState::HalfOpen {
             *self.state.write().await = CircuitState::Open;
-            warn!("Circuit breaker for {} reopened due to failure in half-open state", 
-                self.service_name);
+            warn!(
+                "Circuit breaker for {} reopened due to failure in half-open state",
+                self.service_name
+            );
         }
     }
-    
+
     /// Get current state
     pub async fn state(&self) -> CircuitState {
         *self.state.read().await
     }
-    
+
     /// Reset the circuit breaker
     pub async fn reset(&self) {
         *self.state.write().await = CircuitState::Closed;
@@ -155,30 +164,30 @@ impl CircuitBreaker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_circuit_breaker_opens_after_threshold() {
         let config = CircuitBreakerConfig {
             failure_threshold: 3,
             ..Default::default()
         };
-        
+
         let cb = CircuitBreaker::new("test".to_string(), config);
-        
+
         // Should start closed
         assert_eq!(cb.state().await, CircuitState::Closed);
         assert!(cb.allow_request().await);
-        
+
         // Record failures
         for _ in 0..3 {
             cb.record_failure().await;
         }
-        
+
         // Should be open now
         assert_eq!(cb.state().await, CircuitState::Open);
         assert!(!cb.allow_request().await);
     }
-    
+
     #[tokio::test]
     async fn test_circuit_breaker_half_open_transition() {
         let config = CircuitBreakerConfig {
@@ -186,16 +195,16 @@ mod tests {
             timeout: Duration::from_millis(100),
             ..Default::default()
         };
-        
+
         let cb = CircuitBreaker::new("test".to_string(), config);
-        
+
         // Open the circuit
         cb.record_failure().await;
         assert_eq!(cb.state().await, CircuitState::Open);
-        
+
         // Wait for timeout
         tokio::time::sleep(Duration::from_millis(150)).await;
-        
+
         // Should transition to half-open
         assert!(cb.allow_request().await);
         assert_eq!(cb.state().await, CircuitState::HalfOpen);

@@ -3,17 +3,17 @@
 //! This layer implements various types of information processing units with
 //! hierarchical neuron types (L1-L5) that have distinct behaviors and capabilities.
 
-use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
-use uuid::Uuid;
-use std::collections::HashMap;
 use crate::Result;
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use uuid::Uuid;
 
-pub mod neurons;
-pub mod processing;
-pub mod learning;
-pub mod patterns;
 pub mod factory;
+pub mod learning;
+pub mod neurons;
+pub mod patterns;
+pub mod processing;
 
 // Individual neuron modules
 pub mod l1_reflexive;
@@ -22,11 +22,11 @@ pub mod l3_operational;
 pub mod l4_tactical;
 pub mod l5_strategic;
 
-pub use neurons::*;
-pub use processing::*;
-pub use learning::*;
-pub use patterns::*;
 pub use factory::*;
+pub use learning::*;
+pub use neurons::*;
+pub use patterns::*;
+pub use processing::*;
 
 // Re-export neuron types
 pub use l1_reflexive::L1ReflexiveNeuron;
@@ -40,28 +40,28 @@ pub use l5_strategic::L5StrategicNeuron;
 pub trait CognitiveUnit: Send + Sync + 'static {
     /// Input type for this unit
     type Input: Send + Sync + 'static;
-    
+
     /// Output type for this unit
     type Output: Send + Sync + 'static;
-    
+
     /// Internal state type
     type State: CognitiveState;
-    
+
     /// Get unit identifier
     fn id(&self) -> &Uuid;
-    
+
     /// Get unit layer
     fn layer(&self) -> CognitiveLayer;
-    
+
     /// Process input and produce output
     async fn process(&mut self, input: Self::Input) -> Result<Self::Output>;
-    
+
     /// Learn from feedback/gradient
     async fn learn(&mut self, gradient: LearningGradient) -> Result<()>;
-    
+
     /// Introspect current state
     async fn introspect(&self) -> Self::State;
-    
+
     /// Reset to initial state
     async fn reset(&mut self) -> Result<()>;
 }
@@ -70,10 +70,10 @@ pub trait CognitiveUnit: Send + Sync + 'static {
 pub trait CognitiveState: Send + Sync + Serialize + for<'de> Deserialize<'de> {
     /// Get state summary
     fn summary(&self) -> String;
-    
+
     /// Check if state is healthy
     fn is_healthy(&self) -> bool;
-    
+
     /// Get state metrics
     fn metrics(&self) -> StateMetrics;
 }
@@ -104,7 +104,7 @@ impl CognitiveLayer {
             Self::Strategic => 5,
         }
     }
-    
+
     /// Get layer name
     pub fn name(&self) -> &'static str {
         match self {
@@ -115,7 +115,7 @@ impl CognitiveLayer {
             Self::Strategic => "Strategic",
         }
     }
-    
+
     /// Get layer description
     pub fn description(&self) -> &'static str {
         match self {
@@ -126,7 +126,7 @@ impl CognitiveLayer {
             Self::Strategic => "Vision and long-term goals",
         }
     }
-    
+
     /// Get processing characteristics
     pub fn characteristics(&self) -> LayerCharacteristics {
         match self {
@@ -217,7 +217,19 @@ pub struct StateMetrics {
 /// Factory for creating cognitive units
 pub trait CognitiveFactory: Send + Sync {
     /// Create a cognitive unit for a specific layer
-    fn create_unit(&self, layer: CognitiveLayer, config: CognitiveConfig) -> Result<Box<dyn CognitiveUnit<Input = CognitiveInput, Output = CognitiveOutput, State = BasicCognitiveState>>>;
+    fn create_unit(
+        &self,
+        layer: CognitiveLayer,
+        config: CognitiveConfig,
+    ) -> Result<
+        Box<
+            dyn CognitiveUnit<
+                Input = CognitiveInput,
+                Output = CognitiveOutput,
+                State = BasicCognitiveState,
+            >,
+        >,
+    >;
 }
 
 /// Generic input for cognitive units
@@ -248,16 +260,18 @@ pub struct BasicCognitiveState {
 
 impl CognitiveState for BasicCognitiveState {
     fn summary(&self) -> String {
-        format!("{} unit {} - {} activations processed", 
-                self.layer.name(), 
-                self.unit_id, 
-                self.metrics.activations_processed)
+        format!(
+            "{} unit {} - {} activations processed",
+            self.layer.name(),
+            self.unit_id,
+            self.metrics.activations_processed
+        )
     }
-    
+
     fn is_healthy(&self) -> bool {
         self.metrics.errors_encountered < self.metrics.activations_processed / 10
     }
-    
+
     fn metrics(&self) -> StateMetrics {
         self.metrics.clone()
     }

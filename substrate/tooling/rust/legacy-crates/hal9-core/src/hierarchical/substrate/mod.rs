@@ -1,56 +1,56 @@
 //! Substrate Layer - Foundation abstractions for runtime, transport, and storage
 //!
-//! This layer provides the fundamental computational resources abstracted from 
+//! This layer provides the fundamental computational resources abstracted from
 //! implementation details. It allows HAL9 to run on different infrastructures
 //! without changing higher layers.
 
-use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
 use crate::Result;
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 
-pub mod runtime;
-pub mod transport;
-pub mod storage;
 pub mod resources;
+pub mod runtime;
+pub mod storage;
+pub mod transport;
 
 #[cfg(test)]
 mod tests;
 
-pub use runtime::*;
-pub use transport::*;
-pub use storage::*;
 pub use resources::*;
+pub use runtime::*;
+pub use storage::*;
+pub use transport::*;
 
 /// Main substrate abstraction that combines all foundational components
 #[async_trait]
 pub trait Substrate: Send + Sync + 'static {
     /// Associated runtime for async execution
     type Runtime: AsyncRuntime;
-    
+
     /// Associated transport for message passing
     type Transport: MessageTransport;
-    
+
     /// Associated storage for persistence
     type Storage: PersistentStorage;
-    
+
     /// Associated resource manager
     type Resource: ComputeResource;
-    
+
     /// Initialize the substrate
     async fn initialize(&mut self) -> Result<()>;
-    
+
     /// Get runtime instance
     fn runtime(&self) -> &Self::Runtime;
-    
+
     /// Get transport instance
     fn transport(&self) -> &Self::Transport;
-    
+
     /// Get storage instance
     fn storage(&self) -> &Self::Storage;
-    
+
     /// Get resource manager
     fn resources(&self) -> &Self::Resource;
-    
+
     /// Shutdown the substrate gracefully
     async fn shutdown(&mut self) -> Result<()>;
 }

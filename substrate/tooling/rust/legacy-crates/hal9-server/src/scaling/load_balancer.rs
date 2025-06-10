@@ -10,6 +10,7 @@ use std::net::SocketAddr;
 
 /// Load balancing strategies
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 pub enum LoadBalancingStrategy {
     RoundRobin,
     LeastConnections,

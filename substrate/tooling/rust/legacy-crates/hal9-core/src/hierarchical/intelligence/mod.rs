@@ -4,43 +4,43 @@
 //! hierarchical composition of lower layers. It enables meta-learning,
 //! self-organization, goal alignment, and creative problem solving.
 
-use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
-use uuid::Uuid;
-use std::collections::HashMap;
 use crate::Result;
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use uuid::Uuid;
 
+pub mod creativity;
+pub mod emergence;
 pub mod meta_learning;
 pub mod self_organization;
-pub mod emergence;
-pub mod creativity;
 
+pub use creativity::*;
+pub use emergence::*;
 pub use meta_learning::*;
 pub use self_organization::*;
-pub use emergence::*;
-pub use creativity::*;
 
 /// Intelligence layer coordinator
 #[async_trait]
 pub trait IntelligenceCoordinator: Send + Sync + 'static {
     /// Initialize intelligence systems
     async fn initialize(&mut self) -> Result<()>;
-    
+
     /// Enable meta-learning capabilities
     async fn enable_meta_learning(&mut self, config: MetaLearningConfig) -> Result<()>;
-    
+
     /// Enable self-organization
     async fn enable_self_organization(&mut self, config: SelfOrganizationConfig) -> Result<()>;
-    
+
     /// Set high-level goals
     async fn set_goals(&mut self, goals: Vec<Goal>) -> Result<()>;
-    
+
     /// Observe emergent behaviors
     async fn observe_emergence(&self) -> Result<EmergenceReport>;
-    
+
     /// Generate creative solutions
     async fn create(&self, challenge: Challenge) -> Result<Vec<Solution>>;
-    
+
     /// Get intelligence metrics
     async fn metrics(&self) -> Result<IntelligenceMetrics>;
 }
@@ -64,10 +64,18 @@ pub struct Constraint {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ConstraintType {
-    Resource { max_cost: f32 },
-    Time { deadline: chrono::DateTime<chrono::Utc> },
-    Quality { min_score: f32 },
-    Ethical { principles: Vec<String> },
+    Resource {
+        max_cost: f32,
+    },
+    Time {
+        deadline: chrono::DateTime<chrono::Utc>,
+    },
+    Quality {
+        min_score: f32,
+    },
+    Ethical {
+        principles: Vec<String>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -277,67 +285,76 @@ impl IntelligenceCoordinator for DefaultIntelligenceCoordinator {
         // In a real implementation, these would be properly initialized
         Ok(())
     }
-    
+
     async fn enable_meta_learning(&mut self, _config: MetaLearningConfig) -> Result<()> {
         // Configure meta-learning parameters
         self.metrics.meta_learning_efficiency = 0.5;
         Ok(())
     }
-    
+
     async fn enable_self_organization(&mut self, _config: SelfOrganizationConfig) -> Result<()> {
         // Configure self-organization parameters
         self.metrics.self_organization_degree = 0.5;
         Ok(())
     }
-    
+
     async fn set_goals(&mut self, goals: Vec<Goal>) -> Result<()> {
         self.goals = goals;
         Ok(())
     }
-    
+
     async fn observe_emergence(&self) -> Result<EmergenceReport> {
         let patterns = self.emergence_detector.detect_patterns().await?;
         let transitions = self.emergence_detector.identify_phase_transitions().await?;
         let complexity = self.emergence_detector.measure_complexity().await?;
-        
+
         Ok(EmergenceReport {
             timestamp: chrono::Utc::now(),
-            emergent_properties: patterns.into_iter().map(|p| EmergentProperty {
-                id: p.pattern_id,
-                name: p.description.clone(),
-                description: p.description,
-                emergence_strength: p.significance,
-                contributing_factors: vec![],
-            }).collect(),
+            emergent_properties: patterns
+                .into_iter()
+                .map(|p| EmergentProperty {
+                    id: p.pattern_id,
+                    name: p.description.clone(),
+                    description: p.description,
+                    emergence_strength: p.significance,
+                    contributing_factors: vec![],
+                })
+                .collect(),
             phase_transitions: transitions,
             complexity_metrics: complexity,
         })
     }
-    
+
     async fn create(&self, challenge: Challenge) -> Result<Vec<Solution>> {
-        let ideas = self.creativity_engine.generate_ideas(&challenge.constraints).await?;
-        
-        Ok(ideas.into_iter().map(|idea| Solution {
-            id: idea.id,
-            description: idea.description,
-            novelty_score: idea.novelty,
-            feasibility_score: 0.7, // Placeholder
-            implementation_plan: ImplementationPlan {
-                steps: vec![],
-                resource_requirements: ResourceEstimate {
-                    compute_hours: 10.0,
-                    memory_gb: 4.0,
-                    complexity_units: 100.0,
+        let ideas = self
+            .creativity_engine
+            .generate_ideas(&challenge.constraints)
+            .await?;
+
+        Ok(ideas
+            .into_iter()
+            .map(|idea| Solution {
+                id: idea.id,
+                description: idea.description,
+                novelty_score: idea.novelty,
+                feasibility_score: 0.7, // Placeholder
+                implementation_plan: ImplementationPlan {
+                    steps: vec![],
+                    resource_requirements: ResourceEstimate {
+                        compute_hours: 10.0,
+                        memory_gb: 4.0,
+                        complexity_units: 100.0,
+                    },
+                    timeline: Timeline {
+                        estimated_duration: std::time::Duration::from_secs(3600),
+                        milestones: vec![],
+                    },
                 },
-                timeline: Timeline {
-                    estimated_duration: std::time::Duration::from_secs(3600),
-                    milestones: vec![],
-                },
-            },
-            expected_outcomes: vec![],
-        }).collect())
+                expected_outcomes: vec![],
+            })
+            .collect())
     }
-    
+
     async fn metrics(&self) -> Result<IntelligenceMetrics> {
         Ok(self.metrics.clone())
     }
@@ -348,7 +365,11 @@ impl IntelligenceCoordinator for DefaultIntelligenceCoordinator {
 pub trait MetaLearner: Send + Sync {
     async fn learn_to_learn(&mut self, experience: Experience) -> Result<LearningStrategy>;
     async fn optimize_architecture(&mut self) -> Result<ArchitectureUpdate>;
-    async fn transfer_knowledge(&self, source_domain: &str, target_domain: &str) -> Result<Knowledge>;
+    async fn transfer_knowledge(
+        &self,
+        source_domain: &str,
+        target_domain: &str,
+    ) -> Result<Knowledge>;
 }
 
 #[async_trait]
@@ -410,10 +431,20 @@ pub struct ArchitectureUpdate {
 
 #[derive(Debug, Clone)]
 pub enum ArchitectureChange {
-    AddLayer { position: u8, layer_type: String },
-    RemoveLayer { position: u8 },
-    ModifyConnections { changes: Vec<ConnectionChange> },
-    AdjustParameters { unit_id: Uuid, params: HashMap<String, f32> },
+    AddLayer {
+        position: u8,
+        layer_type: String,
+    },
+    RemoveLayer {
+        position: u8,
+    },
+    ModifyConnections {
+        changes: Vec<ConnectionChange>,
+    },
+    AdjustParameters {
+        unit_id: Uuid,
+        params: HashMap<String, f32>,
+    },
 }
 
 #[derive(Debug, Clone)]

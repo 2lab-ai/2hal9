@@ -3,15 +3,12 @@ use chrono::{DateTime, Utc};
 use futures_util::Stream;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tokio_stream::StreamExt;
 use tokio_stream::wrappers::BroadcastStream;
+use tokio_stream::StreamExt;
 use uuid::Uuid;
 
 use super::schema::*;
-use crate::{
-    auth::User,
-    error::HAL9Error,
-};
+use crate::{auth::User, error::HAL9Error};
 
 // ============ Event Types ============
 
@@ -69,11 +66,11 @@ impl EventBus {
         let (sender, _) = broadcast::channel(capacity);
         Self { sender }
     }
-    
+
     pub fn publish(&self, event: SystemEvent) {
         let _ = self.sender.send(event);
     }
-    
+
     pub fn subscribe(&self) -> broadcast::Receiver<SystemEvent> {
         self.sender.subscribe()
     }
@@ -90,31 +87,30 @@ impl SubscriptionRoot {
         let event_bus = ctx.data::<Arc<EventBus>>().unwrap();
         let user = ctx.data::<Arc<User>>().unwrap();
         let filter_id = signal_id.and_then(|id| Uuid::parse_str(&id.0).ok());
-        
-        BroadcastStream::new(event_bus.subscribe())
-            .filter_map(move |event| {
-                match event {
-                    Ok(SystemEvent::SignalUpdate(update)) => {
-                        // Filter by signal ID if provided
-                        if let Some(id) = filter_id {
-                            if update.signal_id != id {
-                                return None;
-                            }
+
+        BroadcastStream::new(event_bus.subscribe()).filter_map(move |event| {
+            match event {
+                Ok(SystemEvent::SignalUpdate(update)) => {
+                    // Filter by signal ID if provided
+                    if let Some(id) = filter_id {
+                        if update.signal_id != id {
+                            return None;
                         }
-                        
-                        Some(SignalUpdate {
-                            signal_id: ID(update.signal_id.to_string()),
-                            status: update.status,
-                            progress: update.progress,
-                            message: update.message,
-                            timestamp: update.timestamp,
-                        })
                     }
-                    _ => None,
+
+                    Some(SignalUpdate {
+                        signal_id: ID(update.signal_id.to_string()),
+                        status: update.status,
+                        progress: update.progress,
+                        message: update.message,
+                        timestamp: update.timestamp,
+                    })
                 }
-            })
+                _ => None,
+            }
+        })
     }
-    
+
     pub async fn resolve_neuron_state_changes(
         &self,
         ctx: &Context<'_>,
@@ -123,87 +119,84 @@ impl SubscriptionRoot {
     ) -> impl Stream<Item = NeuronStateChange> {
         let event_bus = ctx.data::<Arc<EventBus>>().unwrap();
         let filter_id = neuron_id.and_then(|id| Uuid::parse_str(&id.0).ok());
-        
-        BroadcastStream::new(event_bus.subscribe())
-            .filter_map(move |event| {
-                match event {
-                    Ok(SystemEvent::NeuronStateChange(change)) => {
-                        // Filter by neuron ID if provided
-                        if let Some(id) = filter_id {
-                            if change.neuron_id != id {
-                                return None;
-                            }
+
+        BroadcastStream::new(event_bus.subscribe()).filter_map(move |event| {
+            match event {
+                Ok(SystemEvent::NeuronStateChange(change)) => {
+                    // Filter by neuron ID if provided
+                    if let Some(id) = filter_id {
+                        if change.neuron_id != id {
+                            return None;
                         }
-                        
-                        // TODO: Filter by layer if provided
-                        
-                        Some(NeuronStateChange {
-                            neuron_id: ID(change.neuron_id.to_string()),
-                            previous_state: change.previous_state,
-                            new_state: change.new_state,
-                            reason: change.reason,
-                            timestamp: change.timestamp,
-                        })
                     }
-                    _ => None,
+
+                    // TODO: Filter by layer if provided
+
+                    Some(NeuronStateChange {
+                        neuron_id: ID(change.neuron_id.to_string()),
+                        previous_state: change.previous_state,
+                        new_state: change.new_state,
+                        reason: change.reason,
+                        timestamp: change.timestamp,
+                    })
                 }
-            })
+                _ => None,
+            }
+        })
     }
-    
+
     pub async fn resolve_metrics_updates(
         &self,
         ctx: &Context<'_>,
         metric_type: Option<String>,
     ) -> impl Stream<Item = MetricsUpdate> {
         let event_bus = ctx.data::<Arc<EventBus>>().unwrap();
-        
-        BroadcastStream::new(event_bus.subscribe())
-            .filter_map(move |event| {
-                match event {
-                    Ok(SystemEvent::MetricsUpdate(update)) => {
-                        // Filter by metric type if provided
-                        if let Some(ref filter_type) = metric_type {
-                            if &update.metric_type != filter_type {
-                                return None;
-                            }
+
+        BroadcastStream::new(event_bus.subscribe()).filter_map(move |event| {
+            match event {
+                Ok(SystemEvent::MetricsUpdate(update)) => {
+                    // Filter by metric type if provided
+                    if let Some(ref filter_type) = metric_type {
+                        if &update.metric_type != filter_type {
+                            return None;
                         }
-                        
-                        Some(MetricsUpdate {
-                            metric_type: update.metric_type,
-                            value: update.value,
-                            labels: update.labels,
-                            timestamp: update.timestamp,
-                        })
                     }
-                    _ => None,
+
+                    Some(MetricsUpdate {
+                        metric_type: update.metric_type,
+                        value: update.value,
+                        labels: update.labels,
+                        timestamp: update.timestamp,
+                    })
                 }
-            })
+                _ => None,
+            }
+        })
     }
-    
+
     pub async fn resolve_learning_events(
         &self,
         ctx: &Context<'_>,
         layer: Option<String>,
     ) -> impl Stream<Item = LearningEvent> {
         let event_bus = ctx.data::<Arc<EventBus>>().unwrap();
-        
-        BroadcastStream::new(event_bus.subscribe())
-            .filter_map(move |event| {
-                match event {
-                    Ok(SystemEvent::LearningEvent(learning)) => {
-                        // TODO: Filter by layer if provided
-                        
-                        Some(LearningEvent {
-                            event_type: learning.event_type,
-                            pattern_id: learning.pattern_id.map(|id| ID(id.to_string())),
-                            confidence_delta: learning.confidence_delta,
-                            description: learning.description,
-                            timestamp: learning.timestamp,
-                        })
-                    }
-                    _ => None,
+
+        BroadcastStream::new(event_bus.subscribe()).filter_map(move |event| {
+            match event {
+                Ok(SystemEvent::LearningEvent(learning)) => {
+                    // TODO: Filter by layer if provided
+
+                    Some(LearningEvent {
+                        event_type: learning.event_type,
+                        pattern_id: learning.pattern_id.map(|id| ID(id.to_string())),
+                        confidence_delta: learning.confidence_delta,
+                        description: learning.description,
+                        timestamp: learning.timestamp,
+                    })
                 }
-            })
+                _ => None,
+            }
+        })
     }
 }
 

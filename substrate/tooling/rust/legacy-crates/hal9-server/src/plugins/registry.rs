@@ -5,7 +5,7 @@ use sqlx::PgPool;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use super::api::{PluginMetadata, PluginCapability};
+use super::api::{PluginCapability, PluginMetadata};
 
 // ============ Plugin Registry ============
 
@@ -74,14 +74,14 @@ impl PluginRegistry {
             cache: HashMap::new(),
         }
     }
-    
+
     pub fn with_database(db: PgPool) -> Self {
         Self {
             db: Some(db),
             cache: HashMap::new(),
         }
     }
-    
+
     /// Register a new plugin
     pub async fn register_plugin(&self, plugin_id: Uuid) -> Result<()> {
         if let Some(db) = &self.db {
@@ -98,10 +98,10 @@ impl PluginRegistry {
             .execute(db)
             .await?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Unregister a plugin
     pub async fn unregister_plugin(&self, plugin_id: Uuid) -> Result<()> {
         if let Some(db) = &self.db {
@@ -112,14 +112,14 @@ impl PluginRegistry {
             .execute(db)
             .await?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Publish a plugin package
     pub async fn publish_package(&mut self, package: PluginPackage) -> Result<()> {
         let plugin_id = package.metadata.id;
-        
+
         if let Some(db) = &self.db {
             sqlx::query!(
                 r#"
@@ -147,66 +147,63 @@ impl PluginRegistry {
             .execute(db)
             .await?;
         }
-        
+
         // Update cache
         self.cache.insert(plugin_id, package);
-        
+
         Ok(())
     }
-    
+
     /// Search for plugins
     pub async fn search_plugins(&self, query: PluginSearchQuery) -> Result<Vec<PluginPackage>> {
         if let Some(db) = &self.db {
             // Build SQL query dynamically
-            let mut sql = String::from(
-                "SELECT * FROM plugin_packages WHERE active = true"
-            );
+            let mut sql = String::from("SELECT * FROM plugin_packages WHERE active = true");
             let mut conditions = Vec::new();
-            
+
             if let Some(q) = &query.query {
                 conditions.push(format!(
                     "(metadata->>'name' ILIKE '%{}%' OR metadata->>'description' ILIKE '%{}%')",
                     q, q
                 ));
             }
-            
+
             if let Some(layer) = &query.layer {
                 conditions.push(format!(
                     "metadata->'capabilities' @> '[{{\"layer\": \"{}\"}}]'",
                     layer
                 ));
             }
-            
+
             if let Some(author) = &query.author {
-                conditions.push(format!(
-                    "metadata->>'author' = '{}'",
-                    author
-                ));
+                conditions.push(format!("metadata->>'author' = '{}'", author));
             }
-            
+
             if !query.tags.is_empty() {
                 conditions.push(format!(
                     "tags && ARRAY[{}]",
-                    query.tags.iter()
+                    query
+                        .tags
+                        .iter()
                         .map(|t| format!("'{}'", t))
                         .collect::<Vec<_>>()
                         .join(",")
                 ));
             }
-            
+
             if let Some(min_rating) = query.min_rating {
                 conditions.push(format!("rating >= {}", min_rating));
             }
-            
+
             if query.verified_only {
                 conditions.push("verified = true".to_string());
             }
-            
+
             if !conditions.is_empty() {
                 sql.push_str(" AND ");
                 sql.push_str(&conditions.join(" AND "));
             }
-            
+
             // Add sorting
             sql.push_str(" ORDER BY ");
             match query.sort_by {
@@ -223,24 +220,26 @@ impl PluginRegistry {
                     }
                 }
             }
-            
+
             sql.push_str(&format!(" LIMIT {} OFFSET {}", query.limit, query.offset));
-            
+
             // Execute query
             // Note: This is a simplified version. In production, use parameterized queries
             let rows = sqlx::query_as::<_, PluginPackageRow>(&sql)
                 .fetch_all(db)
                 .await?;
-            
+
             Ok(rows.into_iter().map(|r| r.into()).collect())
         } else {
             // Fallback to cache search
-            let mut results: Vec<_> = self.cache.values()
+            let mut results: Vec<_> = self
+                .cache
+                .values()
                 .filter(|p| {
                     if let Some(q) = &query.query {
                         let q = q.to_lowercase();
-                        p.metadata.name.to_lowercase().contains(&q) ||
-                        p.metadata.description.to_lowercase().contains(&q)
+                        p.metadata.name.to_lowercase().contains(&q)
+                            || p.metadata.description.to_lowercase().contains(&q)
                     } else {
                         true
                     }
@@ -272,44 +271,49 @@ impl PluginRegistry {
                 .filter(|p| !query.verified_only || p.verified)
                 .cloned()
                 .collect();
-            
+
             // Sort results
             match query.sort_by {
-                SortBy::Downloads => results.sort_by(|a, b| b.download_count.cmp(&a.download_count)),
+                SortBy::Downloads => {
+                    results.sort_by(|a, b| b.download_count.cmp(&a.download_count))
+                }
                 SortBy::Rating => results.sort_by(|a, b| b.rating.partial_cmp(&a.rating).unwrap()),
                 SortBy::Recent => results.sort_by(|a, b| b.updated_at.cmp(&a.updated_at)),
                 SortBy::Name => results.sort_by(|a, b| a.metadata.name.cmp(&b.metadata.name)),
-                SortBy::Relevance => results.sort_by(|a, b| b.download_count.cmp(&a.download_count)),
+                SortBy::Relevance => {
+                    results.sort_by(|a, b| b.download_count.cmp(&a.download_count))
+                }
             }
-            
+
             // Apply pagination
-            Ok(results.into_iter()
+            Ok(results
+                .into_iter()
                 .skip(query.offset)
                 .take(query.limit)
                 .collect())
         }
     }
-    
+
     /// Get a specific plugin package
     pub async fn get_package(&self, plugin_id: Uuid) -> Result<Option<PluginPackage>> {
         if let Some(package) = self.cache.get(&plugin_id) {
             return Ok(Some(package.clone()));
         }
-        
+
         if let Some(db) = &self.db {
             let row = sqlx::query_as::<_, PluginPackageRow>(
-                "SELECT * FROM plugin_packages WHERE id = $1 AND active = true"
+                "SELECT * FROM plugin_packages WHERE id = $1 AND active = true",
             )
             .bind(plugin_id)
             .fetch_optional(db)
             .await?;
-            
+
             Ok(row.map(|r| r.into()))
         } else {
             Ok(None)
         }
     }
-    
+
     /// Increment download count
     pub async fn increment_downloads(&self, plugin_id: Uuid) -> Result<()> {
         if let Some(db) = &self.db {
@@ -320,10 +324,10 @@ impl PluginRegistry {
             .execute(db)
             .await?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Update plugin rating
     pub async fn update_rating(&self, plugin_id: Uuid, rating: f32) -> Result<()> {
         if let Some(db) = &self.db {
@@ -336,7 +340,7 @@ impl PluginRegistry {
             .execute(db)
             .await?;
         }
-        
+
         Ok(())
     }
 }
@@ -359,19 +363,17 @@ struct PluginPackageRow {
 impl From<PluginPackageRow> for PluginPackage {
     fn from(row: PluginPackageRow) -> Self {
         Self {
-            metadata: serde_json::from_value(row.metadata).unwrap_or_else(|_| {
-                PluginMetadata {
-                    id: row.id,
-                    name: "Unknown".to_string(),
-                    version: "0.0.0".to_string(),
-                    author: "Unknown".to_string(),
-                    description: String::new(),
-                    license: String::new(),
-                    repository: None,
-                    homepage: None,
-                    capabilities: Vec::new(),
-                    requirements: Default::default(),
-                }
+            metadata: serde_json::from_value(row.metadata).unwrap_or_else(|_| PluginMetadata {
+                id: row.id,
+                name: "Unknown".to_string(),
+                version: "0.0.0".to_string(),
+                author: "Unknown".to_string(),
+                description: String::new(),
+                license: String::new(),
+                repository: None,
+                homepage: None,
+                capabilities: Vec::new(),
+                requirements: Default::default(),
             }),
             published_at: row.published_at,
             updated_at: row.updated_at,

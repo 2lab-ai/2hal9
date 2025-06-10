@@ -24,10 +24,7 @@ pub struct ComputationProof {
 #[serde(rename_all = "snake_case")]
 pub enum ProofType {
     /// Deterministic computation with reproducible results
-    Deterministic {
-        seed: u64,
-        algorithm_hash: H256,
-    },
+    Deterministic { seed: u64, algorithm_hash: H256 },
     /// Probabilistic computation with confidence bounds
     Probabilistic {
         confidence: f64,
@@ -95,6 +92,7 @@ struct VerificationRule {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum RuleType {
     ConsensusRequired,
     ResourceLimit,
@@ -149,7 +147,7 @@ pub struct ChallengeResolution {
 impl ProofVerifier {
     pub fn new() -> Self {
         let mut verification_rules = HashMap::new();
-        
+
         // Default verification rules
         verification_rules.insert(
             "consensus".to_string(),
@@ -159,7 +157,7 @@ impl ProofVerifier {
                 required_validators: 3,
             },
         );
-        
+
         verification_rules.insert(
             "resource_limit".to_string(),
             VerificationRule {
@@ -168,44 +166,49 @@ impl ProofVerifier {
                 required_validators: 1,
             },
         );
-        
+
         Self {
             verification_rules,
             trusted_enclaves: HashMap::new(),
             challenge_history: Vec::new(),
         }
     }
-    
+
     /// Verify a computation proof
     pub async fn verify_proof(&self, proof: &ComputationProof) -> Result<VerificationResult> {
         // Basic validation
         self.validate_proof_structure(proof)?;
-        
+
         // Verify based on proof type
         let type_verification = match &proof.proof_type {
-            ProofType::Deterministic { seed, algorithm_hash } => {
-                self.verify_deterministic(proof, *seed, algorithm_hash)?
-            }
-            ProofType::Probabilistic { confidence, samples, variance } => {
-                self.verify_probabilistic(proof, *confidence, *samples, *variance)?
-            }
-            ProofType::ZeroKnowledge { commitment, proof_data } => {
-                self.verify_zero_knowledge(proof, commitment, proof_data)?
-            }
-            ProofType::TrustedExecution { enclave_id, attestation } => {
-                self.verify_trusted_execution(proof, enclave_id, attestation)?
-            }
+            ProofType::Deterministic {
+                seed,
+                algorithm_hash,
+            } => self.verify_deterministic(proof, *seed, algorithm_hash)?,
+            ProofType::Probabilistic {
+                confidence,
+                samples,
+                variance,
+            } => self.verify_probabilistic(proof, *confidence, *samples, *variance)?,
+            ProofType::ZeroKnowledge {
+                commitment,
+                proof_data,
+            } => self.verify_zero_knowledge(proof, commitment, proof_data)?,
+            ProofType::TrustedExecution {
+                enclave_id,
+                attestation,
+            } => self.verify_trusted_execution(proof, enclave_id, attestation)?,
         };
-        
+
         // Verify resource usage
         let resource_verification = self.verify_resource_usage(&proof.resource_usage)?;
-        
+
         // Verify execution trace
         let trace_verification = self.verify_execution_trace(&proof.execution_trace)?;
-        
+
         // Calculate overall score
         let score = (type_verification + resource_verification + trace_verification) / 3.0;
-        
+
         Ok(VerificationResult {
             is_valid: score >= 0.8,
             score,
@@ -218,20 +221,20 @@ impl ProofVerifier {
             },
         })
     }
-    
+
     /// Validate proof structure
     fn validate_proof_structure(&self, proof: &ComputationProof) -> Result<()> {
         if proof.execution_trace.steps.is_empty() {
             return Err(anyhow::anyhow!("Empty execution trace"));
         }
-        
+
         if proof.resource_usage.execution_time_ms == 0 {
             return Err(anyhow::anyhow!("Invalid execution time"));
         }
-        
+
         Ok(())
     }
-    
+
     /// Verify deterministic computation
     fn verify_deterministic(
         &self,
@@ -241,17 +244,17 @@ impl ProofVerifier {
     ) -> Result<f64> {
         // Verify algorithm hash matches known algorithms
         // In real implementation, would check against registry
-        
+
         // Verify execution is reproducible with given seed
         let reproducibility_score = if proof.execution_trace.checkpoints.len() > 0 {
             1.0
         } else {
             0.5
         };
-        
+
         Ok(reproducibility_score)
     }
-    
+
     /// Verify probabilistic computation
     fn verify_probabilistic(
         &self,
@@ -264,19 +267,19 @@ impl ProofVerifier {
         if confidence < 0.0 || confidence > 1.0 {
             return Ok(0.0);
         }
-        
+
         // Verify sample size is sufficient
         let min_samples = (1.0 / (1.0 - confidence)).ceil() as u32;
         if samples < min_samples {
             return Ok(0.5);
         }
-        
+
         // Verify variance is reasonable
         let variance_score = if variance < 0.1 { 1.0 } else { 0.8 };
-        
+
         Ok(variance_score)
     }
-    
+
     /// Verify zero-knowledge proof
     fn verify_zero_knowledge(
         &self,
@@ -286,24 +289,24 @@ impl ProofVerifier {
     ) -> Result<f64> {
         // In real implementation, would verify ZK proof
         // For now, check basic properties
-        
+
         if proof_data.len() < 32 {
             return Ok(0.0);
         }
-        
+
         // Verify commitment matches
         let mut hasher = Sha256::new();
         hasher.update(&proof.input_hash);
         hasher.update(&proof.output_hash);
         let expected_commitment = H256::from_slice(&hasher.finalize());
-        
+
         if commitment == &expected_commitment {
             Ok(1.0)
         } else {
             Ok(0.0)
         }
     }
-    
+
     /// Verify trusted execution environment proof
     fn verify_trusted_execution(
         &self,
@@ -324,38 +327,40 @@ impl ProofVerifier {
             Ok(0.0)
         }
     }
-    
+
     /// Verify resource usage
     fn verify_resource_usage(&self, usage: &ResourceUsage) -> Result<f64> {
         let mut score = 1.0;
-        
+
         // Check CPU cycles are reasonable
         if usage.cpu_cycles > 1_000_000_000_000 {
             score *= 0.5; // Penalize excessive CPU usage
         }
-        
+
         // Check memory usage
-        if usage.memory_bytes > 4 * 1024 * 1024 * 1024 { // 4GB
+        if usage.memory_bytes > 4 * 1024 * 1024 * 1024 {
+            // 4GB
             score *= 0.7;
         }
-        
+
         // Check execution time
-        if usage.execution_time_ms > 300_000 { // 5 minutes
+        if usage.execution_time_ms > 300_000 {
+            // 5 minutes
             score *= 0.8;
         }
-        
+
         Ok(score)
     }
-    
+
     /// Verify execution trace
     fn verify_execution_trace(&self, trace: &ExecutionTrace) -> Result<f64> {
         let mut score = 1.0;
-        
+
         // Verify checkpoints
         if trace.checkpoints.is_empty() {
             score *= 0.5;
         }
-        
+
         // Verify step consistency
         let mut prev_output = H256::zero();
         for (i, step) in trace.steps.iter().enumerate() {
@@ -364,10 +369,10 @@ impl ProofVerifier {
             }
             prev_output = step.output_snapshot;
         }
-        
+
         Ok(score)
     }
-    
+
     /// Calculate proof hash
     fn calculate_proof_hash(&self, proof: &ComputationProof) -> H256 {
         let mut hasher = Sha256::new();
@@ -376,10 +381,10 @@ impl ProofVerifier {
         hasher.update(&proof.input_hash);
         hasher.update(&proof.output_hash);
         hasher.update(&proof.timestamp.to_be_bytes());
-        
+
         H256::from_slice(&hasher.finalize())
     }
-    
+
     /// Submit a challenge to a proof
     pub async fn challenge_proof(
         &mut self,
@@ -395,10 +400,10 @@ impl ProofVerifier {
             status: ChallengeStatus::Pending,
             resolution: None,
         };
-        
+
         let challenge_id = challenge.challenge_id;
         self.challenge_history.push(challenge);
-        
+
         Ok(challenge_id)
     }
 }
@@ -455,15 +460,9 @@ impl ProofBuilder {
             },
         }
     }
-    
+
     /// Add execution step
-    pub fn add_step(
-        &mut self,
-        operation: String,
-        input: &[u8],
-        output: &[u8],
-        gas_used: u64,
-    ) {
+    pub fn add_step(&mut self, operation: String, input: &[u8], output: &[u8], gas_used: u64) {
         let step = ExecutionStep {
             step_number: self.execution_trace.steps.len() as u32,
             operation,
@@ -471,11 +470,11 @@ impl ProofBuilder {
             output_snapshot: H256::from_slice(&Sha256::digest(output)),
             gas_used,
         };
-        
+
         self.execution_trace.steps.push(step);
         self.execution_trace.total_operations += 1;
     }
-    
+
     /// Add checkpoint
     pub fn add_checkpoint(&mut self, state: &[u8], memory: &[u8]) {
         let checkpoint = Checkpoint {
@@ -484,10 +483,10 @@ impl ProofBuilder {
             memory_snapshot: H256::from_slice(&Sha256::digest(memory)),
             timestamp: chrono::Utc::now().timestamp_millis(),
         };
-        
+
         self.execution_trace.checkpoints.push(checkpoint);
     }
-    
+
     /// Build deterministic proof
     pub fn build_deterministic(
         self,
@@ -497,7 +496,7 @@ impl ProofBuilder {
         output: &[u8],
     ) -> ComputationProof {
         let now = chrono::Utc::now().timestamp_millis();
-        
+
         ComputationProof {
             task_id: self.task_id,
             neuron_id: self.neuron_id,
@@ -524,22 +523,18 @@ impl ProofBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_proof_verification() {
         let verifier = ProofVerifier::new();
-        
+
         let mut builder = ProofBuilder::new(Uuid::new_v4(), Uuid::new_v4());
         builder.add_step("compute".to_string(), b"input", b"output", 100);
         builder.add_checkpoint(b"state", b"memory");
-        
-        let proof = builder.build_deterministic(
-            12345,
-            H256::random(),
-            b"test input",
-            b"test output",
-        );
-        
+
+        let proof =
+            builder.build_deterministic(12345, H256::random(), b"test input", b"test output");
+
         let result = verifier.verify_proof(&proof).await.unwrap();
         assert!(result.score > 0.0);
     }

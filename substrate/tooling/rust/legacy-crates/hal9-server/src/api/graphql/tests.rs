@@ -3,28 +3,26 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use async_graphql::{Schema, EmptyMutation, EmptySubscription};
+    use async_graphql::{EmptyMutation, EmptySubscription, Schema};
     use serde_json::json;
-    
+
     mod schema_tests {
         use super::*;
-        use crate::api::graphql::schema::{QueryRoot, MutationRoot, SubscriptionRoot};
-        
+        use crate::api::graphql::schema::{MutationRoot, QueryRoot, SubscriptionRoot};
+
         #[tokio::test]
         async fn test_schema_creation() {
             // Test that schema can be created
-            let schema = Schema::build(QueryRoot, MutationRoot, SubscriptionRoot)
-                .finish();
-            
+            let schema = Schema::build(QueryRoot, MutationRoot, SubscriptionRoot).finish();
+
             // Schema should be valid
             assert!(true);
         }
-        
+
         #[tokio::test]
         async fn test_introspection_query() {
-            let schema = Schema::build(QueryRoot, MutationRoot, SubscriptionRoot)
-                .finish();
-            
+            let schema = Schema::build(QueryRoot, MutationRoot, SubscriptionRoot).finish();
+
             let query = r#"
                 {
                     __schema {
@@ -34,15 +32,15 @@ mod tests {
                     }
                 }
             "#;
-            
+
             // In real implementation, this would execute the query
             assert!(true);
         }
     }
-    
+
     mod query_tests {
         use super::*;
-        
+
         #[tokio::test]
         async fn test_neuron_query() {
             let query = r#"
@@ -55,16 +53,16 @@ mod tests {
                     }
                 }
             "#;
-            
+
             let variables = json!({
                 "id": "123e4567-e89b-12d3-a456-426614174000"
             });
-            
+
             // Test query structure
             assert!(query.contains("neuron"));
             assert!(variables.get("id").is_some());
         }
-        
+
         #[tokio::test]
         async fn test_signals_query() {
             let query = r#"
@@ -84,16 +82,16 @@ mod tests {
                     }
                 }
             "#;
-            
+
             // Test pagination structure
             assert!(query.contains("edges"));
             assert!(query.contains("pageInfo"));
         }
     }
-    
+
     mod mutation_tests {
         use super::*;
-        
+
         #[tokio::test]
         async fn test_create_signal_mutation() {
             let mutation = r#"
@@ -111,7 +109,7 @@ mod tests {
                     }
                 }
             "#;
-            
+
             let variables = json!({
                 "input": {
                     "content": "Test signal",
@@ -120,12 +118,12 @@ mod tests {
                     "signalType": "request"
                 }
             });
-            
+
             // Test mutation structure
             assert!(mutation.contains("createSignal"));
             assert!(variables["input"]["content"].is_string());
         }
-        
+
         #[tokio::test]
         async fn test_update_neuron_mutation() {
             let mutation = r#"
@@ -143,15 +141,15 @@ mod tests {
                     }
                 }
             "#;
-            
+
             // Test update structure
             assert!(mutation.contains("updateNeuron"));
         }
     }
-    
+
     mod subscription_tests {
         use super::*;
-        
+
         #[tokio::test]
         async fn test_signal_updates_subscription() {
             let subscription = r#"
@@ -167,12 +165,12 @@ mod tests {
                     }
                 }
             "#;
-            
+
             // Test subscription structure
             assert!(subscription.contains("signalUpdates"));
             assert!(subscription.contains("event"));
         }
-        
+
         #[tokio::test]
         async fn test_metrics_subscription() {
             let subscription = r#"
@@ -185,42 +183,42 @@ mod tests {
                     }
                 }
             "#;
-            
+
             // Test metrics structure
             assert!(subscription.contains("metricsUpdate"));
             assert!(subscription.contains("signalsPerSecond"));
         }
     }
-    
+
     mod resolver_tests {
         use super::*;
         use uuid::Uuid;
-        
+
         #[test]
         fn test_input_validation() {
             // Test signal type validation
             let valid_types = vec!["request", "response", "error", "info"];
-            
+
             for signal_type in valid_types {
                 assert!(["request", "response", "error", "info"].contains(&signal_type));
             }
         }
-        
+
         #[test]
         fn test_error_formatting() {
             let field_error = FieldError {
                 field: "content".to_string(),
                 message: "Content is required".to_string(),
             };
-            
+
             assert_eq!(field_error.field, "content");
             assert!(field_error.message.contains("required"));
         }
     }
-    
+
     mod integration_tests {
         use super::*;
-        
+
         #[tokio::test]
         async fn test_query_complexity() {
             // Test that deeply nested queries are rejected
@@ -239,11 +237,11 @@ mod tests {
                     }
                 }
             "#;
-            
+
             // This should be rejected by complexity analysis
             assert!(complex_query.matches("childSignals").count() > 3);
         }
-        
+
         #[tokio::test]
         async fn test_dataloader_batching() {
             // Test that N+1 queries are prevented
@@ -258,7 +256,7 @@ mod tests {
                     }
                 }
             "#;
-            
+
             // With DataLoader, this should result in 2 queries, not 101
             assert!(query.contains("neurons"));
             assert!(query.contains("signals"));

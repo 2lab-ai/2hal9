@@ -1,23 +1,23 @@
 //! Signal routing algorithms and strategies
 
-use async_trait::async_trait;
-use std::collections::{HashMap, HashSet, BinaryHeap};
-use std::cmp::Ordering;
-use uuid::Uuid;
 use crate::Result;
+use async_trait::async_trait;
+use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap, HashSet};
+use uuid::Uuid;
 
 /// Signal router for intelligent message routing
 #[async_trait]
 pub trait SignalRouter: Send + Sync {
     /// Route a signal to appropriate targets
     async fn route(&self, signal: &RoutableSignal) -> Result<Vec<RoutingPath>>;
-    
+
     /// Update routing tables based on topology changes
     async fn update_topology(&mut self, change: TopologyChange) -> Result<()>;
-    
+
     /// Get routing statistics
     async fn statistics(&self) -> Result<RoutingStatistics>;
-    
+
     /// Optimize routing tables
     async fn optimize(&mut self) -> Result<()>;
 }
@@ -57,11 +57,27 @@ pub struct QosRequirements {
 
 #[derive(Debug, Clone)]
 pub enum TopologyChange {
-    NodeAdded { id: Uuid, properties: NodeProperties },
-    NodeRemoved { id: Uuid },
-    LinkAdded { from: Uuid, to: Uuid, properties: LinkProperties },
-    LinkRemoved { from: Uuid, to: Uuid },
-    LinkUpdated { from: Uuid, to: Uuid, properties: LinkProperties },
+    NodeAdded {
+        id: Uuid,
+        properties: NodeProperties,
+    },
+    NodeRemoved {
+        id: Uuid,
+    },
+    LinkAdded {
+        from: Uuid,
+        to: Uuid,
+        properties: LinkProperties,
+    },
+    LinkRemoved {
+        from: Uuid,
+        to: Uuid,
+    },
+    LinkUpdated {
+        from: Uuid,
+        to: Uuid,
+        properties: LinkProperties,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -135,8 +151,13 @@ impl DijkstraRouter {
             },
         }
     }
-    
-    fn find_shortest_path(&self, source: Uuid, targets: &[Uuid], requirements: &QosRequirements) -> Option<RoutingPath> {
+
+    fn find_shortest_path(
+        &self,
+        source: Uuid,
+        targets: &[Uuid],
+        requirements: &QosRequirements,
+    ) -> Option<RoutingPath> {
         #[derive(Clone, PartialEq)]
         struct State {
             cost: OrderedFloat,
@@ -145,24 +166,24 @@ impl DijkstraRouter {
             latency: f32,
             bandwidth: f32,
         }
-        
+
         impl Eq for State {}
-        
+
         impl Ord for State {
             fn cmp(&self, other: &Self) -> Ordering {
                 other.cost.cmp(&self.cost)
             }
         }
-        
+
         impl PartialOrd for State {
             fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
                 Some(self.cmp(other))
             }
         }
-        
+
         let mut heap = BinaryHeap::new();
         let mut visited = HashSet::new();
-        
+
         heap.push(State {
             cost: OrderedFloat(0.0),
             node: source,
@@ -170,8 +191,15 @@ impl DijkstraRouter {
             latency: 0.0,
             bandwidth: f32::MAX,
         });
-        
-        while let Some(State { cost, node, path, latency, bandwidth }) = heap.pop() {
+
+        while let Some(State {
+            cost,
+            node,
+            path,
+            latency,
+            bandwidth,
+        }) = heap.pop()
+        {
             if targets.contains(&node) && path.len() > 1 {
                 // Check if path meets requirements
                 if let Some(max_latency) = requirements.max_latency_ms {
@@ -179,13 +207,13 @@ impl DijkstraRouter {
                         continue;
                     }
                 }
-                
+
                 if let Some(min_bandwidth) = requirements.min_bandwidth_mbps {
                     if bandwidth < min_bandwidth {
                         continue;
                     }
                 }
-                
+
                 return Some(RoutingPath {
                     path,
                     total_latency_ms: latency,
@@ -194,25 +222,25 @@ impl DijkstraRouter {
                     cost: cost.0,
                 });
             }
-            
+
             if visited.contains(&node) {
                 continue;
             }
             visited.insert(node);
-            
+
             if let Some(neighbors) = self.graph.adjacency.get(&node) {
                 for (next_node, link) in neighbors {
                     if visited.contains(next_node) {
                         continue;
                     }
-                    
+
                     let mut next_path = path.clone();
                     next_path.push(*next_node);
-                    
+
                     let next_latency = latency + link.latency_ms;
                     let next_bandwidth = bandwidth.min(link.bandwidth_mbps);
                     let next_cost = cost.0 + self.calculate_link_cost(link, requirements);
-                    
+
                     heap.push(State {
                         cost: OrderedFloat(next_cost),
                         node: *next_node,
@@ -223,29 +251,29 @@ impl DijkstraRouter {
                 }
             }
         }
-        
+
         None
     }
-    
+
     fn calculate_link_cost(&self, link: &LinkProperties, requirements: &QosRequirements) -> f32 {
         let mut cost = link.latency_ms;
-        
+
         // Factor in bandwidth if required
         if requirements.min_bandwidth_mbps.is_some() {
             cost += 100.0 / link.bandwidth_mbps;
         }
-        
+
         // Factor in reliability if required
         if requirements.reliability.is_some() {
             cost += 10.0 * (1.0 - link.reliability);
         }
-        
+
         cost
     }
-    
+
     fn get_target_nodes(&self, hints: &RoutingHints) -> Vec<Uuid> {
         let mut targets = Vec::new();
-        
+
         // Filter by layer
         if let Some(target_layers) = &hints.target_layers {
             for (node_id, props) in &self.graph.nodes {
@@ -254,18 +282,20 @@ impl DijkstraRouter {
                 }
             }
         }
-        
+
         // Filter by capabilities
         if let Some(required_caps) = &hints.target_capabilities {
             targets.retain(|node_id| {
                 if let Some(props) = self.graph.nodes.get(node_id) {
-                    required_caps.iter().all(|cap| props.capabilities.contains(cap))
+                    required_caps
+                        .iter()
+                        .all(|cap| props.capabilities.contains(cap))
                 } else {
                     false
                 }
             });
         }
-        
+
         targets
     }
 }
@@ -276,24 +306,24 @@ impl SignalRouter for DijkstraRouter {
         // Check cache first
         let targets = self.get_target_nodes(&signal.routing_hints);
         let mut paths = Vec::new();
-        
+
         for target in targets {
             let cache_key = (signal.source, target);
-            
+
             if let Some(cached_path) = self.cache.paths.get(&cache_key) {
                 paths.push(cached_path.clone());
             } else if let Some(path) = self.find_shortest_path(
-                signal.source, 
-                &[target], 
-                &signal.routing_hints.qos_requirements
+                signal.source,
+                &[target],
+                &signal.routing_hints.qos_requirements,
             ) {
                 paths.push(path);
             }
         }
-        
+
         Ok(paths)
     }
-    
+
     async fn update_topology(&mut self, change: TopologyChange) -> Result<()> {
         match change {
             TopologyChange::NodeAdded { id, properties } => {
@@ -308,10 +338,18 @@ impl SignalRouter for DijkstraRouter {
                     neighbors.remove(&id);
                 }
                 // Clear cache entries involving this node
-                self.cache.paths.retain(|(from, to), _| *from != id && *to != id);
+                self.cache
+                    .paths
+                    .retain(|(from, to), _| *from != id && *to != id);
             }
-            TopologyChange::LinkAdded { from, to, properties } => {
-                self.graph.adjacency.entry(from)
+            TopologyChange::LinkAdded {
+                from,
+                to,
+                properties,
+            } => {
+                self.graph
+                    .adjacency
+                    .entry(from)
                     .or_default()
                     .insert(to, properties);
             }
@@ -324,7 +362,11 @@ impl SignalRouter for DijkstraRouter {
                     !path.path.windows(2).any(|w| w[0] == from && w[1] == to)
                 });
             }
-            TopologyChange::LinkUpdated { from, to, properties } => {
+            TopologyChange::LinkUpdated {
+                from,
+                to,
+                properties,
+            } => {
                 if let Some(neighbors) = self.graph.adjacency.get_mut(&from) {
                     neighbors.insert(to, properties);
                 }
@@ -336,26 +378,23 @@ impl SignalRouter for DijkstraRouter {
         }
         Ok(())
     }
-    
+
     async fn statistics(&self) -> Result<RoutingStatistics> {
         Ok(self.statistics.clone())
     }
-    
+
     async fn optimize(&mut self) -> Result<()> {
         // Prune cache of least recently used entries
         if self.cache.paths.len() > self.cache.capacity {
             // Simple strategy: clear half the cache
             let to_remove = self.cache.paths.len() / 2;
-            let keys_to_remove: Vec<_> = self.cache.paths.keys()
-                .take(to_remove)
-                .cloned()
-                .collect();
-                
+            let keys_to_remove: Vec<_> = self.cache.paths.keys().take(to_remove).cloned().collect();
+
             for key in keys_to_remove {
                 self.cache.paths.remove(&key);
             }
         }
-        
+
         Ok(())
     }
 }
@@ -397,7 +436,7 @@ impl HierarchicalRouter {
             inter_level_links: HashMap::new(),
         }
     }
-    
+
     pub fn add_level(&mut self, level: u8, router: Box<dyn SignalRouter>) {
         self.level_routers.insert(level, router);
     }

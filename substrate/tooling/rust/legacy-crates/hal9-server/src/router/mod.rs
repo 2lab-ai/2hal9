@@ -1,7 +1,7 @@
 //! Signal routing module
 
-pub mod local;
 pub mod distributed;
+pub mod local;
 
-pub use local::{SignalRouter, RoutingTable};
-pub use distributed::{DistributedRouter, DistributedConfig, RoutingInfo};
+pub use distributed::{DistributedConfig, DistributedRouter, RoutingInfo};
+pub use local::{RoutingTable, SignalRouter};

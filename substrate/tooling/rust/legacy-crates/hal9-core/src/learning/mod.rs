@@ -1,54 +1,54 @@
 //! Learning and backward propagation system for HAL9
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 
+pub mod adjuster;
 pub mod gradient;
 pub mod pattern;
-pub mod adjuster;
 
-pub use gradient::{ErrorGradient, ErrorContext, Adjustment, GradientCalculator};
-pub use pattern::{ErrorPattern, PatternMatcher, Mitigation};
-pub use adjuster::{PromptAdjuster, ConnectionWeightManager};
+pub use adjuster::{ConnectionWeightManager, PromptAdjuster};
+pub use gradient::{Adjustment, ErrorContext, ErrorGradient, GradientCalculator};
+pub use pattern::{ErrorPattern, Mitigation, PatternMatcher};
 
 /// Types of errors that can occur in the system
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type")]
 pub enum ErrorType {
     /// Task-level errors
-    TaskFailed { 
-        reason: String 
+    TaskFailed {
+        reason: String,
     },
-    IncorrectOutput { 
-        expected: String, 
-        actual: String 
+    IncorrectOutput {
+        expected: String,
+        actual: String,
     },
-    
+
     /// Performance errors
-    Timeout { 
-        duration_ms: u64 
+    Timeout {
+        duration_ms: u64,
     },
-    ResourceExhausted { 
-        resource: String 
+    ResourceExhausted {
+        resource: String,
     },
-    
+
     /// Quality errors
-    LowQuality { 
-        score: f32 
+    LowQuality {
+        score: f32,
     },
-    UserRejection { 
-        feedback: String 
+    UserRejection {
+        feedback: String,
     },
-    
+
     /// System errors
-    ToolExecutionFailed { 
-        tool: String, 
-        error: String 
+    ToolExecutionFailed {
+        tool: String,
+        error: String,
     },
-    CommunicationError { 
-        target: String 
+    CommunicationError {
+        target: String,
     },
 }
 
@@ -66,7 +66,7 @@ impl ErrorType {
             ErrorType::CommunicationError { target } => format!("comm_error:{}", target),
         }
     }
-    
+
     /// Get the severity/magnitude of this error type
     pub fn default_magnitude(&self) -> f32 {
         match self {
@@ -87,19 +87,19 @@ impl ErrorType {
 pub struct BackwardPropagationConfig {
     #[serde(default = "default_enabled")]
     pub enabled: bool,
-    
+
     #[serde(default = "default_learning_rate")]
     pub learning_rate: f32,
-    
+
     #[serde(default = "default_pattern_threshold")]
     pub pattern_threshold: usize,
-    
+
     #[serde(default = "default_adjustment_decay")]
     pub adjustment_decay: f32,
-    
+
     #[serde(default = "default_max_gradient_depth")]
     pub max_gradient_depth: usize,
-    
+
     #[serde(default)]
     pub error_weights: HashMap<String, f32>,
 }
@@ -118,11 +118,21 @@ impl Default for BackwardPropagationConfig {
 }
 
 // Default values
-fn default_enabled() -> bool { true }
-fn default_learning_rate() -> f32 { 0.1 }
-fn default_pattern_threshold() -> usize { 3 }
-fn default_adjustment_decay() -> f32 { 0.95 }
-fn default_max_gradient_depth() -> usize { 3 }
+fn default_enabled() -> bool {
+    true
+}
+fn default_learning_rate() -> f32 {
+    0.1
+}
+fn default_pattern_threshold() -> usize {
+    3
+}
+fn default_adjustment_decay() -> f32 {
+    0.95
+}
+fn default_max_gradient_depth() -> usize {
+    3
+}
 fn default_error_weights() -> HashMap<String, f32> {
     let mut weights = HashMap::new();
     weights.insert("task_failed".to_string(), 0.8);

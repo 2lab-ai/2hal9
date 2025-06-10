@@ -38,15 +38,15 @@ struct ApiResponse<T> {
 pub async fn execute(server: String, format: String) -> Result<()> {
     // Create HTTP client
     let client = reqwest::Client::new();
-    
+
     // Query server status
     let url = format!("http://{}/api/v1/status", server);
-    
+
     match client.get(&url).send().await {
         Ok(response) => {
             if response.status().is_success() {
                 let api_response: ApiResponse<ServerStatus> = response.json().await?;
-                
+
                 if let Some(status) = api_response.data {
                     if format == "json" {
                         // JSON format
@@ -67,47 +67,75 @@ pub async fn execute(server: String, format: String) -> Result<()> {
             println!("Is the server running at {}?", server.cyan());
         }
     }
-    
+
     Ok(())
 }
 
 fn print_status_text(status: &ServerStatus) {
     println!("\n{}", "HAL9 Server Status".bold().underline());
-    println!("{}: {}", "Status".bold(), if status.running { "Running".green() } else { "Stopped".red() });
-    println!("{}: {}", "Uptime".bold(), format_duration(status.uptime_seconds));
-    
+    println!(
+        "{}: {}",
+        "Status".bold(),
+        if status.running {
+            "Running".green()
+        } else {
+            "Stopped".red()
+        }
+    );
+    println!(
+        "{}: {}",
+        "Uptime".bold(),
+        format_duration(status.uptime_seconds)
+    );
+
     if !status.neurons.is_empty() {
         println!("\n{}", "Neurons".bold().underline());
-        println!("{:<20} {:<10} {:<15} {:<10}", "ID", "Layer", "State", "Health");
+        println!(
+            "{:<20} {:<10} {:<15} {:<10}",
+            "ID", "Layer", "State", "Health"
+        );
         println!("{}", "-".repeat(55));
-        
+
         for neuron in &status.neurons {
             let state_colored = match neuron.state.as_str() {
                 "Running" => neuron.state.green(),
                 "Stopped" => neuron.state.red(),
                 _ => neuron.state.yellow(),
             };
-            
+
             let health_colored = match neuron.health.as_str() {
                 "Healthy" => neuron.health.green(),
                 "Unhealthy" => neuron.health.red(),
                 _ => neuron.health.yellow(),
             };
-            
-            println!("{:<20} {:<10} {:<15} {:<10}", 
-                neuron.id.cyan(), 
-                neuron.layer, 
-                state_colored, 
+
+            println!(
+                "{:<20} {:<10} {:<15} {:<10}",
+                neuron.id.cyan(),
+                neuron.layer,
+                state_colored,
                 health_colored
             );
         }
     }
-    
+
     println!("\n{}", "Performance Metrics".bold().underline());
     println!("{}: {}", "Signals sent".bold(), status.metrics.signals_sent);
-    println!("{}: {}", "Signals processed".bold(), status.metrics.signals_processed);
-    println!("{}: {}", "Signals failed".bold(), status.metrics.signals_failed.to_string().red());
-    println!("{}: {:.2}ms", "Average latency".bold(), status.metrics.average_latency_ms);
+    println!(
+        "{}: {}",
+        "Signals processed".bold(),
+        status.metrics.signals_processed
+    );
+    println!(
+        "{}: {}",
+        "Signals failed".bold(),
+        status.metrics.signals_failed.to_string().red()
+    );
+    println!(
+        "{}: {:.2}ms",
+        "Average latency".bold(),
+        status.metrics.average_latency_ms
+    );
 }
 
 fn format_duration(seconds: u64) -> String {

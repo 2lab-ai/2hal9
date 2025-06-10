@@ -1,14 +1,14 @@
 //! Connection pooling for efficient network resource management
 
+use dashmap::DashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::TcpStream;
-use tokio::sync::{Semaphore, RwLock};
+use tokio::sync::{RwLock, Semaphore};
 use tracing::debug;
-use dashmap::DashMap;
 
-use hal9_core::{Result, Error};
+use hal9_core::{Error, Result};
 
 /// Connection pool configuration
 #[derive(Debug, Clone)]
@@ -38,7 +38,7 @@ impl Default for PoolConfig {
 }
 
 /// Pooled connection wrapper
-struct PooledConnection {
+pub struct PooledConnection {
     stream: TcpStream,
     created_at: Instant,
     last_used: RwLock<Instant>,
@@ -52,12 +52,12 @@ impl PooledConnection {
         // In production, implement proper health check
         true
     }
-    
+
     /// Update last used time
     async fn touch(&self) {
         *self.last_used.write().await = Instant::now();
     }
-    
+
     /// Check if connection is idle
     async fn is_idle(&self, timeout: Duration) -> bool {
         let last_used = *self.last_used.read().await;
@@ -77,7 +77,7 @@ impl ConnectionPool {
     /// Create a new connection pool
     pub fn new(config: PoolConfig) -> Self {
         let total_connections = Arc::new(Semaphore::new(config.max_total_connections));
-        
+
         Self {
             config,
             connections: Arc::new(DashMap::new()),
@@ -85,42 +85,42 @@ impl ConnectionPool {
             shutdown: Arc::new(RwLock::new(false)),
         }
     }
-    
+
     /// Start background maintenance tasks
     pub fn start_maintenance(&self) {
         let connections = self.connections.clone();
         let config = self.config.clone();
         let shutdown = self.shutdown.clone();
-        
+
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(config.health_check_interval);
-            
+
             loop {
                 interval.tick().await;
-                
+
                 if *shutdown.read().await {
                     break;
                 }
-                
+
                 Self::perform_maintenance(&connections, &config).await;
             }
         });
     }
-    
+
     /// Perform maintenance on connection pool
     async fn perform_maintenance(
         connections: &Arc<DashMap<String, Vec<Arc<PooledConnection>>>>,
         config: &PoolConfig,
     ) {
         let mut total_removed = 0;
-        
+
         for mut entry in connections.iter_mut() {
             let server_id = entry.key().clone();
             let conns = entry.value_mut();
-            
+
             // Remove unhealthy or idle connections
             let mut healthy_conns = Vec::new();
-            
+
             for conn in conns.drain(..) {
                 if conn.is_idle(config.idle_timeout).await {
                     debug!("Removing idle connection to {}", server_id);
@@ -132,15 +132,18 @@ impl ConnectionPool {
                     healthy_conns.push(conn);
                 }
             }
-            
+
             *conns = healthy_conns;
         }
-        
+
         if total_removed > 0 {
-            debug!("Connection pool maintenance removed {} connections", total_removed);
+            debug!(
+                "Connection pool maintenance removed {} connections",
+                total_removed
+            );
         }
     }
-    
+
     /// Get a connection to a server
     pub async fn get_connection(
         &self,
@@ -149,13 +152,15 @@ impl ConnectionPool {
     ) -> Result<Arc<PooledConnection>> {
         // Check if shutting down
         if *self.shutdown.read().await {
-            return Err(Error::InvalidState("Connection pool is shutting down".to_string()));
+            return Err(Error::InvalidState(
+                "Connection pool is shutting down".to_string(),
+            ));
         }
-        
+
         // Try to get existing connection
         if let Some(mut entry) = self.connections.get_mut(server_id) {
             let conns = entry.value_mut();
-            
+
             // Find a healthy connection
             while let Some(conn) = conns.pop() {
                 if conn.is_healthy().await {
@@ -164,11 +169,11 @@ impl ConnectionPool {
                 }
             }
         }
-        
+
         // No existing connection, create new one
         self.create_connection(server_id, address).await
     }
-    
+
     /// Create a new connection
     async fn create_connection(
         &self,
@@ -176,80 +181,86 @@ impl ConnectionPool {
         address: SocketAddr,
     ) -> Result<Arc<PooledConnection>> {
         // Acquire permit for total connections
-        let _permit = self.total_connections.acquire().await
+        let _permit = self
+            .total_connections
+            .acquire()
+            .await
             .map_err(|_| Error::Network("Connection pool exhausted".to_string()))?;
-            
+
         // Check per-server limit
-        let current_count = self.connections.get(server_id)
+        let current_count = self
+            .connections
+            .get(server_id)
             .map(|entry| entry.value().len())
             .unwrap_or(0);
-            
+
         if current_count >= self.config.max_connections_per_server {
             return Err(Error::Network(format!(
-                "Maximum connections to {} reached", server_id
+                "Maximum connections to {} reached",
+                server_id
             )));
         }
-        
+
         // Create connection with timeout
-        let stream = tokio::time::timeout(
-            self.config.connection_timeout,
-            TcpStream::connect(address)
-        ).await
-            .map_err(|_| Error::Network(format!("Connection timeout to {}", address)))?
-            .map_err(|e| Error::Network(format!("Failed to connect to {}: {}", address, e)))?;
-            
+        let stream =
+            tokio::time::timeout(self.config.connection_timeout, TcpStream::connect(address))
+                .await
+                .map_err(|_| Error::Network(format!("Connection timeout to {}", address)))?
+                .map_err(|e| Error::Network(format!("Failed to connect to {}: {}", address, e)))?;
+
         // Configure socket
         stream.set_nodelay(true)?;
-        
+
         let conn = Arc::new(PooledConnection {
             stream,
             created_at: Instant::now(),
             last_used: RwLock::new(Instant::now()),
             server_id: server_id.to_string(),
         });
-        
+
         debug!("Created new connection to {}", server_id);
-        
+
         // Don't store in pool - let caller use it
         // Connection will be returned to pool later if needed
-        
+
         Ok(conn)
     }
-    
+
     /// Return a connection to the pool
     pub async fn return_connection(&self, conn: Arc<PooledConnection>) {
         if *self.shutdown.read().await {
             return;
         }
-        
+
         let server_id = &conn.server_id;
-        
+
         // Check if connection is still healthy
         if !conn.is_healthy().await {
             debug!("Not returning unhealthy connection to pool");
             return;
         }
-        
+
         // Update last used time
         conn.touch().await;
-        
+
         // Add to pool
-        self.connections.entry(server_id.clone())
+        self.connections
+            .entry(server_id.clone())
             .or_default()
             .push(conn);
     }
-    
+
     /// Get pool statistics
     pub async fn stats(&self) -> PoolStats {
         let mut total_connections = 0;
         let mut connections_by_server = std::collections::HashMap::new();
-        
+
         for entry in self.connections.iter() {
             let count = entry.value().len();
             total_connections += count;
             connections_by_server.insert(entry.key().clone(), count);
         }
-        
+
         PoolStats {
             total_connections,
             connections_by_server,
@@ -257,14 +268,14 @@ impl ConnectionPool {
             max_per_server: self.config.max_connections_per_server,
         }
     }
-    
+
     /// Shutdown the connection pool
     pub async fn shutdown(&self) {
         *self.shutdown.write().await = true;
-        
+
         // Clear all connections
         self.connections.clear();
-        
+
         debug!("Connection pool shut down");
     }
 }
@@ -288,15 +299,11 @@ impl ConnectionManager {
     pub fn new(pool: Arc<ConnectionPool>) -> Self {
         Self { pool }
     }
-    
+
     /// Get a connection for use
-    pub async fn get(
-        &self,
-        server_id: &str,
-        address: SocketAddr,
-    ) -> Result<ManagedConnection> {
+    pub async fn get(&self, server_id: &str, address: SocketAddr) -> Result<ManagedConnection> {
         let conn = self.pool.get_connection(server_id, address).await?;
-        
+
         Ok(ManagedConnection {
             conn,
             pool: self.pool.clone(),
@@ -317,7 +324,7 @@ impl ManagedConnection {
     pub fn stream(&self) -> &TcpStream {
         &self.conn.stream
     }
-    
+
     /// Mark connection as failed (won't return to pool)
     pub fn mark_failed(&mut self) {
         self.returned = true; // Prevent return to pool
@@ -329,7 +336,7 @@ impl Drop for ManagedConnection {
         if !self.returned {
             let conn = self.conn.clone();
             let pool = self.pool.clone();
-            
+
             // Return to pool asynchronously
             tokio::spawn(async move {
                 pool.return_connection(conn).await;

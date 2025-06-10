@@ -122,7 +122,7 @@ impl RewardDistribution {
             epoch_rewards: Vec::new(),
         }
     }
-    
+
     /// Calculate rewards for a computation
     pub fn calculate_computation_reward(
         &self,
@@ -132,10 +132,10 @@ impl RewardDistribution {
     ) -> U256 {
         // Base reward from daily emission
         let base_reward = self.get_current_emission_rate() / 1000; // Per computation
-        
+
         // Performance multiplier
         let performance_multiplier = complexity_score * accuracy_score;
-        
+
         // Time bonus (faster is better)
         let time_bonus = if time_taken_ms < 1000 {
             1.2 // 20% bonus for sub-second
@@ -144,43 +144,47 @@ impl RewardDistribution {
         } else {
             0.8 // 20% penalty for slow
         };
-        
+
         // Calculate final reward
         let reward = base_reward.as_u128() as f64 * performance_multiplier * time_bonus;
         U256::from(reward as u128)
     }
-    
+
     /// Distribute rewards for an epoch
     pub async fn distribute_epoch_rewards(&mut self, epoch: u64) -> Result<EpochReward> {
         let total_emission = self.get_epoch_emission();
-        
+
         // Allocate rewards
         let neuron_allocation = total_emission * 70 / 100; // 70% to neurons
         let validator_allocation = total_emission * 20 / 100; // 20% to validators
         let governance_allocation = total_emission * 10 / 100; // 10% to governance
-        
+
         // Distribute to neurons based on performance
-        let total_performance: f64 = self.neuron_rewards.values()
+        let total_performance: f64 = self
+            .neuron_rewards
+            .values()
             .map(|n| n.performance_score)
             .sum();
-        
+
         for neuron in self.neuron_rewards.values_mut() {
             let share = neuron.performance_score / total_performance;
             let reward = U256::from((neuron_allocation.as_u128() as f64 * share) as u128);
             neuron.pending_rewards = neuron.pending_rewards + reward;
         }
-        
+
         // Distribute to validators based on blocks validated
-        let total_blocks: u64 = self.validator_rewards.values()
+        let total_blocks: u64 = self
+            .validator_rewards
+            .values()
             .map(|v| v.blocks_validated)
             .sum();
-        
+
         for validator in self.validator_rewards.values_mut() {
             let share = validator.blocks_validated as f64 / total_blocks as f64;
             let reward = U256::from((validator_allocation.as_u128() as f64 * share) as u128);
             validator.pending_rewards = validator.pending_rewards + reward;
         }
-        
+
         // Record epoch
         let epoch_reward = EpochReward {
             epoch,
@@ -190,42 +194,36 @@ impl RewardDistribution {
             governance_rewards: governance_allocation,
             timestamp: Utc::now(),
         };
-        
+
         self.epoch_rewards.push(epoch_reward.clone());
-        
+
         Ok(epoch_reward)
     }
-    
+
     /// Claim rewards for a neuron
-    pub async fn claim_neuron_rewards(
-        &mut self,
-        neuron_id: Uuid,
-    ) -> Result<U256> {
-        let neuron = self.neuron_rewards.get_mut(&neuron_id)
+    pub async fn claim_neuron_rewards(&mut self, neuron_id: Uuid) -> Result<U256> {
+        let neuron = self
+            .neuron_rewards
+            .get_mut(&neuron_id)
             .ok_or_else(|| anyhow::anyhow!("Neuron not found"))?;
-        
+
         let amount = neuron.pending_rewards;
         if amount == U256::zero() {
             return Ok(U256::zero());
         }
-        
+
         // Update state
         neuron.pending_rewards = U256::zero();
         neuron.total_earned = neuron.total_earned + amount;
         neuron.last_claim = Utc::now();
-        
+
         // TODO: Actually transfer tokens on-chain
-        
+
         Ok(amount)
     }
-    
+
     /// Update neuron performance score
-    pub fn update_neuron_performance(
-        &mut self,
-        neuron_id: Uuid,
-        owner: Address,
-        new_score: f64,
-    ) {
+    pub fn update_neuron_performance(&mut self, neuron_id: Uuid, owner: Address, new_score: f64) {
         self.neuron_rewards
             .entry(neuron_id)
             .and_modify(|n| n.performance_score = new_score)
@@ -238,25 +236,25 @@ impl RewardDistribution {
                 performance_score: new_score,
             });
     }
-    
+
     /// Get current emission rate
     fn get_current_emission_rate(&self) -> U256 {
         let schedule = &self.economics.emission_schedule;
         let now = Utc::now();
         let days_since_halving = (now - schedule.last_halving).num_days() as u64;
-        
+
         if days_since_halving >= schedule.halving_period_days {
             // Apply halving
             let halvings = days_since_halving / schedule.halving_period_days;
-            let rate = schedule.initial_rate.as_u128() as f64 
+            let rate = schedule.initial_rate.as_u128() as f64
                 * schedule.decay_factor.powi(halvings as i32);
-            
+
             U256::from(rate as u128).max(schedule.min_emission_rate)
         } else {
             schedule.initial_rate
         }
     }
-    
+
     /// Get emission for an epoch (24 hours)
     fn get_epoch_emission(&self) -> U256 {
         self.get_current_emission_rate()
@@ -323,22 +321,19 @@ impl StakingMechanism {
             ],
         }
     }
-    
+
     /// Stake tokens with lock period
-    pub async fn stake(
-        &mut self,
-        staker: Address,
-        amount: U256,
-        lock_days: u64,
-    ) -> Result<()> {
+    pub async fn stake(&mut self, staker: Address, amount: U256, lock_days: u64) -> Result<()> {
         if amount < self.min_stake {
             return Err(anyhow::anyhow!("Amount below minimum stake"));
         }
-        
-        let lock_period = self.lock_periods.iter()
+
+        let lock_period = self
+            .lock_periods
+            .iter()
             .find(|p| p.days == lock_days)
             .ok_or_else(|| anyhow::anyhow!("Invalid lock period"))?;
-        
+
         let stake_info = StakeInfo {
             staker,
             amount,
@@ -346,28 +341,26 @@ impl StakingMechanism {
             reward_multiplier: lock_period.reward_multiplier,
             last_reward_claim: Utc::now(),
         };
-        
+
         self.stakes.insert(staker, stake_info);
         self.total_staked = self.total_staked + amount;
-        
+
         Ok(())
     }
-    
+
     /// Calculate staking rewards
-    pub fn calculate_staking_rewards(
-        &self,
-        staker: Address,
-        base_apy: f64,
-    ) -> Result<U256> {
-        let stake = self.stakes.get(&staker)
+    pub fn calculate_staking_rewards(&self, staker: Address, base_apy: f64) -> Result<U256> {
+        let stake = self
+            .stakes
+            .get(&staker)
             .ok_or_else(|| anyhow::anyhow!("No stake found"))?;
-        
+
         let days_staked = (Utc::now() - stake.last_reward_claim).num_days() as f64;
         let effective_apy = base_apy * stake.reward_multiplier;
-        
+
         let daily_rate = effective_apy / 365.0;
         let reward = stake.amount.as_u128() as f64 * daily_rate * days_staked;
-        
+
         Ok(U256::from(reward as u128))
     }
 }
@@ -404,23 +397,21 @@ impl FeeDistributor {
             distribution_history: Vec::new(),
         }
     }
-    
+
     /// Process a computation fee
-    pub fn process_computation_fee(
-        &mut self,
-        computation_cost: U256,
-    ) -> FeeBreakdown {
+    pub fn process_computation_fee(&mut self, computation_cost: U256) -> FeeBreakdown {
         let total_fee = U256::from(
-            (computation_cost.as_u128() as f64 * self.fee_structure.computation_fee_percent / 100.0) as u128
+            (computation_cost.as_u128() as f64 * self.fee_structure.computation_fee_percent / 100.0)
+                as u128,
         );
-        
+
         let burn_amount = U256::from(
-            (total_fee.as_u128() as f64 * self.fee_structure.burn_rate_percent / 100.0) as u128
+            (total_fee.as_u128() as f64 * self.fee_structure.burn_rate_percent / 100.0) as u128,
         );
-        
+
         self.collected_fees.computation_fees = self.collected_fees.computation_fees + total_fee;
         self.collected_fees.total_burned = self.collected_fees.total_burned + burn_amount;
-        
+
         FeeBreakdown {
             total_fee,
             burn_amount,
@@ -441,29 +432,31 @@ pub struct FeeBreakdown {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_reward_calculation() {
         let economics = TokenEconomics::default();
         let distribution = RewardDistribution::new(economics);
-        
+
         let reward = distribution.calculate_computation_reward(
             0.8,  // complexity
             0.95, // accuracy
             800,  // time in ms
         );
-        
+
         assert!(reward > U256::zero());
     }
-    
+
     #[tokio::test]
     async fn test_staking() {
         let mut staking = StakingMechanism::new();
-        let staker: Address = "0x0000000000000000000000000000000000000001".parse().unwrap();
+        let staker: Address = "0x0000000000000000000000000000000000000001"
+            .parse()
+            .unwrap();
         let amount = U256::from(1000) * U256::exp10(18);
-        
+
         staking.stake(staker, amount, 30).await.unwrap();
-        
+
         let rewards = staking.calculate_staking_rewards(staker, 0.12).unwrap();
         assert_eq!(rewards, U256::zero()); // No time has passed
     }

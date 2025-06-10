@@ -1,17 +1,17 @@
 pub mod api;
 pub mod loader;
 pub mod manager;
+pub mod registry;
 pub mod runtime;
 pub mod sandbox;
-pub mod registry;
 pub mod sdk;
 
-pub use api::{PluginApi, PluginMetadata, PluginCapability};
-pub use loader::{PluginLoader, LoadedPlugin};
-pub use manager::{PluginManager, PluginError};
-pub use runtime::{WasmRuntime, RuntimeConfig};
-pub use sandbox::{SecurityPolicy, ResourceLimits};
-pub use registry::{PluginRegistry, PluginPackage};
+pub use api::{PluginApi, PluginCapability, PluginMetadata};
+pub use loader::{LoadedPlugin, PluginLoader};
+pub use manager::{PluginError, PluginManager};
+pub use registry::{PluginPackage, PluginRegistry};
+pub use runtime::{RuntimeConfig, WasmRuntime};
+pub use sandbox::{ResourceLimits, SecurityPolicy};
 
 #[cfg(test)]
 mod tests;

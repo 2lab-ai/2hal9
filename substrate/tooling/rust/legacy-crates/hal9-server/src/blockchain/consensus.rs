@@ -11,6 +11,7 @@ use crate::signal::Signal;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[allow(dead_code)]
 pub enum ConsensusProtocol {
     ProofOfWork {
         difficulty: u32,
@@ -125,14 +126,9 @@ impl ConsensusEngine {
             finalized_blocks: Vec::new(),
         }
     }
-    
+
     /// Register a new validator
-    pub fn register_validator(
-        &mut self,
-        id: String,
-        address: String,
-        stake: u64,
-    ) -> Result<()> {
+    pub fn register_validator(&mut self, id: String, address: String, stake: u64) -> Result<()> {
         let validator = Validator {
             id: id.clone(),
             address,
@@ -140,11 +136,11 @@ impl ConsensusEngine {
             reputation: 1.0,
             last_active: Utc::now(),
         };
-        
+
         self.validators.insert(id, validator);
         Ok(())
     }
-    
+
     /// Submit a proposal for consensus
     pub fn submit_proposal(
         &mut self,
@@ -156,7 +152,7 @@ impl ConsensusEngine {
         if !self.validators.contains_key(&proposer) {
             return Err(anyhow::anyhow!("Proposer is not a validator"));
         }
-        
+
         let proposal = ConsensusProposal {
             id: Uuid::new_v4(),
             proposer,
@@ -166,13 +162,13 @@ impl ConsensusEngine {
             created_at: Utc::now(),
             expires_at: Utc::now() + chrono::Duration::minutes(5),
         };
-        
+
         let id = proposal.id;
         self.pending_proposals.insert(id, proposal);
-        
+
         Ok(id)
     }
-    
+
     /// Vote on a proposal
     pub fn vote(
         &mut self,
@@ -185,16 +181,18 @@ impl ConsensusEngine {
         if !self.validators.contains_key(&validator_id) {
             return Err(anyhow::anyhow!("Invalid validator"));
         }
-        
+
         // Get proposal
-        let proposal = self.pending_proposals.get_mut(&proposal_id)
+        let proposal = self
+            .pending_proposals
+            .get_mut(&proposal_id)
             .ok_or_else(|| anyhow::anyhow!("Proposal not found"))?;
-        
+
         // Check if already voted
         if proposal.votes.contains_key(&validator_id) {
             return Err(anyhow::anyhow!("Already voted"));
         }
-        
+
         // Record vote
         proposal.votes.insert(
             validator_id.clone(),
@@ -205,52 +203,63 @@ impl ConsensusEngine {
                 timestamp: Utc::now(),
             },
         );
-        
+
         // Check if consensus reached
         self.check_consensus(proposal_id)?;
-        
+
         Ok(())
     }
-    
+
     /// Check if consensus has been reached
     fn check_consensus(&mut self, proposal_id: Uuid) -> Result<bool> {
-        let proposal = self.pending_proposals.get(&proposal_id)
+        let proposal = self
+            .pending_proposals
+            .get(&proposal_id)
             .ok_or_else(|| anyhow::anyhow!("Proposal not found"))?;
-        
+
         match &self.protocol {
-            ConsensusProtocol::ProofOfComputation { min_neurons, threshold } => {
+            ConsensusProtocol::ProofOfComputation {
+                min_neurons,
+                threshold,
+            } => {
                 let total_votes = proposal.votes.len();
                 if total_votes < *min_neurons as usize {
                     return Ok(false);
                 }
-                
-                let approve_count = proposal.votes.values()
+
+                let approve_count = proposal
+                    .votes
+                    .values()
                     .filter(|v| matches!(v.vote_type, VoteType::Approve))
                     .count();
-                
+
                 let approval_ratio = approve_count as f64 / total_votes as f64;
-                
+
                 if approval_ratio >= *threshold {
                     self.finalize_proposal(proposal_id)?;
                     return Ok(true);
                 }
             }
             ConsensusProtocol::ProofOfStake { min_stake, .. } => {
-                let total_stake: u64 = proposal.votes.keys()
+                let total_stake: u64 = proposal
+                    .votes
+                    .keys()
                     .filter_map(|v| self.validators.get(v))
                     .map(|v| v.stake)
                     .sum();
-                
+
                 if total_stake < *min_stake {
                     return Ok(false);
                 }
-                
-                let approve_stake: u64 = proposal.votes.iter()
+
+                let approve_stake: u64 = proposal
+                    .votes
+                    .iter()
                     .filter(|(_, vote)| matches!(vote.vote_type, VoteType::Approve))
                     .filter_map(|(id, _)| self.validators.get(id))
                     .map(|v| v.stake)
                     .sum();
-                
+
                 if approve_stake > total_stake / 2 {
                     self.finalize_proposal(proposal_id)?;
                     return Ok(true);
@@ -258,31 +267,37 @@ impl ConsensusEngine {
             }
             _ => {
                 // Simple majority for other protocols
-                let approve_count = proposal.votes.values()
+                let approve_count = proposal
+                    .votes
+                    .values()
                     .filter(|v| matches!(v.vote_type, VoteType::Approve))
                     .count();
-                
+
                 if approve_count > self.validators.len() / 2 {
                     self.finalize_proposal(proposal_id)?;
                     return Ok(true);
                 }
             }
         }
-        
+
         Ok(false)
     }
-    
+
     /// Finalize a proposal that reached consensus
     fn finalize_proposal(&mut self, proposal_id: Uuid) -> Result<()> {
-        let proposal = self.pending_proposals.remove(&proposal_id)
+        let proposal = self
+            .pending_proposals
+            .remove(&proposal_id)
             .ok_or_else(|| anyhow::anyhow!("Proposal not found"))?;
-        
+
         // Create new block
         let block_number = self.finalized_blocks.len() as u64;
-        let parent_hash = self.finalized_blocks.last()
+        let parent_hash = self
+            .finalized_blocks
+            .last()
             .map(|b| b.block_hash.clone())
             .unwrap_or_else(|| "0x0".to_string());
-        
+
         let block = ConsensusBlock {
             block_number,
             parent_hash: parent_hash.clone(),
@@ -292,15 +307,15 @@ impl ConsensusEngine {
             proposals: vec![proposal],
             state_root: self.calculate_state_root(),
         };
-        
+
         self.finalized_blocks.push(block);
-        
+
         // Update validator reputations
         self.update_reputations();
-        
+
         Ok(())
     }
-    
+
     /// Calculate block hash
     fn calculate_block_hash(
         &self,
@@ -311,36 +326,40 @@ impl ConsensusEngine {
         let mut hasher = Sha256::new();
         hasher.update(block_number.to_be_bytes());
         hasher.update(parent_hash.as_bytes());
-        hasher.update(serde_json::to_string(proposal).unwrap_or_default().as_bytes());
-        
+        hasher.update(
+            serde_json::to_string(proposal)
+                .unwrap_or_default()
+                .as_bytes(),
+        );
+
         format!("{:x}", hasher.finalize())
     }
-    
+
     /// Calculate state root
     fn calculate_state_root(&self) -> String {
         let mut hasher = Sha256::new();
-        
+
         // Hash validators
         for (id, validator) in &self.validators {
             hasher.update(id.as_bytes());
             hasher.update(validator.stake.to_be_bytes());
         }
-        
+
         // Hash finalized blocks
         for block in &self.finalized_blocks {
             hasher.update(block.block_hash.as_bytes());
         }
-        
+
         format!("{:x}", hasher.finalize())
     }
-    
+
     /// Update validator reputations based on participation
     fn update_reputations(&mut self) {
         let current_time = Utc::now();
-        
+
         for validator in self.validators.values_mut() {
             let time_since_active = current_time - validator.last_active;
-            
+
             if time_since_active > chrono::Duration::hours(24) {
                 // Decrease reputation for inactivity
                 validator.reputation *= 0.95;
@@ -350,7 +369,7 @@ impl ConsensusEngine {
             }
         }
     }
-    
+
     /// Get consensus state
     pub fn get_state(&self) -> ConsensusState {
         ConsensusState {
@@ -398,7 +417,7 @@ impl NeuronConsensus {
             neuron_votes: HashMap::new(),
         }
     }
-    
+
     /// Submit neuron computation result for consensus
     pub async fn submit_result(
         &mut self,
@@ -412,7 +431,7 @@ impl NeuronConsensus {
         let mut hasher = Sha256::new();
         hasher.update(serde_json::to_string(result)?.as_bytes());
         let result_hash = format!("{:x}", hasher.finalize());
-        
+
         // Record vote
         let vote = NeuronVote {
             signal_id,
@@ -422,23 +441,26 @@ impl NeuronConsensus {
             confidence,
             timestamp: Utc::now(),
         };
-        
+
         self.neuron_votes.insert(neuron_id, vote);
-        
+
         // Check if enough votes for consensus
-        let votes_for_signal: Vec<_> = self.neuron_votes.values()
+        let votes_for_signal: Vec<_> = self
+            .neuron_votes
+            .values()
             .filter(|v| v.signal_id == signal_id && v.layer == layer)
             .collect();
-        
+
         if votes_for_signal.len() >= 3 {
             // Find majority result
             let mut result_counts: HashMap<String, u32> = HashMap::new();
             for vote in &votes_for_signal {
                 *result_counts.entry(vote.result_hash.clone()).or_insert(0) += 1;
             }
-            
-            if let Some((consensus_hash, count)) = result_counts.iter()
-                .max_by_key(|(_, &count)| count) {
+
+            if let Some((consensus_hash, count)) =
+                result_counts.iter().max_by_key(|(_, &count)| count)
+            {
                 if *count > votes_for_signal.len() as u32 / 2 {
                     // Consensus reached
                     tracing::info!(
@@ -449,7 +471,7 @@ impl NeuronConsensus {
                 }
             }
         }
-        
+
         Ok(())
     }
 }
@@ -457,31 +479,60 @@ impl NeuronConsensus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_consensus_engine() {
         let mut engine = ConsensusEngine::new(ConsensusProtocol::default());
-        
+
         // Register validators
-        engine.register_validator("validator1".to_string(), "0x1".to_string(), 1000).unwrap();
-        engine.register_validator("validator2".to_string(), "0x2".to_string(), 2000).unwrap();
-        engine.register_validator("validator3".to_string(), "0x3".to_string(), 1500).unwrap();
-        
+        engine
+            .register_validator("validator1".to_string(), "0x1".to_string(), 1000)
+            .unwrap();
+        engine
+            .register_validator("validator2".to_string(), "0x2".to_string(), 2000)
+            .unwrap();
+        engine
+            .register_validator("validator3".to_string(), "0x3".to_string(), 1500)
+            .unwrap();
+
         // Submit proposal
-        let proposal_id = engine.submit_proposal(
-            "validator1".to_string(),
-            ProposalType::GovernanceChange {
-                parameter: "min_stake".to_string(),
-                new_value: serde_json::json!(500),
-            },
-            serde_json::json!({}),
-        ).unwrap();
-        
+        let proposal_id = engine
+            .submit_proposal(
+                "validator1".to_string(),
+                ProposalType::GovernanceChange {
+                    parameter: "min_stake".to_string(),
+                    new_value: serde_json::json!(500),
+                },
+                serde_json::json!({}),
+            )
+            .unwrap();
+
         // Vote on proposal
-        engine.vote(proposal_id, "validator1".to_string(), VoteType::Approve, "sig1".to_string()).unwrap();
-        engine.vote(proposal_id, "validator2".to_string(), VoteType::Approve, "sig2".to_string()).unwrap();
-        engine.vote(proposal_id, "validator3".to_string(), VoteType::Approve, "sig3".to_string()).unwrap();
-        
+        engine
+            .vote(
+                proposal_id,
+                "validator1".to_string(),
+                VoteType::Approve,
+                "sig1".to_string(),
+            )
+            .unwrap();
+        engine
+            .vote(
+                proposal_id,
+                "validator2".to_string(),
+                VoteType::Approve,
+                "sig2".to_string(),
+            )
+            .unwrap();
+        engine
+            .vote(
+                proposal_id,
+                "validator3".to_string(),
+                VoteType::Approve,
+                "sig3".to_string(),
+            )
+            .unwrap();
+
         // Check state
         let state = engine.get_state();
         assert_eq!(state.finalized_blocks, 1);

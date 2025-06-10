@@ -25,6 +25,7 @@ pub struct ChainConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[allow(dead_code)]
 pub enum Network {
     Ethereum,
     Polygon,
@@ -94,18 +95,19 @@ struct NonceManager {
 impl BlockchainClient {
     pub async fn new(config: ChainConfig) -> Result<Self> {
         // Create provider
-        let provider = Provider::<Http>::try_from(&config.rpc_url)
-            .context("Failed to create provider")?;
-        
+        let provider =
+            Provider::<Http>::try_from(&config.rpc_url).context("Failed to create provider")?;
+
         // Create wallet if private key provided
         let wallet = if let Some(ref key) = config.private_key {
-            let wallet = key.parse::<LocalWallet>()
+            let wallet = key
+                .parse::<LocalWallet>()
                 .context("Failed to parse private key")?;
             Some(wallet.with_chain_id(config.chain_id))
         } else {
             None
         };
-        
+
         // Initialize nonce manager if wallet exists
         let nonce_manager = if let Some(ref wallet) = wallet {
             let address = wallet.address();
@@ -122,7 +124,7 @@ impl BlockchainClient {
                 pending_count: 0,
             }))
         };
-        
+
         Ok(Self {
             config,
             provider: Arc::new(provider),
@@ -130,42 +132,42 @@ impl BlockchainClient {
             nonce_manager,
         })
     }
-    
+
     /// Get the current block number
     pub async fn get_block_number(&self) -> Result<u64> {
         let block = self.provider.get_block_number().await?;
         Ok(block.as_u64())
     }
-    
+
     /// Get chain ID
     pub async fn get_chain_id(&self) -> Result<u64> {
         let chain_id = self.provider.get_chainid().await?;
         Ok(chain_id.as_u64())
     }
-    
+
     /// Check if connected to the correct network
     pub async fn verify_network(&self) -> Result<bool> {
         let chain_id = self.get_chain_id().await?;
         Ok(chain_id == self.config.chain_id)
     }
-    
+
     /// Get wallet address
     pub fn get_address(&self) -> Option<Address> {
         self.wallet.as_ref().map(|w| w.address())
     }
-    
+
     /// Get balance of an address
     pub async fn get_balance(&self, address: Address) -> Result<U256> {
         let balance = self.provider.get_balance(address, None).await?;
         Ok(balance)
     }
-    
+
     /// Send a transaction
     pub async fn send_transaction(&self, tx: TransactionRequest) -> Result<String> {
         if self.wallet.is_none() {
             return Err(anyhow::anyhow!("No wallet configured"));
         }
-        
+
         // Get and update nonce
         let nonce = {
             let mut nonce_mgr = self.nonce_manager.write().await;
@@ -174,74 +176,67 @@ impl BlockchainClient {
             nonce_mgr.pending_count += 1;
             nonce
         };
-        
+
         // Add nonce to transaction
         let tx = tx.nonce(nonce);
-        
+
         // Create signer middleware
-        let client = SignerMiddleware::new(
-            self.provider.clone(),
-            self.wallet.as_ref().unwrap().clone(),
-        );
-        
+        let client =
+            SignerMiddleware::new(self.provider.clone(), self.wallet.as_ref().unwrap().clone());
+
         // Send transaction
         let pending_tx = client.send_transaction(tx, None).await?;
         let tx_hash = pending_tx.tx_hash();
-        
+
         // Wait for confirmation
         let receipt = pending_tx
             .confirmations(self.config.confirmation_blocks as usize)
             .await?
             .ok_or_else(|| anyhow::anyhow!("Transaction failed"))?;
-        
+
         // Update nonce manager
         {
             let mut nonce_mgr = self.nonce_manager.write().await;
             nonce_mgr.pending_count -= 1;
             if nonce_mgr.pending_count == 0 {
                 // Refresh nonce from chain
-                let current = self.provider
+                let current = self
+                    .provider
                     .get_transaction_count(nonce_mgr.address, None)
                     .await?;
                 nonce_mgr.current_nonce = current;
             }
         }
-        
+
         Ok(format!("0x{:x}", tx_hash))
     }
-    
+
     /// Call a contract function (read-only)
-    pub async fn call_contract(
-        &self,
-        to: Address,
-        data: Vec<u8>,
-    ) -> Result<Vec<u8>> {
-        let tx = TransactionRequest::new()
-            .to(to)
-            .data(data);
-        
+    pub async fn call_contract(&self, to: Address, data: Vec<u8>) -> Result<Vec<u8>> {
+        let tx = TransactionRequest::new().to(to).data(data);
+
         let result = self.provider.call(&tx.into(), None).await?;
         Ok(result.to_vec())
     }
-    
+
     /// Estimate gas for a transaction
     pub async fn estimate_gas(&self, tx: TransactionRequest) -> Result<U256> {
         let gas = self.provider.estimate_gas(&tx, None).await?;
-        
+
         // Apply multiplier for safety
         let adjusted = gas.as_u64() as f64 * self.config.gas_config.gas_limit_multiplier;
         Ok(U256::from(adjusted as u64))
     }
-    
+
     /// Get current gas price
     pub async fn get_gas_price(&self) -> Result<U256> {
         let gas_price = self.provider.get_gas_price().await?;
-        
+
         // Cap at max configured price
         let max_price = U256::from(self.config.gas_config.max_gas_price_gwei) * U256::exp10(9);
         Ok(gas_price.min(max_price))
     }
-    
+
     /// Subscribe to new blocks
     pub async fn subscribe_blocks(&self) -> Result<()> {
         // Note: Requires WebSocket provider for real subscriptions
@@ -292,19 +287,19 @@ pub struct ChainStats {
 pub enum BlockchainError {
     #[error("Connection error: {0}")]
     ConnectionError(String),
-    
+
     #[error("Transaction failed: {0}")]
     TransactionFailed(String),
-    
+
     #[error("Insufficient balance")]
     InsufficientBalance,
-    
+
     #[error("Gas price too high: {0} gwei")]
     GasPriceTooHigh(u64),
-    
+
     #[error("Network mismatch: expected {expected}, got {actual}")]
     NetworkMismatch { expected: u64, actual: u64 },
-    
+
     #[error("Contract error: {0}")]
     ContractError(String),
 }
@@ -312,7 +307,7 @@ pub enum BlockchainError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_blockchain_client_creation() {
         let config = ChainConfig::default();

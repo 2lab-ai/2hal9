@@ -1,12 +1,12 @@
 //! Browser context pool for efficient resource management
 
+use crate::playwright_stub::{Browser, BrowserContext, BrowserContextOptions, Page};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::Semaphore;
-use crate::playwright_stub::{Browser, BrowserContext, Page, BrowserContextOptions};
+use tracing::{debug, info, warn};
 use uuid::Uuid;
-use tracing::{info, warn, debug};
 
 use crate::{BrowserConfig, BrowserError, Result};
 
@@ -14,19 +14,19 @@ use crate::{BrowserConfig, BrowserError, Result};
 pub struct ContextPool {
     /// Maximum number of contexts
     max_contexts: usize,
-    
+
     /// Browser instance
     browser: Browser,
-    
+
     /// Available contexts ready for use
     available: Vec<PooledContextInner>,
-    
+
     /// Contexts currently in use
     in_use: HashMap<Uuid, (PooledContextInner, Instant)>,
-    
+
     /// Semaphore to limit concurrent contexts
     semaphore: Arc<Semaphore>,
-    
+
     /// Configuration
     config: BrowserConfig,
 }
@@ -35,7 +35,7 @@ impl ContextPool {
     /// Create a new context pool
     pub fn new(max_contexts: usize, browser: Browser, config: BrowserConfig) -> Self {
         let semaphore = Arc::new(Semaphore::new(max_contexts));
-        
+
         Self {
             max_contexts,
             browser,
@@ -45,45 +45,49 @@ impl ContextPool {
             config,
         }
     }
-    
+
     /// Acquire a context from the pool
     pub async fn acquire(&mut self) -> Result<PooledContext> {
         debug!("Acquiring browser context from pool");
-        
+
         // Acquire semaphore permit
-        let permit = self.semaphore.clone().acquire_owned().await
+        let permit = self
+            .semaphore
+            .clone()
+            .acquire_owned()
+            .await
             .map_err(|_| BrowserError::PoolExhausted)?;
-        
+
         // Try to reuse available context
         if let Some(context) = self.available.pop() {
             let id = Uuid::new_v4();
             self.in_use.insert(id, (context, Instant::now()));
-            
+
             debug!("Reused existing context: {}", id);
             return Ok(PooledContext {
                 id,
                 _permit: permit,
             });
         }
-        
+
         // Create new context if under limit
         if self.in_use.len() < self.max_contexts {
             let context = self.create_context().await?;
             let id = Uuid::new_v4();
             self.in_use.insert(id, (context, Instant::now()));
-            
+
             debug!("Created new context: {}", id);
             return Ok(PooledContext {
                 id,
                 _permit: permit,
             });
         }
-        
+
         // Pool exhausted
         warn!("Context pool exhausted");
         Err(BrowserError::PoolExhausted)
     }
-    
+
     /// Create a new browser context
     async fn create_context(&self) -> Result<PooledContextInner> {
         let options = BrowserContextOptions::default()
@@ -93,19 +97,22 @@ impl ContextPool {
             .locale("en-US")
             .timezone_id("UTC")
             .ignore_https_errors(false);
-        
-        let context = self.browser.new_context(options)
+
+        let context = self
+            .browser
+            .new_context(options)
             .await
             .map_err(|e| BrowserError::Playwright(e.to_string()))?;
-        
+
         // Set default timeout
         context.set_default_timeout(self.config.default_timeout as f64);
-        
+
         // Create default page
-        let page = context.new_page()
+        let page = context
+            .new_page()
             .await
             .map_err(|e| BrowserError::Playwright(e.to_string()))?;
-        
+
         Ok(PooledContextInner {
             context,
             page,
@@ -113,19 +120,19 @@ impl ContextPool {
             last_used: Instant::now(),
         })
     }
-    
+
     /// Return a context to the pool
     pub fn release(&mut self, id: Uuid) {
         if let Some((mut context, _)) = self.in_use.remove(&id) {
             debug!("Releasing context: {}", id);
-            
+
             // Update last used time
             context.last_used = Instant::now();
-            
+
             // Clear cookies and storage for privacy
             // Note: This is async but we're in a sync context
             // In production, this should be handled differently
-            
+
             // Return to available pool if still fresh
             if context.created_at.elapsed() < Duration::from_secs(300) {
                 self.available.push(context);
@@ -135,18 +142,18 @@ impl ContextPool {
             }
         }
     }
-    
+
     /// Clear all contexts
     pub async fn clear(&mut self) {
         info!("Clearing context pool");
-        
+
         // Close all in-use contexts
         for (id, (context, _)) in self.in_use.drain() {
             if let Err(e) = context.context.close().await {
                 warn!("Error closing context {}: {}", id, e);
             }
         }
-        
+
         // Close all available contexts
         for context in self.available.drain(..) {
             if let Err(e) = context.context.close().await {
@@ -154,7 +161,7 @@ impl ContextPool {
             }
         }
     }
-    
+
     /// Get pool statistics
     pub fn stats(&self) -> PoolStats {
         PoolStats {
@@ -186,7 +193,7 @@ impl PooledContext {
         // a way to access the actual page from the pool
         unimplemented!("Need pool reference to get page")
     }
-    
+
     /// Get context ID
     pub fn id(&self) -> Uuid {
         self.id
@@ -212,7 +219,7 @@ mod tests {
             in_use: 3,
             available: 2,
         };
-        
+
         assert_eq!(stats.total_capacity, 10);
         assert_eq!(stats.in_use, 3);
         assert_eq!(stats.available, 2);

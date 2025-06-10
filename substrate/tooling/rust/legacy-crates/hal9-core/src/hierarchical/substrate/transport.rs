@@ -1,35 +1,35 @@
 //! Transport abstraction for message passing
 
+use crate::{Error, Result};
 use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
-use std::sync::Arc;
+use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::mpsc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use crate::{Result, Error};
+use tokio::sync::mpsc;
 
 /// Message transport abstraction
 #[async_trait]
 pub trait MessageTransport: Send + Sync + 'static {
     /// Send raw bytes to a destination
     async fn send_raw(&self, destination: &str, data: Vec<u8>) -> Result<()>;
-    
+
     /// Receive raw bytes for a given endpoint
     async fn receive_raw(&self, endpoint: &str) -> Result<RawTransportReceiver>;
-    
+
     /// Subscribe to broadcast messages
     async fn subscribe_raw(&self, topic: &str) -> Result<RawTransportReceiver>;
-    
+
     /// Publish raw bytes to a topic
     async fn publish_raw(&self, topic: &str, data: Vec<u8>) -> Result<()>;
-    
+
     /// Connect to a remote endpoint
     async fn connect(&self, endpoint: &str) -> Result<()>;
-    
+
     /// Disconnect from a remote endpoint
     async fn disconnect(&self, endpoint: &str) -> Result<()>;
-    
+
     /// Get transport metrics
     fn metrics(&self) -> TransportMetrics;
 }
@@ -42,11 +42,10 @@ pub trait TypedTransport: MessageTransport {
     where
         M: Serialize + Send + Sync + 'static,
     {
-        let data = bincode::serialize(&message)
-            .map_err(|e| Error::Serialization(e.to_string()))?;
+        let data = bincode::serialize(&message).map_err(|e| Error::Serialization(e.to_string()))?;
         self.send_raw(destination, data).await
     }
-    
+
     /// Receive typed messages
     async fn receive<M>(&self, endpoint: &str) -> Result<TransportReceiver<M>>
     where
@@ -55,7 +54,7 @@ pub trait TypedTransport: MessageTransport {
         let raw_receiver = self.receive_raw(endpoint).await?;
         Ok(TransportReceiver::new(raw_receiver))
     }
-    
+
     /// Subscribe to typed messages
     async fn subscribe<M>(&self, topic: &str) -> Result<TransportReceiver<M>>
     where
@@ -64,14 +63,13 @@ pub trait TypedTransport: MessageTransport {
         let raw_receiver = self.subscribe_raw(topic).await?;
         Ok(TransportReceiver::new(raw_receiver))
     }
-    
+
     /// Publish typed messages
     async fn publish<M>(&self, topic: &str, message: M) -> Result<()>
     where
         M: Serialize + Send + Sync + 'static,
     {
-        let data = bincode::serialize(&message)
-            .map_err(|e| Error::Serialization(e.to_string()))?;
+        let data = bincode::serialize(&message).map_err(|e| Error::Serialization(e.to_string()))?;
         self.publish_raw(topic, data).await
     }
 }
@@ -85,27 +83,27 @@ impl<T: MessageTransport> MessageTransport for Arc<T> {
     async fn send_raw(&self, destination: &str, data: Vec<u8>) -> Result<()> {
         self.as_ref().send_raw(destination, data).await
     }
-    
+
     async fn receive_raw(&self, endpoint: &str) -> Result<RawTransportReceiver> {
         self.as_ref().receive_raw(endpoint).await
     }
-    
+
     async fn subscribe_raw(&self, topic: &str) -> Result<RawTransportReceiver> {
         self.as_ref().subscribe_raw(topic).await
     }
-    
+
     async fn publish_raw(&self, topic: &str, data: Vec<u8>) -> Result<()> {
         self.as_ref().publish_raw(topic, data).await
     }
-    
+
     async fn connect(&self, endpoint: &str) -> Result<()> {
         self.as_ref().connect(endpoint).await
     }
-    
+
     async fn disconnect(&self, endpoint: &str) -> Result<()> {
         self.as_ref().disconnect(endpoint).await
     }
-    
+
     fn metrics(&self) -> TransportMetrics {
         self.as_ref().metrics()
     }
@@ -129,7 +127,7 @@ impl RawTransportReceiver {
     pub async fn recv(&mut self) -> Option<Vec<u8>> {
         self.inner.recv().await
     }
-    
+
     pub async fn recv_timeout(&mut self, timeout: Duration) -> Result<Option<Vec<u8>>> {
         self.inner.recv_timeout(timeout).await
     }
@@ -147,7 +145,7 @@ pub struct TransportReceiver<M> {
     _phantom: std::marker::PhantomData<M>,
 }
 
-impl<M> TransportReceiver<M> 
+impl<M> TransportReceiver<M>
 where
     M: for<'de> Deserialize<'de> + Send + 'static,
 {
@@ -157,13 +155,14 @@ where
             _phantom: std::marker::PhantomData,
         }
     }
-    
+
     pub async fn recv(&mut self) -> Option<M> {
-        self.raw_receiver.recv().await.and_then(|data| {
-            bincode::deserialize(&data).ok()
-        })
+        self.raw_receiver
+            .recv()
+            .await
+            .and_then(|data| bincode::deserialize(&data).ok())
     }
-    
+
     pub async fn recv_timeout(&mut self, timeout: Duration) -> Result<Option<M>> {
         match self.raw_receiver.recv_timeout(timeout).await? {
             Some(data) => Ok(bincode::deserialize(&data).ok()),
@@ -215,21 +214,22 @@ impl MetricsTracker {
         self.messages_sent.fetch_add(1, Ordering::Relaxed);
         self.bytes_sent.fetch_add(bytes as u64, Ordering::Relaxed);
     }
-    
+
     fn record_received(&self, bytes: usize) {
         self.messages_received.fetch_add(1, Ordering::Relaxed);
-        self.bytes_received.fetch_add(bytes as u64, Ordering::Relaxed);
+        self.bytes_received
+            .fetch_add(bytes as u64, Ordering::Relaxed);
     }
-    
+
     fn record_error(&self) {
         self.errors.fetch_add(1, Ordering::Relaxed);
     }
-    
+
     fn record_latency(&self, ms: u64) {
         self.latency_sum.fetch_add(ms, Ordering::Relaxed);
         self.latency_count.fetch_add(1, Ordering::Relaxed);
     }
-    
+
     fn to_metrics(&self, active_connections: usize) -> TransportMetrics {
         let latency_count = self.latency_count.load(Ordering::Relaxed);
         let avg_latency = if latency_count > 0 {
@@ -237,7 +237,7 @@ impl MetricsTracker {
         } else {
             0.0
         };
-        
+
         TransportMetrics {
             messages_sent: self.messages_sent.load(Ordering::Relaxed),
             messages_received: self.messages_received.load(Ordering::Relaxed),
@@ -260,7 +260,7 @@ impl RawReceiverTrait for ChannelReceiver {
     async fn recv(&mut self) -> Option<Vec<u8>> {
         self.rx.recv().await
     }
-    
+
     async fn recv_timeout(&mut self, timeout: Duration) -> Result<Option<Vec<u8>>> {
         match tokio::time::timeout(timeout, self.rx.recv()).await {
             Ok(result) => Ok(result),
@@ -296,66 +296,68 @@ impl ChannelTransport {
 impl MessageTransport for ChannelTransport {
     async fn send_raw(&self, destination: &str, data: Vec<u8>) -> Result<()> {
         if let Some(sender) = self.endpoints.get(destination) {
-            sender.send(data.clone())
+            sender
+                .send(data.clone())
                 .map_err(|_| Error::Transport("Channel closed".to_string()))?;
             self.metrics.record_sent(data.len());
             Ok(())
         } else {
-            Err(Error::Transport(format!("Unknown destination: {}", destination)))
+            Err(Error::Transport(format!(
+                "Unknown destination: {}",
+                destination
+            )))
         }
     }
-    
+
     async fn receive_raw(&self, endpoint: &str) -> Result<RawTransportReceiver> {
         let (tx, rx) = mpsc::unbounded_channel();
         self.endpoints.insert(endpoint.to_string(), tx);
-        
+
         Ok(RawTransportReceiver {
             inner: Box::new(ChannelReceiver { rx }),
         })
     }
-    
+
     async fn subscribe_raw(&self, topic: &str) -> Result<RawTransportReceiver> {
         let (tx, rx) = mpsc::unbounded_channel();
-        
-        self.topics.entry(topic.to_string())
-            .or_default()
-            .push(tx);
-        
+
+        self.topics.entry(topic.to_string()).or_default().push(tx);
+
         Ok(RawTransportReceiver {
             inner: Box::new(ChannelReceiver { rx }),
         })
     }
-    
+
     async fn publish_raw(&self, topic: &str, data: Vec<u8>) -> Result<()> {
         if let Some(mut subscribers) = self.topics.get_mut(topic) {
             // Remove closed channels
             subscribers.retain(|tx| !tx.is_closed());
-            
+
             // Send to all subscribers
             let subscriber_count = subscribers.len();
             for tx in subscribers.iter() {
                 let _ = tx.send(data.clone());
             }
-            
+
             // Record each delivery as a separate message
             for _ in 0..subscriber_count {
                 self.metrics.record_sent(data.len());
             }
         }
-        
+
         Ok(())
     }
-    
+
     async fn connect(&self, _endpoint: &str) -> Result<()> {
         // No-op for channel transport
         Ok(())
     }
-    
+
     async fn disconnect(&self, endpoint: &str) -> Result<()> {
         self.endpoints.remove(endpoint);
         Ok(())
     }
-    
+
     fn metrics(&self) -> TransportMetrics {
         self.metrics.to_metrics(self.endpoints.len())
     }
@@ -377,7 +379,7 @@ impl RawReceiverTrait for TcpReceiver {
     async fn recv(&mut self) -> Option<Vec<u8>> {
         self.rx.recv().await
     }
-    
+
     async fn recv_timeout(&mut self, timeout: Duration) -> Result<Option<Vec<u8>>> {
         match tokio::time::timeout(timeout, self.rx.recv()).await {
             Ok(result) => Ok(result),
@@ -407,16 +409,17 @@ impl TcpTransport {
             metrics: Arc::new(MetricsTracker::default()),
         }
     }
-    
+
     /// Start listening on a port
     pub async fn listen(&self, addr: &str) -> Result<()> {
-        let listener = tokio::net::TcpListener::bind(addr).await
+        let listener = tokio::net::TcpListener::bind(addr)
+            .await
             .map_err(|e| Error::Transport(format!("Failed to bind: {}", e)))?;
-        
+
         let connections = Arc::clone(&self.connections);
         let listeners = Arc::clone(&self.listeners);
         let metrics = Arc::clone(&self.metrics);
-        
+
         tokio::spawn(async move {
             loop {
                 match listener.accept().await {
@@ -424,7 +427,7 @@ impl TcpTransport {
                         let connections = Arc::clone(&connections);
                         let listeners = Arc::clone(&listeners);
                         let metrics = Arc::clone(&metrics);
-                        
+
                         tokio::spawn(async move {
                             if let Err(e) = Self::handle_connection(
                                 stream,
@@ -432,7 +435,9 @@ impl TcpTransport {
                                 connections,
                                 listeners,
                                 metrics,
-                            ).await {
+                            )
+                            .await
+                            {
                                 tracing::error!("Connection error: {}", e);
                             }
                         });
@@ -443,10 +448,10 @@ impl TcpTransport {
                 }
             }
         });
-        
+
         Ok(())
     }
-    
+
     async fn handle_connection(
         mut stream: tokio::net::TcpStream,
         addr: String,
@@ -456,28 +461,29 @@ impl TcpTransport {
     ) -> Result<()> {
         let (rx_half, _tx_half) = stream.split();
         let mut reader = tokio::io::BufReader::new(rx_half);
-        
+
         loop {
             // Read message length
             let mut len_buf = [0u8; 4];
             if reader.read_exact(&mut len_buf).await.is_err() {
                 break;
             }
-            
+
             let len = u32::from_be_bytes(len_buf) as usize;
-            if len > 10_000_000 { // 10MB max message size
+            if len > 10_000_000 {
+                // 10MB max message size
                 metrics.record_error();
                 break;
             }
-            
+
             // Read message data
             let mut data = vec![0u8; len];
             if reader.read_exact(&mut data).await.is_err() {
                 break;
             }
-            
+
             metrics.record_received(data.len());
-            
+
             // Deserialize envelope
             if let Ok(envelope) = bincode::deserialize::<TransportEnvelope>(&data) {
                 // Route to appropriate listener
@@ -486,7 +492,7 @@ impl TcpTransport {
                 }
             }
         }
-        
+
         connections.remove(&addr);
         Ok(())
     }
@@ -503,68 +509,80 @@ impl MessageTransport for TcpTransport {
             payload: data,
             metadata: std::collections::HashMap::new(),
         };
-        
-        let envelope_data = bincode::serialize(&envelope)
-            .map_err(|e| Error::Serialization(e.to_string()))?;
-        
+
+        let envelope_data =
+            bincode::serialize(&envelope).map_err(|e| Error::Serialization(e.to_string()))?;
+
         if let Some(conn) = self.connections.get(destination) {
             let mut stream = conn.stream.lock().await;
-            
+
             // Send message length
-            stream.write_all(&(envelope_data.len() as u32).to_be_bytes()).await
+            stream
+                .write_all(&(envelope_data.len() as u32).to_be_bytes())
+                .await
                 .map_err(|e| Error::Transport(e.to_string()))?;
-            
+
             // Send message data
-            stream.write_all(&envelope_data).await
+            stream
+                .write_all(&envelope_data)
+                .await
                 .map_err(|e| Error::Transport(e.to_string()))?;
-            
+
             self.metrics.record_sent(envelope_data.len());
             Ok(())
         } else {
-            Err(Error::Transport(format!("Not connected to {}", destination)))
+            Err(Error::Transport(format!(
+                "Not connected to {}",
+                destination
+            )))
         }
     }
-    
+
     async fn receive_raw(&self, endpoint: &str) -> Result<RawTransportReceiver> {
         let (tx, rx) = mpsc::unbounded_channel();
         self.listeners.insert(endpoint.to_string(), tx);
-        
+
         Ok(RawTransportReceiver {
             inner: Box::new(TcpReceiver { rx }),
         })
     }
-    
+
     async fn subscribe_raw(&self, _topic: &str) -> Result<RawTransportReceiver> {
         // TCP transport doesn't support pub/sub natively
         // Would need to implement a protocol on top
-        Err(Error::Transport("TCP transport doesn't support pub/sub".to_string()))
+        Err(Error::Transport(
+            "TCP transport doesn't support pub/sub".to_string(),
+        ))
     }
-    
+
     async fn publish_raw(&self, _topic: &str, _data: Vec<u8>) -> Result<()> {
         // TCP transport doesn't support pub/sub natively
-        Err(Error::Transport("TCP transport doesn't support pub/sub".to_string()))
+        Err(Error::Transport(
+            "TCP transport doesn't support pub/sub".to_string(),
+        ))
     }
-    
+
     async fn connect(&self, endpoint: &str) -> Result<()> {
-        let stream = tokio::net::TcpStream::connect(endpoint).await
+        let stream = tokio::net::TcpStream::connect(endpoint)
+            .await
             .map_err(|e| Error::Transport(format!("Failed to connect: {}", e)))?;
-        
+
         let (_tx, rx) = mpsc::unbounded_channel();
-        
+
         let conn = TcpConnection {
             stream: Arc::new(tokio::sync::Mutex::new(stream)),
             _rx: rx,
         };
-        
+
         self.connections.insert(endpoint.to_string(), conn);
         Ok(())
     }
-    
+
     async fn disconnect(&self, endpoint: &str) -> Result<()> {
         self.connections.remove(endpoint);
         Ok(())
     }
-    
+
     fn metrics(&self) -> TransportMetrics {
         self.metrics.to_metrics(self.connections.len())
     }
@@ -621,49 +639,52 @@ pub enum ConnectionStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_channel_transport_send_receive() {
         let transport = ChannelTransport::new();
-        
+
         // Set up receiver
         let mut receiver = transport.receive::<String>("test-endpoint").await.unwrap();
-        
+
         // Send message
-        transport.send("test-endpoint", "Hello, World!".to_string()).await.unwrap();
-        
+        transport
+            .send("test-endpoint", "Hello, World!".to_string())
+            .await
+            .unwrap();
+
         // Receive message
         let msg = receiver.recv().await.unwrap();
         assert_eq!(msg, "Hello, World!");
-        
+
         // Check metrics
         let metrics = transport.metrics();
         assert_eq!(metrics.messages_sent, 1);
     }
-    
+
     #[tokio::test]
     async fn test_channel_transport_pubsub() {
         let transport = ChannelTransport::new();
-        
+
         // Set up subscribers
         let mut sub1 = transport.subscribe::<i32>("test-topic").await.unwrap();
         let mut sub2 = transport.subscribe::<i32>("test-topic").await.unwrap();
-        
+
         // Publish message
         transport.publish("test-topic", 42).await.unwrap();
-        
+
         // Both subscribers should receive
         assert_eq!(sub1.recv().await.unwrap(), 42);
         assert_eq!(sub2.recv().await.unwrap(), 42);
     }
-    
+
     #[tokio::test]
     async fn test_tcp_transport_connect() {
         let transport = TcpTransport::new();
-        
+
         // Start listener
         transport.listen("127.0.0.1:0").await.unwrap();
-        
+
         // Would need actual TCP connection test here
         // For now, just verify construction
         let metrics = transport.metrics();

@@ -40,15 +40,15 @@ pub async fn graphql_handler(
     req: GraphQLRequest,
 ) -> Result<GraphQLResponse, StatusCode> {
     let mut request = req.into_inner();
-    
+
     // Add user context if authenticated
     if let Some(user) = user {
         request = request.data(user);
     }
-    
+
     // Add request headers for tracing
     request = request.data(headers);
-    
+
     Ok(schema.execute(request).await.into())
 }
 
@@ -99,7 +99,7 @@ pub fn create_graphql_schema(
         memory_manager,
         metrics,
     });
-    
+
     Schema::build(QueryRoot, MutationRoot, SubscriptionRoot)
         .data(context)
         .data(event_bus)
@@ -129,16 +129,16 @@ pub fn graphql_routes(schema: HAL9Schema) -> Router {
 // ============ GraphQL Schema Documentation ============
 
 /// GraphQL API Documentation
-/// 
+///
 /// # Authentication
-/// 
+///
 /// All GraphQL requests require authentication via JWT token in the Authorization header:
 /// ```
 /// Authorization: Bearer <token>
 /// ```
-/// 
+///
 /// # Query Examples
-/// 
+///
 /// ## Send a signal
 /// ```graphql
 /// mutation SendSignal($input: SignalInput!) {
@@ -150,7 +150,7 @@ pub fn graphql_routes(schema: HAL9Schema) -> Router {
 ///   }
 /// }
 /// ```
-/// 
+///
 /// ## List neurons
 /// ```graphql
 /// query ListNeurons($layer: String) {
@@ -174,7 +174,7 @@ pub fn graphql_routes(schema: HAL9Schema) -> Router {
 ///   }
 /// }
 /// ```
-/// 
+///
 /// ## Subscribe to updates
 /// ```graphql
 /// subscription SignalUpdates($signalId: ID) {
@@ -186,9 +186,9 @@ pub fn graphql_routes(schema: HAL9Schema) -> Router {
 ///   }
 /// }
 /// ```
-/// 
+///
 /// # Error Handling
-/// 
+///
 /// Errors are returned in the standard GraphQL error format:
 /// ```json
 /// {
@@ -208,11 +208,11 @@ pub struct GraphQLDocs;
 mod tests {
     use super::*;
     use async_graphql::{Request, Response};
-    
+
     #[tokio::test]
     async fn test_schema_creation() {
         let schema = build_schema();
-        
+
         let query = r#"
             {
                 __schema {
@@ -228,7 +228,7 @@ mod tests {
                 }
             }
         "#;
-        
+
         let response: Response = schema.execute(Request::new(query)).await;
         assert!(response.is_ok());
     }

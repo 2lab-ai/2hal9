@@ -1,13 +1,13 @@
 //! 2HAL9 Server main entry point
 
-use std::sync::Arc;
 use anyhow::Result;
-use tracing::{info, error};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use std::sync::Arc;
 use tokio::signal;
+use tracing::{error, info};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use hal9_core::ServerConfig;
-use hal9_server::{HAL9Server, api};
+use hal9_server::{api, HAL9Server};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -19,58 +19,59 @@ async fn main() -> Result<()> {
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
-    
+
     info!("Starting 2HAL9 server v{}", env!("CARGO_PKG_VERSION"));
-    
+
     // Load configuration
     let config = load_config().await?;
-    
+
     // Create server
     let mut server = HAL9Server::new(config.clone());
-    
+
     // Initialize auth if enabled
     if config.auth.enabled {
-        let auth_pool = sqlx::SqlitePool::connect(&format!("sqlite:{}?mode=rwc", config.auth.database_path))
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to connect to auth database: {}", e))?;
-        
+        let auth_pool =
+            sqlx::SqlitePool::connect(&format!("sqlite:{}?mode=rwc", config.auth.database_path))
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to connect to auth database: {}", e))?;
+
         server.initialize_auth(auth_pool).await?;
     }
-    
+
     let server = Arc::new(server);
-    
+
     // Start the server
     server.start().await?;
-    
+
     // Create HTTP API router
     let api_router = api::create_api_router(server.clone());
-    
+
     // Start HTTP server - use env var or default
     let http_port = std::env::var("HTTP_PORT").unwrap_or_else(|_| "8080".to_string());
     let http_addr = format!("127.0.0.1:{}", http_port);
-    
+
     info!("Starting HTTP server on {}", http_addr);
-    
+
     let listener = tokio::net::TcpListener::bind(&http_addr).await?;
-    
+
     // Spawn HTTP server task
     let http_handle = tokio::spawn(async move {
         if let Err(e) = axum::serve(listener, api_router).await {
             error!("HTTP server error: {}", e);
         }
     });
-    
+
     // Wait for shutdown signal
     shutdown_signal().await;
-    
+
     info!("Shutdown signal received, stopping server...");
-    
+
     // Shutdown server
     server.shutdown().await?;
-    
+
     // Wait for HTTP server to stop
     http_handle.abort();
-    
+
     info!("Server stopped");
     Ok(())
 }
@@ -78,7 +79,7 @@ async fn main() -> Result<()> {
 async fn load_config() -> Result<ServerConfig> {
     // Check for config file argument
     let args: Vec<String> = std::env::args().collect();
-    
+
     if args.len() > 1 {
         // Load from specified file
         let config_path = &args[1];
@@ -94,12 +95,15 @@ async fn load_config() -> Result<ServerConfig> {
 }
 
 fn create_default_config() -> ServerConfig {
-    use hal9_core::{NeuronConfig, config::{ClaudeConfig, MonitoringConfig, MockResponse, NetworkConfig}};
+    use hal9_core::{
+        config::{ClaudeConfig, MockResponse, MonitoringConfig, NetworkConfig},
+        NeuronConfig,
+    };
     use std::collections::HashMap;
-    
+
     // Create mock responses for demo
     let mut mock_responses = HashMap::new();
-    
+
     // L4 responses
     mock_responses.insert("L4".to_string(), vec![
         MockResponse {
@@ -108,16 +112,19 @@ fn create_default_config() -> ServerConfig {
             delay_ms: 100,
         },
     ]);
-    
+
     // L3 responses
-    mock_responses.insert("L3".to_string(), vec![
-        MockResponse {
+    mock_responses.insert(
+        "L3".to_string(),
+        vec![MockResponse {
             trigger: "default".to_string(),
-            response: "FORWARD_TO: neuron-l2-impl\nCONTENT: Creating implementation plan based on design".to_string(),
+            response:
+                "FORWARD_TO: neuron-l2-impl\nCONTENT: Creating implementation plan based on design"
+                    .to_string(),
             delay_ms: 100,
-        },
-    ]);
-    
+        }],
+    );
+
     // L2 responses
     mock_responses.insert("L2".to_string(), vec![
         MockResponse {
@@ -126,7 +133,7 @@ fn create_default_config() -> ServerConfig {
             delay_ms: 100,
         },
     ]);
-    
+
     ServerConfig {
         server_id: "hal9-server-1".to_string(),
         neurons: vec![

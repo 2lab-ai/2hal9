@@ -1,7 +1,7 @@
 //! API client for HAL9 code generation service
 
 use anyhow::{Context, Result};
-use reqwest::{Client, header};
+use reqwest::{header, Client};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -20,27 +20,28 @@ impl CodegenClient {
             header::CONTENT_TYPE,
             header::HeaderValue::from_static("application/json"),
         );
-        
+
         if let Some(ref key) = api_key {
             headers.insert(
                 header::HeaderName::from_static("x-api-key"),
                 header::HeaderValue::from_str(key)?,
             );
         }
-        
+
         let client = Client::builder()
             .default_headers(headers)
             .timeout(Duration::from_secs(300)) // 5 minutes for large generations
             .build()?;
-        
+
         Ok(Self {
             client,
             base_url: base_url.trim_end_matches('/').to_string(),
             _api_key: api_key,
         })
     }
-    
+
     /// Generate a new project
+    #[allow(clippy::too_many_arguments)]
     pub async fn generate_project(
         &self,
         description: &str,
@@ -71,38 +72,47 @@ impl CodegenClient {
                 ci_cd,
             },
         };
-        
-        let response = self.client
+
+        let response = self
+            .client
             .post(format!("{}/api/v1/codegen/project", self.base_url))
             .json(&request)
             .send()
             .await
             .context("Failed to send project generation request")?;
-        
+
         if !response.status().is_success() {
             let error_text = response.text().await?;
             return Err(anyhow::anyhow!("API error: {}", error_text));
         }
-        
-        response.json::<GenerateProjectResponse>()
+
+        response
+            .json::<GenerateProjectResponse>()
             .await
             .context("Failed to parse project generation response")
     }
-    
+
     /// Get project generation status
+    #[allow(dead_code)]
     pub async fn get_project_status(&self, project_id: &str) -> Result<ProjectStatus> {
-        let response = self.client
-            .get(format!("{}/api/v1/codegen/project/{}", self.base_url, project_id))
+        let response = self
+            .client
+            .get(format!(
+                "{}/api/v1/codegen/project/{}",
+                self.base_url, project_id
+            ))
             .send()
             .await
             .context("Failed to get project status")?;
-        
-        response.json::<ProjectStatus>()
+
+        response
+            .json::<ProjectStatus>()
             .await
             .context("Failed to parse project status")
     }
-    
+
     /// Get code completion suggestions
+    #[allow(dead_code)]
     pub async fn complete_code(
         &self,
         file_path: String,
@@ -116,19 +126,21 @@ impl CodegenClient {
             context,
             language,
         };
-        
-        let response = self.client
+
+        let response = self
+            .client
             .post(format!("{}/api/v1/codegen/complete", self.base_url))
             .json(&request)
             .send()
             .await
             .context("Failed to get code completion")?;
-        
-        response.json::<CodeCompletionResponse>()
+
+        response
+            .json::<CodeCompletionResponse>()
             .await
             .context("Failed to parse completion response")
     }
-    
+
     /// Review code
     pub async fn review_code(
         &self,
@@ -136,33 +148,38 @@ impl CodegenClient {
         content: String,
         focus: Vec<String>,
     ) -> Result<CodeReviewResponse> {
-        let focus_areas = focus.iter().map(|f| match f.as_str() {
-            "security" => ReviewFocus::Security,
-            "performance" => ReviewFocus::Performance,
-            "best-practices" => ReviewFocus::BestPractices,
-            "bugs" => ReviewFocus::Bugs,
-            "style" => ReviewFocus::Style,
-            _ => ReviewFocus::BestPractices,
-        }).collect();
-        
+        let focus_areas = focus
+            .iter()
+            .map(|f| match f.as_str() {
+                "security" => ReviewFocus::Security,
+                "performance" => ReviewFocus::Performance,
+                "best-practices" => ReviewFocus::BestPractices,
+                "bugs" => ReviewFocus::Bugs,
+                "style" => ReviewFocus::Style,
+                _ => ReviewFocus::BestPractices,
+            })
+            .collect();
+
         let request = CodeReviewRequest {
             file_path,
             content,
             focus: focus_areas,
         };
-        
-        let response = self.client
+
+        let response = self
+            .client
             .post(format!("{}/api/v1/codegen/review", self.base_url))
             .json(&request)
             .send()
             .await
             .context("Failed to review code")?;
-        
-        response.json::<CodeReviewResponse>()
+
+        response
+            .json::<CodeReviewResponse>()
             .await
             .context("Failed to parse review response")
     }
-    
+
     /// Refactor code
     pub async fn refactor_code(
         &self,
@@ -180,7 +197,7 @@ impl CodegenClient {
             "format-code" => RefactorType::FormatCode,
             _ => return Err(anyhow::anyhow!("Invalid refactor type")),
         };
-        
+
         let selection = if let (Some(start), Some(end)) = (start_line, end_line) {
             Some(CodeSelection {
                 start_line: start,
@@ -191,34 +208,39 @@ impl CodegenClient {
         } else {
             None
         };
-        
+
         let request = RefactorRequest {
             file_path,
             refactor_type,
             selection,
         };
-        
-        let response = self.client
+
+        let response = self
+            .client
             .post(format!("{}/api/v1/codegen/refactor", self.base_url))
             .json(&request)
             .send()
             .await
             .context("Failed to refactor code")?;
-        
-        response.json::<RefactorResponse>()
+
+        response
+            .json::<RefactorResponse>()
             .await
             .context("Failed to parse refactor response")
     }
-    
+
     /// Get available templates
+    #[allow(dead_code)]
     pub async fn get_templates(&self) -> Result<TemplatesResponse> {
-        let response = self.client
+        let response = self
+            .client
             .get(format!("{}/api/v1/codegen/templates", self.base_url))
             .send()
             .await
             .context("Failed to get templates")?;
-        
-        response.json::<TemplatesResponse>()
+
+        response
+            .json::<TemplatesResponse>()
             .await
             .context("Failed to parse templates")
     }
@@ -254,6 +276,7 @@ struct ProjectPreferences {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct GenerateProjectResponse {
     pub project_id: String,
     pub status: String,
@@ -262,6 +285,7 @@ pub struct GenerateProjectResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct ProjectStatus {
     pub project_id: String,
     pub status: String,
@@ -271,6 +295,7 @@ pub struct ProjectStatus {
 }
 
 #[derive(Debug, Serialize)]
+#[allow(dead_code)]
 struct CodeCompletionRequest {
     file_path: String,
     cursor_position: usize,
@@ -349,6 +374,7 @@ struct CodeSelection {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct RefactorResponse {
     pub success: bool,
     pub original_code: String,

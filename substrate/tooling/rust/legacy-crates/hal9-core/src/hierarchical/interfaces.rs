@@ -3,35 +3,35 @@
 //! This module defines the contracts and boundaries between each layer,
 //! ensuring clean separation of concerns and enabling independent evolution.
 
+use crate::Result;
 use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
-use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
-use crate::Result;
+use uuid::Uuid;
 
 /// Base interface that all layers must implement
 #[async_trait]
 pub trait LayerInterface: Send + Sync + 'static {
     /// Get the layer identifier
     fn layer_id(&self) -> LayerId;
-    
+
     /// Get layer capabilities
     fn capabilities(&self) -> LayerCapabilities;
-    
+
     /// Initialize the layer
     async fn initialize(&mut self, config: LayerConfig) -> Result<()>;
-    
+
     /// Process input from lower layer
     async fn process_upward(&mut self, input: LayerMessage) -> Result<LayerMessage>;
-    
+
     /// Process input from higher layer
     async fn process_downward(&mut self, input: LayerMessage) -> Result<LayerMessage>;
-    
+
     /// Get layer metrics
     async fn metrics(&self) -> Result<LayerMetrics>;
-    
+
     /// Shutdown the layer gracefully
     async fn shutdown(&mut self) -> Result<()>;
 }
@@ -56,7 +56,7 @@ impl LayerId {
             Self::Intelligence => 5,
         }
     }
-    
+
     pub fn name(&self) -> &'static str {
         match self {
             Self::Substrate => "Substrate",
@@ -156,19 +156,19 @@ pub struct ResourceUsage {
 pub trait LayerBoundary: Send + Sync {
     /// Get the upper layer ID
     fn upper_layer(&self) -> LayerId;
-    
+
     /// Get the lower layer ID
     fn lower_layer(&self) -> LayerId;
-    
+
     /// Transform message going upward
     async fn transform_upward(&self, message: LayerMessage) -> Result<LayerMessage>;
-    
+
     /// Transform message going downward
     async fn transform_downward(&self, message: LayerMessage) -> Result<LayerMessage>;
-    
+
     /// Validate message crossing boundary
     async fn validate_message(&self, message: &LayerMessage) -> Result<bool>;
-    
+
     /// Get boundary metrics
     async fn metrics(&self) -> Result<BoundaryMetrics>;
 }
@@ -185,26 +185,33 @@ pub struct BoundaryMetrics {
 #[async_trait]
 pub trait LayerFactory: Send + Sync {
     /// Create a layer instance
-    async fn create_layer(&self, layer_id: LayerId, config: LayerConfig) -> Result<Box<dyn LayerInterface>>;
-    
+    async fn create_layer(
+        &self,
+        layer_id: LayerId,
+        config: LayerConfig,
+    ) -> Result<Box<dyn LayerInterface>>;
+
     /// Create a boundary between layers
-    async fn create_boundary(&self, upper: LayerId, lower: LayerId) -> Result<Box<dyn LayerBoundary>>;
+    async fn create_boundary(
+        &self,
+        upper: LayerId,
+        lower: LayerId,
+    ) -> Result<Box<dyn LayerBoundary>>;
 }
 
 /// Standard layer implementations
-
 /// Substrate layer interface
 #[async_trait]
 pub trait SubstrateInterface: LayerInterface {
     /// Get runtime handle
     fn runtime(&self) -> &dyn Any;
-    
+
     /// Get transport handle
     fn transport(&self) -> &dyn Any;
-    
+
     /// Get storage handle
     fn storage(&self) -> &dyn Any;
-    
+
     /// Get resource manager
     fn resources(&self) -> &dyn Any;
 }
@@ -214,7 +221,7 @@ pub trait SubstrateInterface: LayerInterface {
 pub trait ProtocolInterface: LayerInterface {
     /// Negotiate protocol with peer
     async fn negotiate(&self, peer_id: &str) -> Result<String>;
-    
+
     /// Get supported protocols
     fn supported_protocols(&self) -> Vec<String>;
 }
@@ -224,7 +231,7 @@ pub trait ProtocolInterface: LayerInterface {
 pub trait CognitiveInterface: LayerInterface {
     /// Get cognitive units
     fn units(&self) -> Vec<Uuid>;
-    
+
     /// Process cognitive input
     async fn process_cognitive(&mut self, input: CognitiveInput) -> Result<CognitiveOutput>;
 }
@@ -246,7 +253,7 @@ pub struct CognitiveOutput {
 pub trait OrchestrationInterface: LayerInterface {
     /// Get current topology
     async fn topology(&self) -> Result<serde_json::Value>;
-    
+
     /// Route signal
     async fn route(&self, signal: RoutingSignal) -> Result<Vec<Uuid>>;
 }
@@ -263,25 +270,24 @@ pub struct RoutingSignal {
 pub trait IntelligenceInterface: LayerInterface {
     /// Set system goals
     async fn set_goals(&mut self, goals: Vec<serde_json::Value>) -> Result<()>;
-    
+
     /// Get emergence report
     async fn emergence_report(&self) -> Result<serde_json::Value>;
 }
 
 /// Migration support for transitioning between architectures
-
 /// Migration strategy from old to new architecture
 #[async_trait]
 pub trait MigrationStrategy: Send + Sync {
     /// Get migration phases
     fn phases(&self) -> Vec<MigrationPhase>;
-    
+
     /// Execute migration phase
     async fn execute_phase(&mut self, phase: &MigrationPhase) -> Result<MigrationResult>;
-    
+
     /// Rollback migration phase
     async fn rollback_phase(&mut self, phase: &MigrationPhase) -> Result<()>;
-    
+
     /// Validate migration state
     async fn validate(&self) -> Result<ValidationReport>;
 }
@@ -334,7 +340,6 @@ pub enum IssueSeverity {
 }
 
 /// Compatibility layer for legacy support
-
 /// Adapter for legacy neuron interface to work with hierarchical architecture
 pub struct LegacyNeuronAdapter {
     legacy_neuron: Box<dyn crate::neuron::NeuronInterface>,
@@ -346,7 +351,7 @@ pub struct LegacyNeuronAdapter {
 }
 
 #[derive(Debug, Default, Clone)]
-struct AdapterMetrics {
+pub struct AdapterMetrics {
     signals_adapted: u64,
     messages_converted: u64,
     errors: u64,
@@ -359,7 +364,7 @@ impl LegacyNeuronAdapter {
         let neuron_uuid = Uuid::parse_str(neuron_id).unwrap_or_else(|_| Uuid::new_v4());
         let (signal_tx, _signal_rx) = tokio::sync::mpsc::channel(100);
         let (_message_tx, message_rx) = tokio::sync::mpsc::channel(100);
-        
+
         Self {
             legacy_neuron: neuron,
             layer_mapping: layer,
@@ -369,23 +374,23 @@ impl LegacyNeuronAdapter {
             message_receiver: message_rx,
         }
     }
-    
+
     /// Map legacy neuron layer to hierarchical layer
     pub fn map_layer(neuron_layer: &str) -> LayerId {
         match neuron_layer {
-            "L1" => LayerId::Cognitive,  // L1 neurons map to Cognitive layer
-            "L2" => LayerId::Cognitive,  // L2 neurons also Cognitive
-            "L3" => LayerId::Cognitive,  // L3 as well
+            "L1" => LayerId::Cognitive,     // L1 neurons map to Cognitive layer
+            "L2" => LayerId::Cognitive,     // L2 neurons also Cognitive
+            "L3" => LayerId::Cognitive,     // L3 as well
             "L4" => LayerId::Orchestration, // L4 planning maps to Orchestration
             "L5" => LayerId::Intelligence,  // L5 meta maps to Intelligence
-            _ => LayerId::Cognitive, // Default mapping
+            _ => LayerId::Cognitive,        // Default mapping
         }
     }
-    
+
     /// Adapt legacy signal to layer message
     pub async fn adapt_signal(&self, signal: &crate::NeuronSignal) -> Result<LayerMessage> {
         let start = std::time::Instant::now();
-        
+
         let message = LayerMessage {
             id: signal.signal_id,
             source_layer: self.layer_mapping,
@@ -402,28 +407,33 @@ impl LegacyNeuronAdapter {
             timestamp: signal.timestamp,
             priority: self.map_priority(signal.payload.activation.strength),
         };
-        
+
         let mut metrics = self.metrics.lock();
         metrics.signals_adapted += 1;
-        metrics.average_latency_ms = 
-            (metrics.average_latency_ms * (metrics.signals_adapted - 1) as f64 + 
-             start.elapsed().as_millis() as f64) / metrics.signals_adapted as f64;
-        
+        metrics.average_latency_ms = (metrics.average_latency_ms
+            * (metrics.signals_adapted - 1) as f64
+            + start.elapsed().as_millis() as f64)
+            / metrics.signals_adapted as f64;
+
         Ok(message)
     }
-    
+
     /// Convert layer message back to legacy signal
     pub async fn convert_message(&self, message: &LayerMessage) -> Result<crate::NeuronSignal> {
         let start = std::time::Instant::now();
-        
-        let content = message.payload.get("content")
+
+        let content = message
+            .payload
+            .get("content")
             .and_then(|v| v.as_str())
             .unwrap_or("");
-            
-        let strength = message.payload.get("strength")
+
+        let strength = message
+            .payload
+            .get("strength")
             .and_then(|v| v.as_f64())
             .unwrap_or(0.5) as f32;
-        
+
         let signal = crate::NeuronSignal {
             signal_id: message.id,
             from_neuron: self.neuron_id.to_string(),
@@ -440,27 +450,30 @@ impl LegacyNeuronAdapter {
                     strength,
                     features: HashMap::new(),
                 },
-                gradient: message.payload.get("gradient")
+                gradient: message
+                    .payload
+                    .get("gradient")
                     .and_then(|v| serde_json::from_value(v.clone()).ok()),
             },
         };
-        
+
         let mut metrics = self.metrics.lock();
         metrics.messages_converted += 1;
-        metrics.average_latency_ms = 
-            (metrics.average_latency_ms * (metrics.messages_converted - 1) as f64 + 
-             start.elapsed().as_millis() as f64) / metrics.messages_converted as f64;
-        
+        metrics.average_latency_ms = (metrics.average_latency_ms
+            * (metrics.messages_converted - 1) as f64
+            + start.elapsed().as_millis() as f64)
+            / metrics.messages_converted as f64;
+
         Ok(signal)
     }
-    
+
     /// Run the adapter as a bidirectional bridge
     pub async fn run_bridge(self) -> Result<()> {
         let (_signal_tx, mut signal_rx) = tokio::sync::mpsc::channel::<crate::NeuronSignal>(100);
         let adapter = Arc::new(tokio::sync::Mutex::new(self));
         let adapter1 = adapter.clone();
         let adapter2 = adapter.clone();
-        
+
         // Task to process legacy signals
         let signal_task = tokio::spawn(async move {
             while let Some(signal) = signal_rx.recv().await {
@@ -477,7 +490,7 @@ impl LegacyNeuronAdapter {
                 }
             }
         });
-        
+
         // Task to process hierarchical messages
         let message_task = tokio::spawn(async move {
             let mut adapter = adapter2.lock().await;
@@ -495,33 +508,43 @@ impl LegacyNeuronAdapter {
                 }
             }
         });
-        
+
         // Wait for both tasks
         let _ = tokio::join!(signal_task, message_task);
-        
+
         Ok(())
     }
-    
+
     fn determine_target_layer(&self, signal: &crate::NeuronSignal) -> LayerId {
         // Analyze signal metadata to determine target layer
         if let Some(target) = signal.metadata.get("target_layer") {
             return Self::map_layer(target);
         }
-        
+
         // Default to same layer
         self.layer_mapping
     }
-    
+
     fn map_signal_type(&self, signal: &crate::NeuronSignal) -> MessageType {
-        if signal.metadata.get("is_query").map(|v| v == "true").unwrap_or(false) {
+        if signal
+            .metadata
+            .get("is_query")
+            .map(|v| v == "true")
+            .unwrap_or(false)
+        {
             MessageType::Query
-        } else if signal.metadata.get("is_control").map(|v| v == "true").unwrap_or(false) {
+        } else if signal
+            .metadata
+            .get("is_control")
+            .map(|v| v == "true")
+            .unwrap_or(false)
+        {
             MessageType::Control
         } else {
             MessageType::Data
         }
     }
-    
+
     fn map_priority(&self, strength: f32) -> MessagePriority {
         if strength > 0.9 {
             MessagePriority::Critical
@@ -533,7 +556,7 @@ impl LegacyNeuronAdapter {
             MessagePriority::Low
         }
     }
-    
+
     /// Get adapter metrics
     pub fn metrics(&self) -> AdapterMetrics {
         self.metrics.lock().clone()
@@ -546,7 +569,7 @@ impl LayerInterface for LegacyNeuronAdapter {
     fn layer_id(&self) -> LayerId {
         self.layer_mapping
     }
-    
+
     fn capabilities(&self) -> LayerCapabilities {
         LayerCapabilities {
             layer_id: self.layer_mapping,
@@ -565,16 +588,16 @@ impl LayerInterface for LegacyNeuronAdapter {
             },
         }
     }
-    
+
     async fn initialize(&mut self, _config: LayerConfig) -> Result<()> {
         // Legacy neurons are pre-initialized
         Ok(())
     }
-    
+
     async fn process_upward(&mut self, input: LayerMessage) -> Result<LayerMessage> {
         // Convert to signal and process through legacy neuron
         let signal = self.convert_message(&input).await?;
-        
+
         match self.legacy_neuron.process_signal(&signal).await {
             Ok(response) => {
                 // Process_signal returns a string, need to convert back to signal
@@ -605,18 +628,19 @@ impl LayerInterface for LegacyNeuronAdapter {
             }
         }
     }
-    
+
     async fn process_downward(&mut self, input: LayerMessage) -> Result<LayerMessage> {
         // Same as upward for now
         self.process_upward(input).await
     }
-    
+
     async fn metrics(&self) -> Result<LayerMetrics> {
         let adapter_metrics = self.metrics.lock();
-        
+
         Ok(LayerMetrics {
             layer_id: self.layer_mapping,
-            messages_processed: adapter_metrics.signals_adapted + adapter_metrics.messages_converted,
+            messages_processed: adapter_metrics.signals_adapted
+                + adapter_metrics.messages_converted,
             average_latency_ms: adapter_metrics.average_latency_ms,
             error_rate: if adapter_metrics.signals_adapted > 0 {
                 adapter_metrics.errors as f64 / adapter_metrics.signals_adapted as f64
@@ -630,12 +654,20 @@ impl LayerInterface for LegacyNeuronAdapter {
                 network_mbps: 0.1,
             },
             custom_metrics: [
-                ("signals_adapted".to_string(), adapter_metrics.signals_adapted as f64),
-                ("messages_converted".to_string(), adapter_metrics.messages_converted as f64),
-            ].into_iter().collect(),
+                (
+                    "signals_adapted".to_string(),
+                    adapter_metrics.signals_adapted as f64,
+                ),
+                (
+                    "messages_converted".to_string(),
+                    adapter_metrics.messages_converted as f64,
+                ),
+            ]
+            .into_iter()
+            .collect(),
         })
     }
-    
+
     async fn shutdown(&mut self) -> Result<()> {
         self.legacy_neuron.shutdown().await
     }
@@ -669,19 +701,22 @@ impl MigrationCoordinator {
             })),
         }
     }
-    
+
     /// Migrate neurons in batches
     pub async fn migrate_batch(&mut self, batch_size: usize) -> Result<usize> {
         let mut batch_adapters = Vec::new();
-        let neurons_to_migrate: Vec<_> = self.legacy_neurons.drain(..batch_size.min(self.legacy_neurons.len())).collect();
-        
+        let neurons_to_migrate: Vec<_> = self
+            .legacy_neurons
+            .drain(..batch_size.min(self.legacy_neurons.len()))
+            .collect();
+
         {
             let mut progress = self.progress.lock();
             if progress.start_time.is_none() {
                 progress.start_time = Some(std::time::Instant::now());
             }
         }
-        
+
         for neuron in neurons_to_migrate {
             match self.migrate_single_neuron(neuron).await {
                 Ok(adapter) => {
@@ -697,16 +732,19 @@ impl MigrationCoordinator {
                 }
             }
         }
-        
+
         let adapter_count = batch_adapters.len();
         self.adapters.extend(batch_adapters);
         Ok(adapter_count)
     }
-    
-    async fn migrate_single_neuron(&self, neuron: Box<dyn crate::neuron::NeuronInterface>) -> Result<LegacyNeuronAdapter> {
+
+    async fn migrate_single_neuron(
+        &self,
+        neuron: Box<dyn crate::neuron::NeuronInterface>,
+    ) -> Result<LegacyNeuronAdapter> {
         let layer = LegacyNeuronAdapter::map_layer(neuron.layer().as_str());
         let adapter = LegacyNeuronAdapter::new(neuron, layer);
-        
+
         // Validate adapter works
         let test_signal = crate::NeuronSignal {
             signal_id: Uuid::new_v4(),
@@ -727,36 +765,35 @@ impl MigrationCoordinator {
                 gradient: None,
             },
         };
-        
+
         adapter.adapt_signal(&test_signal).await?;
-        
+
         Ok(adapter)
     }
-    
+
     fn update_eta(&self, progress: &mut MigrationProgress) {
         if let Some(start) = progress.start_time {
             let elapsed = start.elapsed();
             let rate = progress.migrated_neurons as f64 / elapsed.as_secs_f64();
             let remaining = progress.total_neurons - progress.migrated_neurons;
-            
+
             if rate > 0.0 {
                 let eta_secs = remaining as f64 / rate;
                 progress.estimated_completion = Some(std::time::Duration::from_secs_f64(eta_secs));
             }
         }
     }
-    
+
     pub fn progress(&self) -> MigrationProgress {
         self.progress.lock().clone()
     }
-    
+
     pub async fn complete_migration(self) -> Result<Vec<LegacyNeuronAdapter>> {
         Ok(self.adapters)
     }
 }
 
 /// Testing support for hierarchical architecture
-
 /// Mock layer for testing
 pub struct MockLayer {
     layer_id: LayerId,
@@ -770,7 +807,7 @@ impl MockLayer {
             messages_received: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
         }
     }
-    
+
     pub fn received_messages(&self) -> Vec<LayerMessage> {
         self.messages_received.lock().unwrap().clone()
     }
@@ -781,7 +818,7 @@ impl LayerInterface for MockLayer {
     fn layer_id(&self) -> LayerId {
         self.layer_id
     }
-    
+
     fn capabilities(&self) -> LayerCapabilities {
         LayerCapabilities {
             layer_id: self.layer_id,
@@ -796,21 +833,21 @@ impl LayerInterface for MockLayer {
             },
         }
     }
-    
+
     async fn initialize(&mut self, _config: LayerConfig) -> Result<()> {
         Ok(())
     }
-    
+
     async fn process_upward(&mut self, input: LayerMessage) -> Result<LayerMessage> {
         self.messages_received.lock().unwrap().push(input.clone());
         Ok(input)
     }
-    
+
     async fn process_downward(&mut self, input: LayerMessage) -> Result<LayerMessage> {
         self.messages_received.lock().unwrap().push(input.clone());
         Ok(input)
     }
-    
+
     async fn metrics(&self) -> Result<LayerMetrics> {
         Ok(LayerMetrics {
             layer_id: self.layer_id,
@@ -826,7 +863,7 @@ impl LayerInterface for MockLayer {
             custom_metrics: std::collections::HashMap::new(),
         })
     }
-    
+
     async fn shutdown(&mut self) -> Result<()> {
         Ok(())
     }
@@ -835,24 +872,28 @@ impl LayerInterface for MockLayer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_legacy_adapter_signal_conversion() {
         // Create a mock neuron
         struct MockNeuron {
             id: Uuid,
         }
-        
+
         #[async_trait]
         impl crate::neuron::NeuronInterface for MockNeuron {
-            fn id(&self) -> &str { "mock-neuron" }
-            
-            fn layer(&self) -> crate::neuron::Layer { crate::neuron::Layer::L4 }
-            
+            fn id(&self) -> &str {
+                "mock-neuron"
+            }
+
+            fn layer(&self) -> crate::neuron::Layer {
+                crate::neuron::Layer::L4
+            }
+
             async fn process_signal(&self, signal: &crate::NeuronSignal) -> Result<String> {
                 Ok(format!("Processed signal: {}", signal.signal_id))
             }
-            
+
             async fn health(&self) -> Result<crate::neuron::NeuronHealth> {
                 Ok(crate::neuron::NeuronHealth {
                     state: crate::neuron::NeuronState::Running,
@@ -862,13 +903,15 @@ mod tests {
                     uptime_seconds: 0,
                 })
             }
-            
-            async fn shutdown(&self) -> Result<()> { Ok(()) }
+
+            async fn shutdown(&self) -> Result<()> {
+                Ok(())
+            }
         }
-        
+
         let neuron = Box::new(MockNeuron { id: Uuid::new_v4() });
         let adapter = LegacyNeuronAdapter::new(neuron, LayerId::Orchestration);
-        
+
         // Test signal adaptation
         let signal = crate::NeuronSignal {
             signal_id: Uuid::new_v4(),
@@ -879,7 +922,12 @@ mod tests {
             propagation_type: crate::PropagationType::Forward,
             batch_id: Uuid::new_v4(),
             timestamp: chrono::Utc::now(),
-            metadata: serde_json::json!({"key": "value"}).as_object().unwrap().iter().map(|(k, v)| (k.clone(), v.to_string())).collect(),
+            metadata: serde_json::json!({"key": "value"})
+                .as_object()
+                .unwrap()
+                .iter()
+                .map(|(k, v)| (k.clone(), v.to_string()))
+                .collect(),
             payload: crate::SignalPayload {
                 activation: crate::Activation {
                     content: "test content".to_string(),
@@ -889,37 +937,39 @@ mod tests {
                 gradient: None,
             },
         };
-        
+
         let message = adapter.adapt_signal(&signal).await.unwrap();
         assert_eq!(message.source_layer, LayerId::Orchestration);
         assert_eq!(message.priority, MessagePriority::High);
         assert_eq!(message.payload["content"], "test content");
-        
+
         // Test message conversion back
         let converted = adapter.convert_message(&message).await.unwrap();
         assert_eq!(converted.payload.activation.content, "test content");
         assert_eq!(converted.payload.activation.strength, 0.8);
     }
-    
+
     #[tokio::test]
     async fn test_migration_coordinator() {
         struct MockNeuron {
             id: Uuid,
             layer: String,
         }
-        
+
         #[async_trait]
         impl crate::neuron::NeuronInterface for MockNeuron {
-            fn id(&self) -> &str { "mock-neuron-2" }
-            
-            fn layer(&self) -> crate::neuron::Layer { 
+            fn id(&self) -> &str {
+                "mock-neuron-2"
+            }
+
+            fn layer(&self) -> crate::neuron::Layer {
                 crate::neuron::Layer::from_str(&self.layer).unwrap_or(crate::neuron::Layer::L4)
             }
-            
+
             async fn process_signal(&self, signal: &crate::NeuronSignal) -> Result<String> {
                 Ok(format!("Processed signal: {}", signal.signal_id))
             }
-            
+
             async fn health(&self) -> Result<crate::neuron::NeuronHealth> {
                 Ok(crate::neuron::NeuronHealth {
                     state: crate::neuron::NeuronState::Running,
@@ -929,32 +979,46 @@ mod tests {
                     uptime_seconds: 0,
                 })
             }
-            
-            async fn shutdown(&self) -> Result<()> { Ok(()) }
+
+            async fn shutdown(&self) -> Result<()> {
+                Ok(())
+            }
         }
-        
+
         // Create test neurons
         let neurons: Vec<Box<dyn crate::neuron::NeuronInterface>> = vec![
-            Box::new(MockNeuron { id: Uuid::new_v4(), layer: "L1".to_string() }),
-            Box::new(MockNeuron { id: Uuid::new_v4(), layer: "L2".to_string() }),
-            Box::new(MockNeuron { id: Uuid::new_v4(), layer: "L4".to_string() }),
-            Box::new(MockNeuron { id: Uuid::new_v4(), layer: "L5".to_string() }),
+            Box::new(MockNeuron {
+                id: Uuid::new_v4(),
+                layer: "L1".to_string(),
+            }),
+            Box::new(MockNeuron {
+                id: Uuid::new_v4(),
+                layer: "L2".to_string(),
+            }),
+            Box::new(MockNeuron {
+                id: Uuid::new_v4(),
+                layer: "L4".to_string(),
+            }),
+            Box::new(MockNeuron {
+                id: Uuid::new_v4(),
+                layer: "L5".to_string(),
+            }),
         ];
-        
+
         let mut coordinator = MigrationCoordinator::new(neurons);
-        
+
         // Migrate in batches
         let batch1 = coordinator.migrate_batch(2).await.unwrap();
         assert_eq!(batch1, 2);
-        
+
         let progress = coordinator.progress();
         assert_eq!(progress.migrated_neurons, 2);
         assert_eq!(progress.total_neurons, 4);
-        
+
         // Migrate remaining
         let batch2 = coordinator.migrate_batch(10).await.unwrap();
         assert_eq!(batch2, 2);
-        
+
         let final_progress = coordinator.progress();
         assert_eq!(final_progress.migrated_neurons, 4);
         assert_eq!(final_progress.failed_migrations, 0);

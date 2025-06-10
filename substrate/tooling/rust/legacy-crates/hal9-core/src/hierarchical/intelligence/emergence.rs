@@ -1,10 +1,10 @@
 //! Emergence detection and analysis for identifying emergent behaviors
 
+use super::*;
+use crate::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use uuid::Uuid;
-use crate::Result;
-use super::*;
 
 /// System for detecting and analyzing emergent phenomena
 pub struct EmergenceAnalyzer {
@@ -35,13 +35,15 @@ struct PatternTemplate {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum Scale {
-    Micro,   // Individual unit level
-    Meso,    // Cluster level
-    Macro,   // System level
-    Multi,   // Cross-scale
+    Micro, // Individual unit level
+    Meso,  // Cluster level
+    Macro, // System level
+    Multi, // Cross-scale
 }
 
+#[allow(dead_code)]
 enum SimilarityMetric {
     Cosine,
     Correlation,
@@ -83,6 +85,7 @@ struct TransitionDetector {
     sensitivity: f32,
 }
 
+#[allow(dead_code)]
 enum DetectionMethod {
     Bifurcation,
     Catastrophe,
@@ -98,6 +101,7 @@ struct CriticalPoint {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum CriticalType {
     Saddle,
     Node,
@@ -106,6 +110,7 @@ enum CriticalType {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum Stability {
     Stable,
     Unstable,
@@ -117,6 +122,7 @@ struct ComplexityCalculator {
     time_series: TimeSeries,
 }
 
+#[allow(dead_code)]
 enum ComplexityMethod {
     Kolmogorov,
     Fractal,
@@ -136,7 +142,7 @@ struct ObservationWindow {
 }
 
 #[derive(Debug, Clone)]
-struct Observation {
+pub struct Observation {
     timestamp: chrono::DateTime<chrono::Utc>,
     state: SystemState,
     metrics: HashMap<String, f32>,
@@ -149,6 +155,7 @@ struct SystemState {
     active_patterns: Vec<Uuid>,
 }
 
+#[allow(dead_code)]
 enum AggregationLevel {
     Raw,
     Smoothed { window: usize },
@@ -198,10 +205,7 @@ impl EmergenceAnalyzer {
                 critical_points: Vec::new(),
             },
             complexity_calculator: ComplexityCalculator {
-                methods: vec![
-                    ComplexityMethod::Entropy,
-                    ComplexityMethod::Fractal,
-                ],
+                methods: vec![ComplexityMethod::Entropy, ComplexityMethod::Fractal],
                 time_series: TimeSeries {
                     data: Vec::new(),
                     sampling_rate: 10.0,
@@ -214,7 +218,7 @@ impl EmergenceAnalyzer {
             },
         }
     }
-    
+
     fn initialize_pattern_templates() -> Vec<PatternTemplate> {
         vec![
             PatternTemplate {
@@ -249,30 +253,46 @@ impl EmergenceAnalyzer {
             },
         ]
     }
-    
+
     pub fn update(&mut self, observation: Observation) {
-        self.observation_window.observations.push(observation.clone());
-        
+        self.observation_window
+            .observations
+            .push(observation.clone());
+
         // Update time series
         let metrics_vec: Vec<f32> = observation.metrics.values().cloned().collect();
-        self.complexity_calculator.time_series.data.push(metrics_vec);
-        
+        self.complexity_calculator
+            .time_series
+            .data
+            .push(metrics_vec);
+
         // Update state space trajectory
         let state_point = StatePoint {
             coordinates: vec![
-                observation.metrics.get("activation_level").cloned().unwrap_or(0.0),
-                observation.metrics.get("connectivity").cloned().unwrap_or(0.0),
+                observation
+                    .metrics
+                    .get("activation_level")
+                    .cloned()
+                    .unwrap_or(0.0),
+                observation
+                    .metrics
+                    .get("connectivity")
+                    .cloned()
+                    .unwrap_or(0.0),
             ],
             timestamp: observation.timestamp,
         };
-        
+
         if let Some(last_trajectory) = self.phase_analyzer.state_space.trajectories.last_mut() {
             last_trajectory.points.push(state_point);
         } else {
-            self.phase_analyzer.state_space.trajectories.push(Trajectory {
-                points: vec![state_point],
-                duration: std::time::Duration::from_secs(0),
-            });
+            self.phase_analyzer
+                .state_space
+                .trajectories
+                .push(Trajectory {
+                    points: vec![state_point],
+                    duration: std::time::Duration::from_secs(0),
+                });
         }
     }
 }
@@ -281,20 +301,23 @@ impl EmergenceAnalyzer {
 impl EmergenceDetector for EmergenceAnalyzer {
     async fn detect_patterns(&self) -> Result<Vec<EmergentPattern>> {
         let mut detected_patterns = Vec::new();
-        
+
         // Analyze recent observations
-        let recent_observations = self.observation_window.observations
+        let recent_observations = self
+            .observation_window
+            .observations
             .iter()
             .rev()
             .take(100)
             .collect::<Vec<_>>();
-            
+
         if recent_observations.len() < 10 {
             return Ok(detected_patterns);
         }
-        
+
         // Extract feature vectors from observations
-        let feature_vectors: Vec<Vec<f32>> = recent_observations.iter()
+        let feature_vectors: Vec<Vec<f32>> = recent_observations
+            .iter()
             .map(|obs| {
                 vec![
                     obs.metrics.get("activation_level").cloned().unwrap_or(0.0),
@@ -304,11 +327,12 @@ impl EmergenceDetector for EmergenceAnalyzer {
                 ]
             })
             .collect();
-            
+
         // Compare against pattern templates
         for template in &self.pattern_detector.pattern_library.templates {
-            let similarity = self.calculate_pattern_similarity(&feature_vectors, &template.signature);
-            
+            let similarity =
+                self.calculate_pattern_similarity(&feature_vectors, &template.signature);
+
             if similarity > self.pattern_detector.detection_threshold {
                 detected_patterns.push(EmergentPattern {
                     pattern_id: template.id,
@@ -318,19 +342,19 @@ impl EmergenceDetector for EmergenceAnalyzer {
                 });
             }
         }
-        
+
         Ok(detected_patterns)
     }
-    
+
     async fn identify_phase_transitions(&self) -> Result<Vec<PhaseTransition>> {
         let mut transitions = Vec::new();
-        
+
         // Analyze state space trajectories
         for trajectory in &self.phase_analyzer.state_space.trajectories {
             if trajectory.points.len() < 50 {
                 continue;
             }
-            
+
             // Detect bifurcations
             let bifurcations = self.detect_bifurcations(&trajectory.points);
             for (idx, _bifurcation_type) in bifurcations {
@@ -343,18 +367,18 @@ impl EmergenceDetector for EmergenceAnalyzer {
                     });
                 }
             }
-            
+
             // Detect synchronization transitions
             let sync_transitions = self.detect_synchronization_transitions(&trajectory.points);
             transitions.extend(sync_transitions);
         }
-        
+
         Ok(transitions)
     }
-    
+
     async fn measure_complexity(&self) -> Result<ComplexityMetrics> {
         let data = &self.complexity_calculator.time_series.data;
-        
+
         if data.is_empty() {
             return Ok(ComplexityMetrics {
                 kolmogorov_complexity: 0.0,
@@ -363,19 +387,19 @@ impl EmergenceDetector for EmergenceAnalyzer {
                 emergence_index: 0.0,
             });
         }
-        
+
         // Calculate Shannon entropy
         let entropy = self.calculate_entropy(data);
-        
+
         // Estimate fractal dimension
         let fractal_dimension = self.estimate_fractal_dimension(data);
-        
+
         // Approximate Kolmogorov complexity
         let kolmogorov = self.approximate_kolmogorov_complexity(data);
-        
+
         // Calculate emergence index
         let emergence_index = (entropy * fractal_dimension) / (1.0 + kolmogorov);
-        
+
         Ok(ComplexityMetrics {
             kolmogorov_complexity: kolmogorov,
             fractal_dimension,
@@ -389,7 +413,7 @@ impl EmergenceAnalyzer {
     fn calculate_pattern_similarity(&self, observations: &[Vec<f32>], template: &[f32]) -> f32 {
         // Average similarity across observations
         let mut total_similarity = 0.0;
-        
+
         for obs in observations {
             let similarity = match self.pattern_detector.pattern_library.similarity_metric {
                 SimilarityMetric::Cosine => self.cosine_similarity(obs, template),
@@ -398,32 +422,32 @@ impl EmergenceAnalyzer {
             };
             total_similarity += similarity;
         }
-        
+
         total_similarity / observations.len() as f32
     }
-    
+
     fn cosine_similarity(&self, v1: &[f32], v2: &[f32]) -> f32 {
         let dot_product: f32 = v1.iter().zip(v2.iter()).map(|(a, b)| a * b).sum();
         let norm1: f32 = v1.iter().map(|x| x * x).sum::<f32>().sqrt();
         let norm2: f32 = v2.iter().map(|x| x * x).sum::<f32>().sqrt();
-        
+
         if norm1 * norm2 > 0.0 {
             dot_product / (norm1 * norm2)
         } else {
             0.0
         }
     }
-    
+
     fn correlation(&self, v1: &[f32], v2: &[f32]) -> f32 {
         // Pearson correlation coefficient
         let n = v1.len().min(v2.len()) as f32;
         let mean1 = v1.iter().sum::<f32>() / n;
         let mean2 = v2.iter().sum::<f32>() / n;
-        
+
         let mut cov = 0.0;
         let mut var1 = 0.0;
         let mut var2 = 0.0;
-        
+
         for i in 0..n as usize {
             let diff1 = v1[i] - mean1;
             let diff2 = v2[i] - mean2;
@@ -431,19 +455,19 @@ impl EmergenceAnalyzer {
             var1 += diff1 * diff1;
             var2 += diff2 * diff2;
         }
-        
+
         if var1 * var2 > 0.0 {
             cov / (var1 * var2).sqrt()
         } else {
             0.0
         }
     }
-    
+
     fn dtw_distance(&self, v1: &[f32], v2: &[f32]) -> f32 {
         // Simplified DTW implementation
         1.0 - self.cosine_similarity(v1, v2) // Placeholder
     }
-    
+
     fn calculate_significance(&self, template: &PatternTemplate, similarity: f32) -> f32 {
         // Consider scale and manifestation count
         let scale_factor = match template.required_scale {
@@ -452,89 +476,101 @@ impl EmergenceAnalyzer {
             Scale::Macro => 0.9,
             Scale::Multi => 1.0,
         };
-        
+
         similarity * scale_factor * (template.manifestations.len() as f32 / 10.0).min(1.0)
     }
-    
+
     fn detect_bifurcations(&self, trajectory: &[StatePoint]) -> Vec<(usize, String)> {
         let mut bifurcations = Vec::new();
-        
+
         // Simple bifurcation detection based on trajectory curvature
         for i in 1..trajectory.len() - 1 {
             let prev = &trajectory[i - 1].coordinates;
             let curr = &trajectory[i].coordinates;
             let next = &trajectory[i + 1].coordinates;
-            
+
             // Calculate second derivative approximation
-            let curvature = prev.iter()
+            let curvature = prev
+                .iter()
                 .zip(curr.iter())
                 .zip(next.iter())
                 .map(|((p, c), n)| (p - 2.0 * c + n).abs())
                 .sum::<f32>();
-                
+
             if curvature > 0.5 {
                 bifurcations.push((i, "pitchfork".to_string()));
             }
         }
-        
+
         bifurcations
     }
-    
-    fn detect_synchronization_transitions(&self, _trajectory: &[StatePoint]) -> Vec<PhaseTransition> {
+
+    fn detect_synchronization_transitions(
+        &self,
+        _trajectory: &[StatePoint],
+    ) -> Vec<PhaseTransition> {
         // Placeholder for synchronization detection
         Vec::new()
     }
-    
+
     fn calculate_entropy(&self, data: &[Vec<f32>]) -> f32 {
         // Shannon entropy calculation
         if data.is_empty() {
             return 0.0;
         }
-        
+
         // Flatten and discretize data
         let flattened: Vec<f32> = data.iter().flatten().cloned().collect();
         let bins = 10;
-        let min_val = flattened.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).cloned().unwrap_or(0.0);
-        let max_val = flattened.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).cloned().unwrap_or(1.0);
+        let min_val = flattened
+            .iter()
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .cloned()
+            .unwrap_or(0.0);
+        let max_val = flattened
+            .iter()
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .cloned()
+            .unwrap_or(1.0);
         let range = max_val - min_val;
-        
+
         let mut histogram = vec![0; bins];
         for value in flattened {
             let bin = ((value - min_val) / range * bins as f32).min(bins as f32 - 1.0) as usize;
             histogram[bin] += 1;
         }
-        
+
         let total = histogram.iter().sum::<usize>() as f32;
         let mut entropy = 0.0;
-        
+
         for count in histogram {
             if count > 0 {
                 let p = count as f32 / total;
                 entropy -= p * p.log2();
             }
         }
-        
+
         entropy
     }
-    
+
     fn estimate_fractal_dimension(&self, data: &[Vec<f32>]) -> f32 {
         // Box-counting dimension estimation
         if data.len() < 10 {
             return 1.0;
         }
-        
+
         // Simplified: return a value between 1 and 2
         1.0 + self.calculate_entropy(data) / 10.0
     }
-    
+
     fn approximate_kolmogorov_complexity(&self, data: &[Vec<f32>]) -> f32 {
         // Use compression ratio as approximation
         let serialized = serde_json::to_string(data).unwrap_or_default();
         let original_size = serialized.len() as f32;
-        
+
         // Simulate compression (in practice, would use actual compression)
         let compressed_size = original_size * 0.3; // Placeholder
-        
+
         compressed_size / original_size
     }
 }

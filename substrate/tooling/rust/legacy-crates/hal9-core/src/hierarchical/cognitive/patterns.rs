@@ -27,6 +27,7 @@ pub struct PatternComponent {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum ComponentType {
     Input(String),
     Processing(String),
@@ -41,20 +42,22 @@ impl PatternFormation {
             formation_threshold: threshold,
         }
     }
-    
+
     pub fn observe_activation(&mut self, components: Vec<PatternComponent>) -> Option<Uuid> {
         // Check if this activation matches existing patterns
-        let matching_id = self.patterns.iter()
+        let matching_id = self
+            .patterns
+            .iter()
             .find(|(_, pattern)| self.matches_pattern(&components, &pattern.components))
             .map(|(id, _)| *id);
-        
+
         if let Some(id) = matching_id {
             if let Some(pattern) = self.patterns.get_mut(&id) {
                 pattern.activation_count += 1;
             }
             return Some(id);
         }
-        
+
         // Check if we should form a new pattern
         if self.should_form_pattern(&components) {
             let pattern_id = Uuid::new_v4();
@@ -72,12 +75,12 @@ impl PatternFormation {
             None
         }
     }
-    
+
     fn matches_pattern(&self, observed: &[PatternComponent], pattern: &[PatternComponent]) -> bool {
         // Simple matching logic - could be made more sophisticated
         observed.len() == pattern.len()
     }
-    
+
     fn should_form_pattern(&self, components: &[PatternComponent]) -> bool {
         // Calculate pattern formation score
         let complexity = components.len() as f32;
@@ -153,17 +156,17 @@ impl SelfOrganization {
             organization_rules: Vec::new(),
         }
     }
-    
+
     pub fn apply_rules(&mut self) {
         for rule in &self.organization_rules {
             let mut clusters_to_modify = Vec::new();
-            
+
             for (i, cluster) in self.clusters.iter().enumerate() {
                 if (rule.condition)(cluster) {
                     clusters_to_modify.push(i);
                 }
             }
-            
+
             // Apply actions to matching clusters
             (rule.action)(&mut self.clusters);
         }
@@ -201,7 +204,7 @@ pub struct NovelIdea {
 impl CreativityEngine {
     pub fn generate_ideas(&self) -> Vec<NovelIdea> {
         let mut ideas = Vec::new();
-        
+
         // Try different combinations of inspiration sources
         for method in &self.combination_methods {
             if let Some(idea) = (method.combine)(&self.inspiration_sources) {
@@ -210,7 +213,7 @@ impl CreativityEngine {
                 }
             }
         }
-        
+
         ideas
     }
 }
@@ -236,7 +239,7 @@ impl SynchronizationPattern {
             phase_coupling: coupling_strength,
         }
     }
-    
+
     pub fn update_phases(&mut self, dt: f32) {
         for group in self.sync_groups.values_mut() {
             group.phase = (group.phase + group.frequency * dt) % (2.0 * std::f32::consts::PI);

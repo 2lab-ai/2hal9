@@ -9,11 +9,11 @@ pub async fn execute(server: String, force: bool) -> Result<()> {
     } else {
         println!("{}", "Gracefully stopping server...".yellow());
     }
-    
+
     println!("Would connect to: {}", server.cyan());
-    
+
     // For MVP, just show what would happen
     println!("{}", "Stop command not yet fully implemented".yellow());
-    
+
     Ok(())
 }
