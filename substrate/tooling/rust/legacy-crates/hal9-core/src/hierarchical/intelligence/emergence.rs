@@ -15,6 +15,7 @@ pub struct EmergenceAnalyzer {
 }
 
 struct PatternDetector {
+    #[allow(dead_code)]
     known_patterns: HashMap<Uuid, EmergentPattern>,
     pattern_library: PatternLibrary,
     detection_threshold: f32,
@@ -52,36 +53,46 @@ enum SimilarityMetric {
 
 struct PhaseAnalyzer {
     state_space: StateSpace,
+    #[allow(dead_code)]
     transition_detector: TransitionDetector,
+    #[allow(dead_code)]
     critical_points: Vec<CriticalPoint>,
 }
 
 struct StateSpace {
+    #[allow(dead_code)]
     dimensions: Vec<StateDimension>,
     trajectories: Vec<Trajectory>,
 }
 
 #[derive(Debug, Clone)]
 struct StateDimension {
+    #[allow(dead_code)]
     name: String,
+    #[allow(dead_code)]
     range: (f32, f32),
+    #[allow(dead_code)]
     resolution: f32,
 }
 
 #[derive(Debug, Clone)]
 struct Trajectory {
     points: Vec<StatePoint>,
+    #[allow(dead_code)]
     duration: std::time::Duration,
 }
 
 #[derive(Debug, Clone)]
 struct StatePoint {
     coordinates: Vec<f32>,
+    #[allow(dead_code)]
     timestamp: chrono::DateTime<chrono::Utc>,
 }
 
 struct TransitionDetector {
+    #[allow(dead_code)]
     methods: Vec<DetectionMethod>,
+    #[allow(dead_code)]
     sensitivity: f32,
 }
 
@@ -95,8 +106,11 @@ enum DetectionMethod {
 
 #[derive(Debug, Clone)]
 struct CriticalPoint {
+    #[allow(dead_code)]
     location: Vec<f32>,
+    #[allow(dead_code)]
     critical_type: CriticalType,
+    #[allow(dead_code)]
     stability: Stability,
 }
 
@@ -118,6 +132,7 @@ enum Stability {
 }
 
 struct ComplexityCalculator {
+    #[allow(dead_code)]
     methods: Vec<ComplexityMethod>,
     time_series: TimeSeries,
 }
@@ -132,27 +147,34 @@ enum ComplexityMethod {
 
 struct TimeSeries {
     data: Vec<Vec<f32>>,
+    #[allow(dead_code)]
     sampling_rate: f32,
 }
 
 struct ObservationWindow {
+    #[allow(dead_code)]
     duration: std::time::Duration,
     observations: Vec<Observation>,
+    #[allow(dead_code)]
     aggregation_level: AggregationLevel,
 }
 
 #[derive(Debug, Clone)]
 pub struct Observation {
-    timestamp: chrono::DateTime<chrono::Utc>,
-    state: SystemState,
-    metrics: HashMap<String, f32>,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+    #[allow(dead_code)]
+    pub state: SystemState,
+    pub metrics: HashMap<String, f32>,
 }
 
 #[derive(Debug, Clone)]
-struct SystemState {
-    unit_states: HashMap<Uuid, serde_json::Value>,
-    global_properties: HashMap<String, f32>,
-    active_patterns: Vec<Uuid>,
+pub struct SystemState {
+    #[allow(dead_code)]
+    pub unit_states: HashMap<Uuid, serde_json::Value>,
+    #[allow(dead_code)]
+    pub global_properties: HashMap<String, f32>,
+    #[allow(dead_code)]
+    pub active_patterns: Vec<Uuid>,
 }
 
 #[allow(dead_code)]
