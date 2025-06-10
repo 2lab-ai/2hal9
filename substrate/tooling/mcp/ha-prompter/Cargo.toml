@@ -1,0 +1,27 @@
+[package]
+name = "ha-prompter"
+version = "0.1.0"
+edition = "2021"
+authors = ["Jihyuk Im <z@2lab.ai>"]
+description = "MCP server for Hierarchical Abstraction prompting - compress and expand across L1-L9"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+async-trait = "0.1"
+
+# MCP SDK (hypothetical - adjust based on actual MCP SDK)
+mcp-sdk = { version = "0.1", optional = true }
+
+[features]
+default = ["standalone"]
+standalone = []
+mcp = ["mcp-sdk"]
+
+[[bin]]
+name = "ha-prompter"
+path = "src/main.rs"
