@@ -362,8 +362,26 @@ impl VectorClock {
     }
     
     pub fn happens_before(&self, other: &VectorClock) -> bool {
-        self.clocks.iter().all(|(k, v)| {
-            other.clocks.get(k).is_some_and(|other_v| v <= other_v)
-        })
+        let mut at_least_one_less = false;
+        
+        // Check all clocks in self
+        for (node_id, &self_clock) in &self.clocks {
+            let other_clock = other.clocks.get(node_id).copied().unwrap_or(0);
+            if self_clock > other_clock {
+                return false; // self has a clock that's greater than other
+            }
+            if self_clock < other_clock {
+                at_least_one_less = true;
+            }
+        }
+        
+        // Check clocks in other that aren't in self
+        for (node_id, &other_clock) in &other.clocks {
+            if !self.clocks.contains_key(node_id) && other_clock > 0 {
+                at_least_one_less = true;
+            }
+        }
+        
+        at_least_one_less
     }
 }

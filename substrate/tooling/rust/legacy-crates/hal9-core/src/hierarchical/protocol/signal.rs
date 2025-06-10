@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use uuid::Uuid;
 use crate::{Result, Error};
 use crate::hierarchical::substrate::transport::{
-    TransportReceiver, TypedTransport, DefaultTransport
+    DefaultTransport, MessageTransport
 };
 use super::{Protocol, ProtocolVersion, ProtocolCapabilities, NegotiatedProtocol, CompressionType, EncryptionType};
 
@@ -22,7 +22,7 @@ pub struct SignalMessage {
     pub target_neuron: Option<Uuid>, // None for broadcast
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub activation: Activation,
-    pub metadata: serde_json::Value,
+    pub metadata: std::collections::HashMap<String, String>,
 }
 
 /// Activation data
@@ -94,11 +94,14 @@ impl SignalProtocol {
         let encoded = self.encode_internal(&signal)?;
         
         // Send via transport
-        let destination = signal.target_neuron
-            .map(|id| format!("neuron:{}", id))
-            .unwrap_or_else(|| "broadcast:signals".to_string());
-        
-        self.transport.send(&destination, encoded).await?;
+        if let Some(target) = signal.target_neuron {
+            // Send to specific neuron
+            let destination = format!("neuron:{}", target);
+            self.transport.send_raw(&destination, encoded).await?;
+        } else {
+            // Broadcast to all
+            self.transport.publish_raw("broadcast:signals", encoded).await?;
+        }
         
         // Update metrics
         self.metrics.signals_sent.fetch_add(1, Ordering::Relaxed);
@@ -119,7 +122,7 @@ impl SignalProtocol {
     /// Receive signals for a neuron
     pub async fn receive_signals(&self, neuron_id: Uuid) -> Result<SignalReceiver> {
         let endpoint = format!("neuron:{}", neuron_id);
-        let receiver = self.transport.receive::<Vec<u8>>(&endpoint).await?;
+        let receiver = self.transport.receive_raw(&endpoint).await?;
         
         Ok(SignalReceiver {
             receiver,
@@ -129,7 +132,7 @@ impl SignalProtocol {
     
     /// Subscribe to broadcast signals
     pub async fn subscribe_broadcasts(&self) -> Result<SignalReceiver> {
-        let receiver = self.transport.subscribe::<Vec<u8>>("broadcast:signals").await?;
+        let receiver = self.transport.subscribe_raw("broadcast:signals").await?;
         
         Ok(SignalReceiver {
             receiver,
@@ -227,7 +230,7 @@ impl SignalProtocol {
 
 /// Receiver for signal messages
 pub struct SignalReceiver<'a> {
-    receiver: TransportReceiver<Vec<u8>>,
+    receiver: crate::hierarchical::substrate::transport::RawTransportReceiver,
     protocol: &'a SignalProtocol,
 }
 
@@ -306,7 +309,7 @@ impl Protocol for SignalProtocol {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hierarchical::substrate::ChannelTransport;
+    use crate::hierarchical::substrate::transport::ChannelTransport;
     
     #[tokio::test]
     async fn test_signal_activation() {
@@ -343,7 +346,7 @@ mod tests {
             target_neuron: Some(neuron_id),
             timestamp: chrono::Utc::now(),
             activation: Activation::new("Hello neurons!".to_string(), 0.8),
-            metadata: serde_json::json!({"type": "test"}),
+            metadata: [("type".to_string(), "test".to_string())].into_iter().collect(),
         };
         
         protocol.send_signal(signal.clone()).await.unwrap();
@@ -376,7 +379,7 @@ mod tests {
             target_neuron: None,
             timestamp: chrono::Utc::now(),
             activation: Activation::new("Broadcast test".to_string(), 0.9),
-            metadata: serde_json::json!({}),
+            metadata: std::collections::HashMap::new(),
         };
         
         protocol.broadcast_signal(signal.clone()).await.unwrap();

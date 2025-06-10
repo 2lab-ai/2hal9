@@ -257,6 +257,11 @@ impl ConsensusProtocol {
     
     /// Check if a proposal has reached consensus
     fn evaluate_proposal(&self, proposal: &mut ProposalState, participant_count: usize) {
+        // Only evaluate if still pending
+        if proposal.status != ProposalStatus::Pending {
+            return;
+        }
+        
         let accept_votes = proposal.votes.values()
             .filter(|v| **v == Vote::Accept)
             .count();
@@ -293,17 +298,21 @@ impl ConsensusProtocol {
     pub async fn handle_message(&self, message: ConsensusMessage) -> Result<()> {
         match message {
             ConsensusMessage::Propose { proposal_id, proposer, value, timestamp, ttl } => {
-                let proposal = ProposalState {
-                    proposal_id,
-                    proposer,
-                    value,
-                    votes: HashMap::new(),
-                    created_at: timestamp,
-                    expires_at: timestamp + chrono::Duration::from_std(ttl).unwrap(),
-                    status: ProposalStatus::Pending,
-                };
-                
-                self.proposals.write().await.insert(proposal_id, proposal);
+                // Only create proposal if it doesn't already exist
+                let mut proposals = self.proposals.write().await;
+                if !proposals.contains_key(&proposal_id) {
+                    let proposal = ProposalState {
+                        proposal_id,
+                        proposer,
+                        value,
+                        votes: HashMap::new(),
+                        created_at: timestamp,
+                        expires_at: timestamp + chrono::Duration::from_std(ttl).unwrap(),
+                        status: ProposalStatus::Pending,
+                    };
+                    
+                    proposals.insert(proposal_id, proposal);
+                }
             }
             
             ConsensusMessage::Vote { proposal_id, voter, vote, .. } => {

@@ -348,10 +348,25 @@ impl HealthChecker {
         let mut score = 1.0;
         
         // Deduct points for issues
-        score -= (metrics.hierarchical_error_rate / self.thresholds.max_error_rate).min(0.3);
-        score -= ((metrics.cpu_usage - 50.0) / 50.0).max(0.0).min(0.2);
-        score -= ((metrics.memory_usage - 50.0) / 50.0).max(0.0).min(0.2);
-        score -= (1.0 - metrics.output_parity).min(0.3);
+        // Only deduct if error rate exceeds threshold
+        if metrics.hierarchical_error_rate > self.thresholds.max_error_rate {
+            score -= ((metrics.hierarchical_error_rate - self.thresholds.max_error_rate) / 0.05).min(0.3);
+        }
+        
+        // CPU usage penalty only above 50%
+        if metrics.cpu_usage > 50.0 {
+            score -= ((metrics.cpu_usage - 50.0) / 50.0).min(0.2);
+        }
+        
+        // Memory usage penalty only above 50%
+        if metrics.memory_usage > 50.0 {
+            score -= ((metrics.memory_usage - 50.0) / 50.0).min(0.2);
+        }
+        
+        // Output parity penalty
+        if metrics.output_parity < self.thresholds.min_output_parity {
+            score -= ((self.thresholds.min_output_parity - metrics.output_parity) / 0.05).min(0.3);
+        }
         
         score.max(0.0)
     }

@@ -144,10 +144,10 @@ impl CognitiveUnit for L1ReflexiveNeuron {
                 target_neuron: None, // Broadcast
                 timestamp: chrono::Utc::now(),
                 activation: Activation::new(response.clone(), 0.9),
-                metadata: serde_json::json!({
-                    "layer": "L1",
-                    "pattern_matched": true,
-                }),
+                metadata: [
+                    ("layer".to_string(), "L1".to_string()),
+                    ("pattern_matched".to_string(), "true".to_string())
+                ].into_iter().collect(),
             };
             
             let _ = protocol.broadcast_signal(signal).await;
@@ -246,18 +246,27 @@ impl PatternMatcher {
         // Simple similarity based on common words
         let pattern_lower = pattern.to_lowercase();
         let input_lower = input.to_lowercase();
+        
+        // Check if input contains the pattern as a substring
+        if input_lower.contains(&pattern_lower) {
+            return 0.9; // High similarity for substring matches
+        }
+        
         let pattern_words: std::collections::HashSet<_> = 
             pattern_lower.split_whitespace().collect();
         let input_words: std::collections::HashSet<_> = 
             input_lower.split_whitespace().collect();
         
         let intersection = pattern_words.intersection(&input_words).count();
-        let union = pattern_words.union(&input_words).count();
         
-        if union == 0 {
-            0.0
+        // Calculate similarity based on pattern coverage
+        // If all pattern words are found in input, it's a good match
+        if pattern_words.len() > 0 && intersection == pattern_words.len() {
+            0.8
+        } else if pattern_words.len() > 0 {
+            intersection as f32 / pattern_words.len() as f32
         } else {
-            intersection as f32 / union as f32
+            0.0
         }
     }
 }

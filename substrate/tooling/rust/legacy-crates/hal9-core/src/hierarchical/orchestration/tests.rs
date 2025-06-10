@@ -345,6 +345,9 @@ mod tests {
         // assert_eq!(*clock1.clocks.get(&node2).unwrap(), 1);
         
         // Test happens-before
+        // First, make clock2 aware of node1 by updating it with clock1
+        clock2.update(&clock1);
+        // Now increment clock2's node2
         clock2.increment(node2);
         assert!(clock1.happens_before(&clock2));
         assert!(!clock2.happens_before(&clock1));
