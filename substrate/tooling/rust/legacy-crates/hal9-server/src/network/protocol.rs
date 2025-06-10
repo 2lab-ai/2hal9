@@ -1,7 +1,7 @@
 //! Network protocol and message definitions
 
-use serde::{Serialize, Deserialize};
-use hal9_core::{NeuronSignal, Result, Error};
+use hal9_core::{Error, NeuronSignal, Result};
+use serde::{Deserialize, Serialize};
 
 /// Network message types
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -13,39 +13,36 @@ pub enum NetworkMessage {
         server_id: String,
         capabilities: Vec<String>,
     },
-    
+
     /// Signal forwarding
     Signal(NeuronSignal),
-    
+
     /// Heartbeat/keepalive
     Ping,
-    
+
     /// Heartbeat response
     Pong,
-    
+
     /// Metrics sharing
     Metrics {
         server_id: String,
         timestamp: chrono::DateTime<chrono::Utc>,
         metrics: MetricsSnapshot,
     },
-    
+
     /// Error notification
-    Error {
-        code: String,
-        message: String,
-    },
-    
+    Error { code: String, message: String },
+
     /// Server discovery announcement
     Discovery {
         server_id: String,
         address: String,
         neurons: Vec<NeuronInfo>,
     },
-    
+
     /// Request for server info
     InfoRequest,
-    
+
     /// Server info response
     InfoResponse {
         server_id: String,
@@ -83,60 +80,61 @@ impl MessageCodec {
         // Serialize to JSON
         let json = serde_json::to_vec(msg)
             .map_err(|e| Error::Serialization(format!("Failed to encode message: {}", e)))?;
-            
+
         // Create buffer with 4-byte length prefix
         let mut buffer = Vec::with_capacity(4 + json.len());
-        
+
         // Write length as big-endian u32
         let len = json.len() as u32;
         buffer.extend_from_slice(&len.to_be_bytes());
-        
+
         // Write JSON data
         buffer.extend_from_slice(&json);
-        
+
         Ok(buffer)
     }
-    
+
     /// Decode a message from bytes
     pub fn decode(data: &[u8]) -> Result<NetworkMessage> {
         // Need at least 4 bytes for length
         if data.len() < 4 {
             return Err(Error::Network("Incomplete message header".to_string()));
         }
-        
+
         // Read length
-        let len_bytes: [u8; 4] = data[0..4].try_into()
+        let len_bytes: [u8; 4] = data[0..4]
+            .try_into()
             .map_err(|_| Error::Network("Invalid length bytes".to_string()))?;
         let len = u32::from_be_bytes(len_bytes) as usize;
-        
+
         // Check if we have enough data
         if data.len() < 4 + len {
             return Err(Error::Network("Incomplete message data".to_string()));
         }
-        
+
         // Deserialize JSON
-        let msg = serde_json::from_slice(&data[4..4+len])
+        let msg = serde_json::from_slice(&data[4..4 + len])
             .map_err(|e| Error::Serialization(format!("Failed to decode message: {}", e)))?;
-            
+
         Ok(msg)
     }
-    
+
     /// Encode multiple messages into a single buffer
     pub fn encode_batch(messages: &[NetworkMessage]) -> Result<Vec<u8>> {
         let mut buffer = Vec::new();
-        
+
         for msg in messages {
             let encoded = Self::encode(msg)?;
             buffer.extend_from_slice(&encoded);
         }
-        
+
         Ok(buffer)
     }
-    
+
     /// Decode multiple messages from a buffer
     pub fn decode_batch(mut data: &[u8]) -> Result<Vec<NetworkMessage>> {
         let mut messages = Vec::new();
-        
+
         while !data.is_empty() {
             // Try to decode one message
             match Self::decode(data) {
@@ -146,9 +144,9 @@ impl MessageCodec {
                         let len_bytes: [u8; 4] = data[0..4].try_into().unwrap();
                         4 + u32::from_be_bytes(len_bytes) as usize
                     };
-                    
+
                     messages.push(msg);
-                    
+
                     // Advance to next message
                     data = &data[msg_size..];
                 }
@@ -162,7 +160,7 @@ impl MessageCodec {
                 }
             }
         }
-        
+
         Ok(messages)
     }
 }
@@ -171,7 +169,7 @@ impl MessageCodec {
 mod tests {
     use super::*;
     use hal9_core::NeuronSignal;
-    
+
     #[test]
     fn test_message_encode_decode() {
         let msg = NetworkMessage::Hello {
@@ -179,10 +177,10 @@ mod tests {
             server_id: "test-server".to_string(),
             capabilities: vec!["signal".to_string()],
         };
-        
+
         let encoded = MessageCodec::encode(&msg).unwrap();
         let decoded = MessageCodec::decode(&encoded).unwrap();
-        
+
         match decoded {
             NetworkMessage::Hello { server_id, .. } => {
                 assert_eq!(server_id, "test-server");
@@ -190,7 +188,7 @@ mod tests {
             _ => panic!("Wrong message type"),
         }
     }
-    
+
     #[test]
     fn test_signal_message() {
         let signal = NeuronSignal::forward(
@@ -200,11 +198,11 @@ mod tests {
             "L3",
             "test content".to_string(),
         );
-        
+
         let msg = NetworkMessage::Signal(signal.clone());
         let encoded = MessageCodec::encode(&msg).unwrap();
         let decoded = MessageCodec::decode(&encoded).unwrap();
-        
+
         match decoded {
             NetworkMessage::Signal(decoded_signal) => {
                 assert_eq!(decoded_signal.signal_id, signal.signal_id);
@@ -214,7 +212,7 @@ mod tests {
             _ => panic!("Wrong message type"),
         }
     }
-    
+
     #[test]
     fn test_batch_encoding() {
         let messages = vec![
@@ -225,10 +223,10 @@ mod tests {
                 message: "Test error".to_string(),
             },
         ];
-        
+
         let encoded = MessageCodec::encode_batch(&messages).unwrap();
         let decoded = MessageCodec::decode_batch(&encoded).unwrap();
-        
+
         assert_eq!(decoded.len(), 3);
         matches!(decoded[0], NetworkMessage::Ping);
         matches!(decoded[1], NetworkMessage::Pong);

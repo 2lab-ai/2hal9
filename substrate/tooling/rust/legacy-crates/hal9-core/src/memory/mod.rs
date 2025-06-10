@@ -1,15 +1,15 @@
 //! Persistent memory system for neurons using SQLite
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub mod sqlite;
 pub mod embeddings;
+pub mod sqlite;
 
-pub use sqlite::SqliteMemoryStore;
 pub use embeddings::EmbeddingGenerator;
+pub use sqlite::SqliteMemoryStore;
 
 /// Memory entry for a neuron
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,30 +88,30 @@ pub struct MemoryContext {
 pub trait MemoryStore: Send + Sync {
     /// Initialize the memory store
     async fn initialize(&self) -> crate::Result<()>;
-    
+
     /// Store a memory entry
     async fn store(&self, entry: MemoryEntry) -> crate::Result<Uuid>;
-    
+
     /// Retrieve a memory entry by ID
     async fn get(&self, id: Uuid) -> crate::Result<Option<MemoryEntry>>;
-    
+
     /// Search for memory entries
     async fn search(&self, params: MemorySearch) -> crate::Result<Vec<MemoryEntry>>;
-    
+
     /// Update access count and timestamp
     async fn record_access(&self, id: Uuid) -> crate::Result<()>;
-    
+
     /// Delete old or unimportant memories
     async fn cleanup(&self, before: DateTime<Utc>, min_importance: f32) -> crate::Result<u64>;
-    
+
     /// Get memory statistics
     async fn get_stats(&self, neuron_id: &str) -> crate::Result<MemoryStats>;
-    
+
     /// Build context for a neuron
     async fn build_context(
-        &self, 
-        neuron_id: &str, 
-        current_task: &str
+        &self,
+        neuron_id: &str,
+        current_task: &str,
     ) -> crate::Result<MemoryContext>;
 }
 
@@ -147,27 +147,27 @@ impl MemoryBuilder {
             importance: 0.5,
         }
     }
-    
+
     pub fn with_type(mut self, entry_type: MemoryType) -> Self {
         self.entry_type = entry_type;
         self
     }
-    
+
     pub fn with_content(mut self, content: String) -> Self {
         self.content = content;
         self
     }
-    
+
     pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
         self.metadata = metadata;
         self
     }
-    
+
     pub fn with_importance(mut self, importance: f32) -> Self {
         self.importance = importance;
         self
     }
-    
+
     pub fn build(self) -> MemoryEntry {
         let now = Utc::now();
         MemoryEntry {

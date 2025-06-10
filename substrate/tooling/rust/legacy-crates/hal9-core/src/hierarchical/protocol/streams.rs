@@ -1,19 +1,19 @@
 //! Stream protocol for continuous data flows
 
+use crate::{Error, Result};
 use async_trait::async_trait;
 use tokio::sync::mpsc;
 use uuid::Uuid;
-use crate::{Result, Error};
 
 /// Stream protocol for handling continuous data flows
 #[async_trait]
 pub trait StreamProtocol: Send + Sync {
     /// Create a new stream
     async fn create_stream(&self, config: StreamConfig) -> Result<Box<dyn DataStream>>;
-    
+
     /// Accept an incoming stream
     async fn accept_stream(&self, stream_id: Uuid) -> Result<Box<dyn DataStream>>;
-    
+
     /// Get stream metrics
     async fn stream_metrics(&self, stream_id: Uuid) -> Result<StreamMetrics>;
 }
@@ -78,16 +78,16 @@ pub enum StreamReliability {
 pub trait DataStream: Send + Sync {
     /// Get stream ID
     fn id(&self) -> Uuid;
-    
+
     /// Send data to the stream
     async fn send(&mut self, data: Vec<u8>) -> Result<()>;
-    
+
     /// Receive data from the stream
     async fn recv(&mut self) -> Result<Option<Vec<u8>>>;
-    
+
     /// Close the stream
     async fn close(self: Box<Self>) -> Result<()>;
-    
+
     /// Check if stream is closed
     fn is_closed(&self) -> bool;
 }
@@ -117,21 +117,21 @@ impl ChannelStream {
         let (tx1, rx1) = mpsc::channel(buffer_size);
         let (tx2, rx2) = mpsc::channel(buffer_size);
         let closed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        
+
         let stream1 = Self {
             id,
             sender: tx1,
             receiver: rx2,
             closed: closed.clone(),
         };
-        
+
         let stream2 = Self {
             id,
             sender: tx2,
             receiver: rx1,
             closed: closed.clone(),
         };
-        
+
         (stream1, stream2)
     }
 }
@@ -141,25 +141,27 @@ impl DataStream for ChannelStream {
     fn id(&self) -> Uuid {
         self.id
     }
-    
+
     async fn send(&mut self, data: Vec<u8>) -> Result<()> {
         if self.is_closed() {
             return Err(Error::Protocol("Stream is closed".to_string()));
         }
-        
-        self.sender.send(data).await
+
+        self.sender
+            .send(data)
+            .await
             .map_err(|_| Error::Protocol("Failed to send on stream".to_string()))
     }
-    
+
     async fn recv(&mut self) -> Result<Option<Vec<u8>>> {
         Ok(self.receiver.recv().await)
     }
-    
+
     async fn close(self: Box<Self>) -> Result<()> {
         self.closed.store(true, std::sync::atomic::Ordering::SeqCst);
         Ok(())
     }
-    
+
     fn is_closed(&self) -> bool {
         self.closed.load(std::sync::atomic::Ordering::SeqCst)
     }
@@ -181,16 +183,16 @@ impl StreamMultiplexer {
             outgoing: tx,
         }
     }
-    
+
     /// Create a new multiplexed stream
     pub async fn create_stream(&self, config: StreamConfig) -> Result<Uuid> {
         let (local, _remote) = ChannelStream::new(config.buffer_size);
         let stream_id = local.id();
-        
+
         self.streams.insert(stream_id, Box::new(local));
         Ok(stream_id)
     }
-    
+
     /// Route incoming data to appropriate stream
     pub async fn route_incoming(&mut self) {
         while let Some((stream_id, data)) = self.incoming.recv().await {

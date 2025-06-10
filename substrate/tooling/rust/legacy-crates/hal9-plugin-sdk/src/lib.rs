@@ -53,15 +53,9 @@ pub enum PluginCapability {
         description: String,
     },
     /// Custom tool
-    Tool {
-        name: String,
-        description: String,
-    },
+    Tool { name: String, description: String },
     /// Memory provider
-    MemoryProvider {
-        name: String,
-        description: String,
-    },
+    MemoryProvider { name: String, description: String },
     /// Protocol handler
     ProtocolHandler {
         protocol: String,
@@ -92,16 +86,16 @@ pub type PluginResult<T> = Result<T, PluginError>;
 pub enum PluginError {
     #[error("Plugin not found: {0}")]
     NotFound(String),
-    
+
     #[error("Plugin initialization failed: {0}")]
     InitError(String),
-    
+
     #[error("Permission denied: {0:?}")]
     PermissionDenied(Permission),
-    
+
     #[error("Invalid configuration: {0}")]
     InvalidConfig(String),
-    
+
     #[error("Runtime error: {0}")]
     RuntimeError(String),
 }
@@ -110,16 +104,16 @@ pub enum PluginError {
 pub trait Plugin: Send + Sync {
     /// Get plugin metadata
     fn metadata(&self) -> &PluginMetadata;
-    
+
     /// Get plugin capabilities
     fn capabilities(&self) -> &[PluginCapability];
-    
+
     /// Get required permissions
     fn permissions(&self) -> &[Permission];
-    
+
     /// Initialize the plugin
     fn initialize(&mut self, config: HashMap<String, serde_json::Value>) -> PluginResult<()>;
-    
+
     /// Shutdown the plugin
     fn shutdown(&mut self) -> PluginResult<()>;
 }
@@ -143,7 +137,7 @@ macro_rules! hal9_plugin {
             capabilities: Vec<$crate::PluginCapability>,
             permissions: Vec<$crate::Permission>,
         }
-        
+
         impl Default for PluginImpl {
             fn default() -> Self {
                 Self {
@@ -159,29 +153,29 @@ macro_rules! hal9_plugin {
                 }
             }
         }
-        
+
         impl $crate::Plugin for PluginImpl {
             fn metadata(&self) -> &$crate::PluginMetadata {
                 &self.metadata
             }
-            
+
             fn capabilities(&self) -> &[$crate::PluginCapability] {
                 &self.capabilities
             }
-            
+
             fn permissions(&self) -> &[$crate::Permission] {
                 &self.permissions
             }
-            
+
             fn initialize(&mut self, _config: std::collections::HashMap<String, serde_json::Value>) -> $crate::PluginResult<()> {
                 Ok(())
             }
-            
+
             fn shutdown(&mut self) -> $crate::PluginResult<()> {
                 Ok(())
             }
         }
-        
+
         #[no_mangle]
         pub extern "C" fn hal9_plugin_create() -> Box<dyn $crate::Plugin> {
             Box::new(PluginImpl::default())

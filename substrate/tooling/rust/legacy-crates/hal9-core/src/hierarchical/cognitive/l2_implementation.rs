@@ -3,14 +3,14 @@
 //! This neuron handles direct implementation tasks, code generation,
 //! and execution within safe sandboxes.
 
+use super::*;
+use crate::hierarchical::protocol::{Gradient, GradientMessage, GradientProtocol};
+use crate::{Error, Result};
 use async_trait::async_trait;
-use uuid::Uuid;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::RwLock;
-use crate::{Result, Error};
-use crate::hierarchical::protocol::{GradientProtocol, GradientMessage, Gradient};
-use super::*;
+use uuid::Uuid;
 
 /// L2: Implementation Neuron - Code generation and execution
 pub struct L2ImplementationNeuron {
@@ -53,16 +53,16 @@ impl L2ImplementationNeuron {
             gradient_protocol: None,
         }
     }
-    
+
     /// Set gradient protocol for learning feedback
     pub fn set_gradient_protocol(&mut self, protocol: Arc<GradientProtocol>) {
         self.gradient_protocol = Some(protocol);
     }
-    
+
     /// Analyze input to determine implementation approach
     fn analyze_task(&self, input: &str) -> TaskAnalysis {
         let lower = input.to_lowercase();
-        
+
         if lower.contains("function") || lower.contains("method") {
             TaskAnalysis::Function
         } else if lower.contains("struct") || lower.contains("class") {
@@ -91,42 +91,37 @@ impl CognitiveUnit for L2ImplementationNeuron {
     type Input = CognitiveInput;
     type Output = CognitiveOutput;
     type State = ImplementationState;
-    
+
     fn id(&self) -> &Uuid {
         &self.id
     }
-    
+
     fn layer(&self) -> CognitiveLayer {
         CognitiveLayer::Implementation
     }
-    
+
     async fn process(&mut self, input: Self::Input) -> Result<Self::Output> {
         let start = std::time::Instant::now();
-        
+
         // Analyze the task
         let task_type = self.analyze_task(&input.content);
-        
+
         // Generate code based on task type
         let generated_code = match task_type {
-            TaskAnalysis::Function => {
-                self.code_generator.generate_function(&input.content)?
-            }
-            TaskAnalysis::DataStructure => {
-                self.code_generator.generate_struct(&input.content)?
-            }
-            TaskAnalysis::Test => {
-                self.code_generator.generate_test(&input.content)?
-            }
-            TaskAnalysis::Refactor => {
-                self.code_generator.suggest_refactoring(&input.content)?
-            }
-            TaskAnalysis::General => {
-                self.code_generator.generate_general(&input.content)?
-            }
+            TaskAnalysis::Function => self.code_generator.generate_function(&input.content)?,
+            TaskAnalysis::DataStructure => self.code_generator.generate_struct(&input.content)?,
+            TaskAnalysis::Test => self.code_generator.generate_test(&input.content)?,
+            TaskAnalysis::Refactor => self.code_generator.suggest_refactoring(&input.content)?,
+            TaskAnalysis::General => self.code_generator.generate_general(&input.content)?,
         };
-        
+
         // Execute in sandbox if requested
-        let execution_result = if input.context.get("execute").and_then(|v| v.as_bool()).unwrap_or(false) {
+        let execution_result = if input
+            .context
+            .get("execute")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             match self.executor.execute_safe(&generated_code).await {
                 Ok(output) => ExecutionResult::Success(output),
                 Err(e) => ExecutionResult::Error(e.to_string()),
@@ -134,47 +129,59 @@ impl CognitiveUnit for L2ImplementationNeuron {
         } else {
             ExecutionResult::Success("Code generated but not executed".to_string())
         };
-        
+
         // Update state
         {
             let mut state = self.state.write();
             state.basic.metrics.activations_processed += 1;
-            
+
             // Store in history
             state.execution_history.push(ExecutionRecord {
                 timestamp: chrono::Utc::now(),
                 code: generated_code.clone(),
                 result: execution_result.clone(),
             });
-            
+
             // Keep only last 100 records
             if state.execution_history.len() > 100 {
                 state.execution_history.remove(0);
             }
-            
+
             // Update average processing time
             let elapsed = start.elapsed();
             let processed = state.basic.metrics.activations_processed as f64;
-            state.basic.metrics.average_processing_time_ms = 
-                (state.basic.metrics.average_processing_time_ms * (processed - 1.0) + 
-                 elapsed.as_secs_f64() * 1000.0) / processed;
+            state.basic.metrics.average_processing_time_ms =
+                (state.basic.metrics.average_processing_time_ms * (processed - 1.0)
+                    + elapsed.as_secs_f64() * 1000.0)
+                    / processed;
         }
-        
+
         // Prepare output
         let output = CognitiveOutput {
             content: generated_code,
             confidence: 0.85,
             metadata: [
-                ("task_type".to_string(), serde_json::json!(format!("{:?}", task_type))),
-                ("execution_result".to_string(), serde_json::json!(matches!(execution_result, ExecutionResult::Success(_)))),
-                ("processing_time_ms".to_string(), serde_json::json!(start.elapsed().as_millis())),
-            ].into_iter().collect(),
+                (
+                    "task_type".to_string(),
+                    serde_json::json!(format!("{:?}", task_type)),
+                ),
+                (
+                    "execution_result".to_string(),
+                    serde_json::json!(matches!(execution_result, ExecutionResult::Success(_))),
+                ),
+                (
+                    "processing_time_ms".to_string(),
+                    serde_json::json!(start.elapsed().as_millis()),
+                ),
+            ]
+            .into_iter()
+            .collect(),
             target_layers: vec![CognitiveLayer::Operational],
         };
-        
+
         Ok(output)
     }
-    
+
     async fn learn(&mut self, gradient: LearningGradient) -> Result<()> {
         // Get learning iterations before dropping the lock
         let learning_iterations = {
@@ -182,7 +189,7 @@ impl CognitiveUnit for L2ImplementationNeuron {
             state.basic.metrics.learning_iterations += 1;
             state.basic.metrics.learning_iterations
         };
-        
+
         // Learn from execution errors
         if gradient.error_signal.magnitude > 0.5 {
             // High error - need to improve code generation
@@ -193,7 +200,7 @@ impl CognitiveUnit for L2ImplementationNeuron {
                 }
             }
         }
-        
+
         // Send gradient upstream if protocol available
         if let Some(protocol) = &self.gradient_protocol {
             let grad_msg = GradientMessage {
@@ -203,7 +210,11 @@ impl CognitiveUnit for L2ImplementationNeuron {
                 timestamp: chrono::Utc::now(),
                 gradient: Gradient::new(
                     gradient.error_signal.magnitude,
-                    gradient.adjustments.iter().map(|a| a.suggested_delta).collect(),
+                    gradient
+                        .adjustments
+                        .iter()
+                        .map(|a| a.suggested_delta)
+                        .collect(),
                 ),
                 learning_context: crate::hierarchical::protocol::gradient::LearningContext {
                     learning_rate: 0.05,
@@ -213,17 +224,17 @@ impl CognitiveUnit for L2ImplementationNeuron {
                     loss_type: crate::hierarchical::protocol::gradient::LossType::MeanSquaredError,
                 },
             };
-            
+
             let _ = protocol.send_gradient(grad_msg).await;
         }
-        
+
         Ok(())
     }
-    
+
     async fn introspect(&self) -> Self::State {
         self.state.read().clone()
     }
-    
+
     async fn reset(&mut self) -> Result<()> {
         let mut state = self.state.write();
         state.execution_history.clear();
@@ -247,16 +258,22 @@ impl Default for CodeGenerator {
 impl CodeGenerator {
     pub fn new() -> Self {
         let mut templates = HashMap::new();
-        
+
         // Basic function template
-        templates.insert("function".to_string(), r#"
+        templates.insert(
+            "function".to_string(),
+            r#"
 fn {name}({params}) -> {return_type} {
     {body}
 }
-"#.to_string());
-        
+"#
+            .to_string(),
+        );
+
         // Struct template
-        templates.insert("struct".to_string(), r#"
+        templates.insert(
+            "struct".to_string(),
+            r#"
 #[derive(Debug, Clone)]
 struct {name} {
     {fields}
@@ -269,10 +286,14 @@ impl {name} {
         }
     }
 }
-"#.to_string());
-        
+"#
+            .to_string(),
+        );
+
         // Test template
-        templates.insert("test".to_string(), r#"
+        templates.insert(
+            "test".to_string(),
+            r#"
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -282,141 +303,148 @@ mod tests {
         {test_body}
     }
 }
-"#.to_string());
-        
+"#
+            .to_string(),
+        );
+
         Self {
             templates: RwLock::new(templates),
             failed_patterns: RwLock::new(Vec::new()),
         }
     }
-    
+
     pub fn generate_function(&self, description: &str) -> Result<String> {
         // Parse description to extract function details
-        let name = self.extract_name(description).unwrap_or("generated_function".to_string());
+        let name = self
+            .extract_name(description)
+            .unwrap_or("generated_function".to_string());
         let params = self.extract_params(description).unwrap_or("".to_string());
         let return_type = self.extract_return_type(description).unwrap_or("()");
         let body = self.generate_function_body(description);
-        
-        let template = self.templates.read()
-            .get("function")
-            .cloned()
-            .unwrap();
-        
+
+        let template = self.templates.read().get("function").cloned().unwrap();
+
         Ok(template
             .replace("{name}", &name)
             .replace("{params}", &params)
             .replace("{return_type}", return_type)
             .replace("{body}", &body))
     }
-    
+
     pub fn generate_struct(&self, description: &str) -> Result<String> {
-        let name = self.extract_name(description).unwrap_or("GeneratedStruct".to_string());
+        let name = self
+            .extract_name(description)
+            .unwrap_or("GeneratedStruct".to_string());
         let fields = self.extract_fields(description);
         let params = self.generate_constructor_params(&fields);
         let field_init = self.generate_field_init(&fields);
-        
-        let template = self.templates.read()
-            .get("struct")
-            .cloned()
-            .unwrap();
-        
+
+        let template = self.templates.read().get("struct").cloned().unwrap();
+
         Ok(template
             .replace("{name}", &name)
             .replace("{fields}", &fields)
             .replace("{params}", &params)
             .replace("{field_init}", &field_init))
     }
-    
+
     pub fn generate_test(&self, description: &str) -> Result<String> {
-        let name = self.extract_name(description).unwrap_or("generated".to_string());
+        let name = self
+            .extract_name(description)
+            .unwrap_or("generated".to_string());
         let test_body = self.generate_test_body(description);
-        
-        let template = self.templates.read()
-            .get("test")
-            .cloned()
-            .unwrap();
-        
+
+        let template = self.templates.read().get("test").cloned().unwrap();
+
         Ok(template
             .replace("{name}", &name)
             .replace("{test_body}", &test_body))
     }
-    
+
     pub fn suggest_refactoring(&self, code: &str) -> Result<String> {
         // Simple refactoring suggestions
         let mut suggestions = Vec::new();
-        
+
         if code.contains("unwrap()") {
             suggestions.push("Consider replacing unwrap() with proper error handling using ?");
         }
-        
+
         if code.lines().any(|line| line.len() > 100) {
             suggestions.push("Consider breaking long lines for better readability");
         }
-        
+
         if !code.contains("///") && !code.contains("//!") {
             suggestions.push("Add documentation comments to explain the code");
         }
-        
+
         Ok(suggestions.join("\n"))
     }
-    
+
     pub fn generate_general(&self, description: &str) -> Result<String> {
         // Fallback for general code generation
-        Ok(format!("// TODO: Implement {}\n// Generated from: {}", 
-                   self.extract_name(description).unwrap_or("feature".to_string()),
-                   description))
+        Ok(format!(
+            "// TODO: Implement {}\n// Generated from: {}",
+            self.extract_name(description)
+                .unwrap_or("feature".to_string()),
+            description
+        ))
     }
-    
+
     pub fn add_failed_pattern(&self, pattern: &str) {
         self.failed_patterns.write().push(pattern.to_string());
     }
-    
+
     // Helper methods
     fn extract_name(&self, description: &str) -> Option<String> {
         // Look for patterns like "called X", "named X", "function X"
         let _lower = description.to_lowercase();
         let words: Vec<&str> = description.split_whitespace().collect();
-        
+
         // Look for "called <name>" or "named <name>"
         for i in 0..words.len() - 1 {
-            if words[i].to_lowercase() == "called" || words[i].to_lowercase() == "named" {
-                if i + 1 < words.len() {
-                    let name = words[i + 1].trim_end_matches(|c: char| !c.is_alphanumeric() && c != '_');
-                    if name.chars().all(|c| c.is_alphanumeric() || c == '_') {
-                        return Some(name.to_string());
-                    }
-                }
-            }
-        }
-        
-        // Look for "function <name>"
-        for i in 0..words.len() - 1 {
-            if words[i].to_lowercase() == "function" && i + 1 < words.len() {
-                let name = words[i + 1].trim_end_matches(|c: char| !c.is_alphanumeric() && c != '_');
+            if (words[i].to_lowercase() == "called" || words[i].to_lowercase() == "named")
+                && i + 1 < words.len()
+            {
+                let name =
+                    words[i + 1].trim_end_matches(|c: char| !c.is_alphanumeric() && c != '_');
                 if name.chars().all(|c| c.is_alphanumeric() || c == '_') {
                     return Some(name.to_string());
                 }
             }
         }
-        
+
+        // Look for "function <name>"
+        for i in 0..words.len() - 1 {
+            if words[i].to_lowercase() == "function" && i + 1 < words.len() {
+                let name =
+                    words[i + 1].trim_end_matches(|c: char| !c.is_alphanumeric() && c != '_');
+                if name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                    return Some(name.to_string());
+                }
+            }
+        }
+
         // Fallback: look for words that look like function names (contain underscore or camelCase)
         for word in words {
             let cleaned = word.trim_end_matches(|c: char| !c.is_alphanumeric() && c != '_');
-            if cleaned.contains('_') || (cleaned.len() > 3 && cleaned.chars().any(|c| c.is_uppercase())) {
+            if cleaned.contains('_')
+                || (cleaned.len() > 3 && cleaned.chars().any(|c| c.is_uppercase()))
+            {
                 return Some(cleaned.to_string());
             }
         }
-        
+
         // Last resort: first alphanumeric word
-        description.split_whitespace()
+        description
+            .split_whitespace()
             .find(|word| word.chars().all(|c| c.is_alphanumeric() || c == '_'))
             .map(|s| s.to_string())
     }
-    
+
     fn extract_params(&self, description: &str) -> Option<String> {
         // Extract parameter hints from description
         let lower = description.to_lowercase();
-        
+
         if lower.contains("no parameters") || lower.contains("no args") {
             Some("".to_string())
         } else if lower.contains("two numbers") || lower.contains("2 numbers") {
@@ -429,10 +457,10 @@ mod tests {
             Some("value: &str".to_string()) // Default parameter
         }
     }
-    
+
     fn extract_return_type(&self, description: &str) -> Option<&str> {
         let lower = description.to_lowercase();
-        
+
         if lower.contains("returns string") {
             Some("String")
         } else if lower.contains("returns number") || lower.contains("returns int") {
@@ -445,10 +473,10 @@ mod tests {
             Some("()")
         }
     }
-    
+
     fn generate_function_body(&self, description: &str) -> String {
         let lower = description.to_lowercase();
-        
+
         if lower.contains("adds two numbers") {
             "    a + b".to_string()
         } else if lower.contains("multiply") {
@@ -459,19 +487,19 @@ mod tests {
             "    // TODO: Implement function logic\n    todo!()".to_string()
         }
     }
-    
+
     fn extract_fields(&self, _description: &str) -> String {
         "    id: Uuid,\n    name: String,\n    value: i32,".to_string()
     }
-    
+
     fn generate_constructor_params(&self, _fields: &str) -> String {
         "name: String, value: i32".to_string()
     }
-    
+
     fn generate_field_init(&self, _fields: &str) -> String {
         "            id: Uuid::new_v4(),\n            name,\n            value,".to_string()
     }
-    
+
     fn generate_test_body(&self, _description: &str) -> String {
         "        // TODO: Implement test\n        assert_eq!(1 + 1, 2);".to_string()
     }
@@ -503,23 +531,25 @@ impl CodeExecutor {
             },
         }
     }
-    
+
     pub async fn execute_safe(&self, code: &str) -> Result<String> {
         // In a real implementation, this would use a proper sandbox
         // For now, we'll simulate safe execution
-        
+
         if code.contains("unsafe") {
             return Err(Error::Protocol("Unsafe code not allowed".to_string()));
         }
-        
+
         if code.contains("std::process") {
             return Err(Error::Protocol("Process spawning not allowed".to_string()));
         }
-        
+
         if code.contains("std::fs") {
-            return Err(Error::Protocol("File system access not allowed".to_string()));
+            return Err(Error::Protocol(
+                "File system access not allowed".to_string(),
+            ));
         }
-        
+
         // Simulate successful execution
         Ok(format!("Code executed successfully:\n{}", code))
     }
@@ -528,7 +558,7 @@ impl CodeExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_implementation_neuron() {
         let config = CognitiveConfig {
@@ -541,27 +571,27 @@ mod tests {
                 downward_connections: vec![],
             },
         };
-        
+
         let mut neuron = L2ImplementationNeuron::new(config);
-        
+
         // Test function generation
         let input = CognitiveInput {
             content: "Create a function called calculate_sum that adds two numbers".to_string(),
             context: HashMap::new(),
             source_layer: Some(CognitiveLayer::Operational),
         };
-        
+
         let output = neuron.process(input).await.unwrap();
         assert!(output.content.contains("fn calculate_sum"));
         assert!(output.confidence > 0.8);
-        
+
         // Test struct generation
         let input2 = CognitiveInput {
             content: "Create a struct called User with name and age fields".to_string(),
             context: HashMap::new(),
             source_layer: Some(CognitiveLayer::Operational),
         };
-        
+
         let output2 = neuron.process(input2).await.unwrap();
         assert!(output2.content.contains("struct User"));
     }

@@ -1,12 +1,12 @@
 //! Runtime abstraction for async execution
 
+use crate::Result;
 use async_trait::async_trait;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
-use crate::Result;
 use tokio_util::sync::CancellationToken;
 
 /// Task priority levels
@@ -25,33 +25,33 @@ pub trait AsyncRuntime: Send + Sync + 'static {
     fn spawn<F>(&self, future: F) -> TaskHandle
     where
         F: Future<Output = ()> + Send + 'static;
-    
+
     /// Spawn a task with priority
     fn spawn_with_priority<F>(&self, priority: TaskPriority, future: F) -> TaskHandle
     where
         F: Future<Output = ()> + Send + 'static;
-    
+
     /// Spawn a blocking task
     fn spawn_blocking<F, R>(&self, f: F) -> Pin<Box<dyn Future<Output = Result<R>> + Send>>
     where
         F: FnOnce() -> R + Send + 'static,
         R: Send + 'static;
-    
+
     /// Sleep for a duration
     async fn sleep(&self, duration: Duration);
-    
+
     /// Create a timer that fires after duration
     fn timer(&self, duration: Duration) -> Pin<Box<dyn Future<Output = ()> + Send>>;
-    
+
     /// Create an interval timer
     fn interval(&self, period: Duration) -> Pin<Box<dyn futures::Stream<Item = Instant> + Send>>;
-    
+
     /// Get runtime metrics
     fn metrics(&self) -> RuntimeMetrics;
-    
+
     /// Create a cancellation token
     fn cancellation_token(&self) -> CancellationToken;
-    
+
     /// Shutdown the runtime gracefully
     async fn shutdown(&self, timeout: Duration) -> Result<()>;
 }
@@ -69,24 +69,24 @@ impl TaskHandle {
     pub fn id(&self) -> uuid::Uuid {
         self.id
     }
-    
+
     /// Get task priority
     pub fn priority(&self) -> TaskPriority {
         self.priority
     }
-    
+
     /// Get elapsed time since spawn
     pub fn elapsed(&self) -> Duration {
         self.spawned_at.elapsed()
     }
-    
+
     /// Abort the task
     pub fn abort(&self) {
         if let Some(handle) = &self.abort_handle {
             handle.abort();
         }
     }
-    
+
     /// Check if task is finished
     pub fn is_finished(&self) -> bool {
         self.abort_handle.as_ref().is_none_or(|h| h.is_finished())
@@ -134,7 +134,7 @@ impl TokioRuntime {
             shutdown_token: CancellationToken::new(),
         }
     }
-    
+
     pub fn with_handle(handle: tokio::runtime::Handle) -> Self {
         Self {
             handle,
@@ -142,13 +142,13 @@ impl TokioRuntime {
             shutdown_token: CancellationToken::new(),
         }
     }
-    
+
     fn track_task_completion(&self, duration: Duration) {
         self.stats.total_completed.fetch_add(1, Ordering::Relaxed);
-        
+
         let mut durations = self.stats.task_durations.lock();
         durations.push(duration);
-        
+
         // Keep only last 1000 task durations for averaging
         if durations.len() > 1000 {
             let drain_count = durations.len() - 1000;
@@ -165,7 +165,7 @@ impl AsyncRuntime for TokioRuntime {
     {
         self.spawn_with_priority(TaskPriority::Normal, future)
     }
-    
+
     fn spawn_with_priority<F>(&self, priority: TaskPriority, future: F) -> TaskHandle
     where
         F: Future<Output = ()> + Send + 'static,
@@ -173,15 +173,15 @@ impl AsyncRuntime for TokioRuntime {
         let id = uuid::Uuid::new_v4();
         let spawned_at = Instant::now();
         let stats = Arc::clone(&self.stats);
-        
+
         stats.total_spawned.fetch_add(1, Ordering::Relaxed);
-        
+
         // Wrap the future to track completion
         let tracked_future = async move {
             future.await;
             let duration = spawned_at.elapsed();
             stats.total_completed.fetch_add(1, Ordering::Relaxed);
-            
+
             let mut durations = stats.task_durations.lock();
             durations.push(duration);
             if durations.len() > 1000 {
@@ -189,7 +189,7 @@ impl AsyncRuntime for TokioRuntime {
                 durations.drain(0..drain_count);
             }
         };
-        
+
         let handle = match priority {
             TaskPriority::Critical | TaskPriority::High => {
                 // For high priority tasks, spawn directly without yielding
@@ -203,7 +203,7 @@ impl AsyncRuntime for TokioRuntime {
                 })
             }
         };
-        
+
         TaskHandle {
             id,
             abort_handle: Some(handle.abort_handle()),
@@ -211,7 +211,7 @@ impl AsyncRuntime for TokioRuntime {
             spawned_at,
         }
     }
-    
+
     fn spawn_blocking<F, R>(&self, f: F) -> Pin<Box<dyn Future<Output = Result<R>> + Send>>
     where
         F: FnOnce() -> R + Send + 'static,
@@ -219,30 +219,30 @@ impl AsyncRuntime for TokioRuntime {
     {
         let handle = self.handle.clone();
         Box::pin(async move {
-            handle.spawn_blocking(f)
+            handle
+                .spawn_blocking(f)
                 .await
                 .map_err(|e| crate::Error::Runtime(e.to_string()))
         })
     }
-    
+
     async fn sleep(&self, duration: Duration) {
         tokio::time::sleep(duration).await
     }
-    
+
     fn timer(&self, duration: Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         Box::pin(tokio::time::sleep(duration))
     }
-    
+
     fn interval(&self, period: Duration) -> Pin<Box<dyn futures::Stream<Item = Instant> + Send>> {
         use futures::StreamExt;
-        
-        let stream = tokio_stream::wrappers::IntervalStream::new(
-            tokio::time::interval(period)
-        ).map(|_| Instant::now());
-        
+
+        let stream = tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(period))
+            .map(|_| Instant::now());
+
         Box::pin(stream)
     }
-    
+
     fn metrics(&self) -> RuntimeMetrics {
         let durations = self.stats.task_durations.lock();
         let avg_duration_ms = if durations.is_empty() {
@@ -251,9 +251,11 @@ impl AsyncRuntime for TokioRuntime {
             let sum: Duration = durations.iter().sum();
             sum.as_millis() as f64 / durations.len() as f64
         };
-        
+
         RuntimeMetrics {
-            active_tasks: (self.stats.total_spawned.load(Ordering::Relaxed) - self.stats.total_completed.load(Ordering::Relaxed)) as usize,
+            active_tasks: (self.stats.total_spawned.load(Ordering::Relaxed)
+                - self.stats.total_completed.load(Ordering::Relaxed))
+                as usize,
             total_spawned: self.stats.total_spawned.load(Ordering::Relaxed),
             total_completed: self.stats.total_completed.load(Ordering::Relaxed),
             blocked_threads: 0, // Not available in current tokio version
@@ -262,15 +264,15 @@ impl AsyncRuntime for TokioRuntime {
             avg_task_duration_ms: avg_duration_ms,
         }
     }
-    
+
     fn cancellation_token(&self) -> CancellationToken {
         self.shutdown_token.child_token()
     }
-    
+
     async fn shutdown(&self, timeout: Duration) -> Result<()> {
         // Signal shutdown
         self.shutdown_token.cancel();
-        
+
         // Wait for timeout or all tasks to complete
         tokio::time::timeout(timeout, async {
             while self.handle.metrics().num_alive_tasks() > 0 {
@@ -279,7 +281,7 @@ impl AsyncRuntime for TokioRuntime {
         })
         .await
         .map_err(|_| crate::Error::Runtime("Shutdown timeout".to_string()))?;
-        
+
         Ok(())
     }
 }
@@ -287,26 +289,26 @@ impl AsyncRuntime for TokioRuntime {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_tokio_runtime_spawn() {
         let runtime = TokioRuntime::new();
         let (tx, rx) = tokio::sync::oneshot::channel();
-        
+
         let handle = runtime.spawn(async move {
             tx.send(42).unwrap();
         });
-        
+
         let result = rx.await.unwrap();
         assert_eq!(result, 42);
         assert!(handle.is_finished());
     }
-    
+
     #[tokio::test]
     async fn test_priority_spawning() {
         let runtime = TokioRuntime::new();
         let results = Arc::new(parking_lot::Mutex::new(Vec::new()));
-        
+
         // Spawn tasks with different priorities
         for i in 0..4 {
             let priority = match i {
@@ -316,49 +318,49 @@ mod tests {
                 3 => TaskPriority::Critical,
                 _ => unreachable!(),
             };
-            
+
             let results = Arc::clone(&results);
             runtime.spawn_with_priority(priority, async move {
                 tokio::time::sleep(Duration::from_millis(10)).await;
                 results.lock().push(i);
             });
         }
-        
+
         // Wait for all tasks
         tokio::time::sleep(Duration::from_millis(100)).await;
-        
+
         // Higher priority tasks should generally complete first
         let final_results = results.lock().clone();
         assert_eq!(final_results.len(), 4);
     }
-    
+
     #[tokio::test]
     async fn test_cancellation_token() {
         let runtime = TokioRuntime::new();
         let token = runtime.cancellation_token();
-        
+
         let task_token = token.clone();
         let handle = runtime.spawn(async move {
             task_token.cancelled().await;
         });
-        
+
         // Cancel and verify
         token.cancel();
         tokio::time::sleep(Duration::from_millis(10)).await;
         assert!(handle.is_finished());
     }
-    
+
     #[tokio::test]
     async fn test_metrics() {
         let runtime = TokioRuntime::new();
-        
+
         // Spawn some tasks
         for _ in 0..5 {
             runtime.spawn(async {
                 tokio::time::sleep(Duration::from_millis(10)).await;
             });
         }
-        
+
         let metrics = runtime.metrics();
         assert!(metrics.total_spawned >= 5);
         assert!(metrics.active_tasks > 0);

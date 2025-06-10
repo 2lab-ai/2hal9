@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
-use crate::{Result, Error};
+use crate::{Error, Result};
 
 /// Tool definition for MCP
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,15 +29,12 @@ pub enum ToolContent {
     #[serde(rename = "text")]
     Text { text: String },
     #[serde(rename = "image")]
-    Image { 
-        data: String,  // base64 encoded
+    Image {
+        data: String, // base64 encoded
         mime_type: String,
     },
     #[serde(rename = "resource")]
-    Resource { 
-        uri: String,
-        mime_type: String,
-    },
+    Resource { uri: String, mime_type: String },
 }
 
 /// Tool trait for implementing tools
@@ -45,10 +42,10 @@ pub enum ToolContent {
 pub trait Tool: Send + Sync {
     /// Get tool name
     fn name(&self) -> &str;
-    
+
     /// Get tool definition
     fn definition(&self) -> ToolDefinition;
-    
+
     /// Execute the tool
     async fn execute(&self, params: Value) -> Result<Value>;
 }
@@ -69,7 +66,7 @@ impl Tool for ProcessTaskTool {
     fn name(&self) -> &str {
         "process_task"
     }
-    
+
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "process_task".to_string(),
@@ -90,12 +87,13 @@ impl Tool for ProcessTaskTool {
             }),
         }
     }
-    
+
     async fn execute(&self, params: Value) -> Result<Value> {
-        let task = params.get("task")
+        let task = params
+            .get("task")
             .and_then(|v| v.as_str())
             .ok_or_else(|| crate::Error::InvalidInput("Missing task parameter".to_string()))?;
-        
+
         // Process based on layer
         let result = match self.layer.as_str() {
             "L4" => {
@@ -123,9 +121,9 @@ impl Tool for ProcessTaskTool {
                 // Implementation - return code or detailed steps
                 vec![format!("Implementation code for: {}", task)]
             }
-            _ => vec![format!("Processed: {}", task)]
+            _ => vec![format!("Processed: {}", task)],
         };
-        
+
         Ok(serde_json::json!({
             "content": [{
                 "type": "text",
@@ -152,7 +150,7 @@ impl Tool for StatusTool {
     fn name(&self) -> &str {
         "get_status"
     }
-    
+
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "get_status".to_string(),
@@ -163,7 +161,7 @@ impl Tool for StatusTool {
             }),
         }
     }
-    
+
     async fn execute(&self, _params: Value) -> Result<Value> {
         Ok(serde_json::json!({
             "content": [{
@@ -200,20 +198,18 @@ impl ToolRegistry {
             tools: HashMap::new(),
         }
     }
-    
+
     /// Register a tool
     pub fn register(&mut self, tool: Box<dyn Tool>) {
         let name = tool.name().to_string();
         self.tools.insert(name, tool);
     }
-    
+
     /// Get available tool definitions
     pub fn definitions(&self) -> Vec<ToolDefinition> {
-        self.tools.values()
-            .map(|tool| tool.definition())
-            .collect()
+        self.tools.values().map(|tool| tool.definition()).collect()
     }
-    
+
     /// Execute a tool
     pub async fn execute(&self, tool_name: &str, params: Value) -> Result<Value> {
         match self.tools.get(tool_name) {
@@ -232,10 +228,12 @@ impl FilesystemReadTool {
     pub fn new(allowed_paths: Vec<String>) -> Self {
         Self { allowed_paths }
     }
-    
+
     fn is_allowed_path(&self, path: &str) -> bool {
         // Check if path is under any allowed directory
-        self.allowed_paths.iter().any(|allowed| path.starts_with(allowed))
+        self.allowed_paths
+            .iter()
+            .any(|allowed| path.starts_with(allowed))
     }
 }
 
@@ -244,7 +242,7 @@ impl Tool for FilesystemReadTool {
     fn name(&self) -> &str {
         "filesystem_read"
     }
-    
+
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "filesystem_read".to_string(),
@@ -261,17 +259,20 @@ impl Tool for FilesystemReadTool {
             }),
         }
     }
-    
+
     async fn execute(&self, params: Value) -> Result<Value> {
-        let path = params.get("path")
+        let path = params
+            .get("path")
             .and_then(|p| p.as_str())
             .ok_or_else(|| Error::ToolExecution("Missing 'path' parameter".to_string()))?;
-        
+
         // Security check
         if !self.is_allowed_path(path) {
-            return Err(Error::ToolExecution("Path not in allowed directories".to_string()));
+            return Err(Error::ToolExecution(
+                "Path not in allowed directories".to_string(),
+            ));
         }
-        
+
         // Read file
         match tokio::fs::read_to_string(path).await {
             Ok(content) => Ok(serde_json::json!({
@@ -298,9 +299,11 @@ impl FilesystemWriteTool {
     pub fn new(allowed_paths: Vec<String>) -> Self {
         Self { allowed_paths }
     }
-    
+
     fn is_allowed_path(&self, path: &str) -> bool {
-        self.allowed_paths.iter().any(|allowed| path.starts_with(allowed))
+        self.allowed_paths
+            .iter()
+            .any(|allowed| path.starts_with(allowed))
     }
 }
 
@@ -309,7 +312,7 @@ impl Tool for FilesystemWriteTool {
     fn name(&self) -> &str {
         "filesystem_write"
     }
-    
+
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "filesystem_write".to_string(),
@@ -330,21 +333,25 @@ impl Tool for FilesystemWriteTool {
             }),
         }
     }
-    
+
     async fn execute(&self, params: Value) -> Result<Value> {
-        let path = params.get("path")
+        let path = params
+            .get("path")
             .and_then(|p| p.as_str())
             .ok_or_else(|| Error::ToolExecution("Missing 'path' parameter".to_string()))?;
-            
-        let content = params.get("content")
+
+        let content = params
+            .get("content")
             .and_then(|c| c.as_str())
             .ok_or_else(|| Error::ToolExecution("Missing 'content' parameter".to_string()))?;
-        
+
         // Security check
         if !self.is_allowed_path(path) {
-            return Err(Error::ToolExecution("Path not in allowed directories".to_string()));
+            return Err(Error::ToolExecution(
+                "Path not in allowed directories".to_string(),
+            ));
         }
-        
+
         // Write file
         match tokio::fs::write(path, content).await {
             Ok(_) => Ok(serde_json::json!({
@@ -378,7 +385,7 @@ impl Tool for ShellTool {
     fn name(&self) -> &str {
         "shell_execute"
     }
-    
+
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "shell_execute".to_string(),
@@ -400,22 +407,27 @@ impl Tool for ShellTool {
             }),
         }
     }
-    
+
     async fn execute(&self, params: Value) -> Result<Value> {
-        let command = params.get("command")
+        let command = params
+            .get("command")
             .and_then(|c| c.as_str())
             .ok_or_else(|| Error::ToolExecution("Missing 'command' parameter".to_string()))?;
-        
+
         // Security check
         if !self.allowed_commands.contains(&command.to_string()) {
-            return Err(Error::ToolExecution(format!("Command '{}' not allowed", command)));
+            return Err(Error::ToolExecution(format!(
+                "Command '{}' not allowed",
+                command
+            )));
         }
-        
-        let args = params.get("args")
+
+        let args = params
+            .get("args")
             .and_then(|a| a.as_array())
             .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>())
             .unwrap_or_default();
-        
+
         // Execute command
         match tokio::process::Command::new(command)
             .args(&args)
@@ -426,7 +438,7 @@ impl Tool for ShellTool {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 let exit_code = output.status.code().unwrap_or(-1);
-                
+
                 Ok(serde_json::json!({
                     "content": [{
                         "type": "text",
@@ -441,7 +453,10 @@ impl Tool for ShellTool {
                     }
                 }))
             }
-            Err(e) => Err(Error::ToolExecution(format!("Failed to execute command: {}", e))),
+            Err(e) => Err(Error::ToolExecution(format!(
+                "Failed to execute command: {}",
+                e
+            ))),
         }
     }
 }
@@ -455,7 +470,7 @@ impl WebFetchTool {
     pub fn new(allowed_domains: Option<Vec<String>>) -> Self {
         Self { allowed_domains }
     }
-    
+
     fn is_allowed_url(&self, url: &str) -> bool {
         match &self.allowed_domains {
             Some(domains) => domains.iter().any(|domain| url.contains(domain)),
@@ -469,7 +484,7 @@ impl Tool for WebFetchTool {
     fn name(&self) -> &str {
         "web_fetch"
     }
-    
+
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "web_fetch".to_string(),
@@ -490,25 +505,28 @@ impl Tool for WebFetchTool {
             }),
         }
     }
-    
+
     async fn execute(&self, params: Value) -> Result<Value> {
-        let url = params.get("url")
+        let url = params
+            .get("url")
             .and_then(|u| u.as_str())
             .ok_or_else(|| Error::ToolExecution("Missing 'url' parameter".to_string()))?;
-        
+
         // Security check
         if !self.is_allowed_url(url) {
-            return Err(Error::ToolExecution("URL not in allowed domains".to_string()));
+            return Err(Error::ToolExecution(
+                "URL not in allowed domains".to_string(),
+            ));
         }
-        
+
         // Create HTTP client
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(30))
             .build()
             .map_err(|e| Error::ToolExecution(format!("Failed to create HTTP client: {}", e)))?;
-            
+
         let mut request = client.get(url);
-        
+
         // Add headers if provided
         if let Some(headers) = params.get("headers").and_then(|h| h.as_object()) {
             for (key, value) in headers {
@@ -517,14 +535,16 @@ impl Tool for WebFetchTool {
                 }
             }
         }
-        
+
         // Execute request
         match request.send().await {
             Ok(response) => {
                 let status = response.status().as_u16();
-                let content = response.text().await
+                let content = response
+                    .text()
+                    .await
                     .unwrap_or_else(|e| format!("Failed to read response: {}", e));
-                
+
                 Ok(serde_json::json!({
                     "content": [{
                         "type": "text",

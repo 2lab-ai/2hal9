@@ -1,12 +1,12 @@
 //! Error pattern recognition and mitigation
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
-use super::{ErrorType, ErrorGradient};
-use crate::{Result, Error};
+use super::{ErrorGradient, ErrorType};
+use crate::{Error, Result};
 
 /// Represents a recurring error pattern
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,56 +55,56 @@ impl ErrorPattern {
             confidence: 0.0,
         }
     }
-    
+
     /// Add a new occurrence
     pub fn add_occurrence(&mut self, occurrence: ErrorOccurrence) {
         self.last_seen = occurrence.timestamp;
         self.occurrences.push(occurrence);
         self.update_confidence();
     }
-    
+
     /// Add a successful mitigation
     pub fn add_mitigation(&mut self, mitigation: Mitigation) {
         self.successful_mitigations.push(mitigation);
         self.update_prevention_strategy();
         self.update_confidence();
     }
-    
+
     /// Update confidence based on occurrences and mitigations
     fn update_confidence(&mut self) {
         let occurrence_count = self.occurrences.len() as f32;
         let mitigation_count = self.successful_mitigations.len() as f32;
-        
+
         // Higher confidence with more occurrences and successful mitigations
-        self.confidence = (occurrence_count / 10.0).min(0.5) + 
-                         (mitigation_count / 5.0).min(0.5);
+        self.confidence = (occurrence_count / 10.0).min(0.5) + (mitigation_count / 5.0).min(0.5);
     }
-    
+
     /// Update prevention strategy based on successful mitigations
     fn update_prevention_strategy(&mut self) {
         if self.successful_mitigations.is_empty() {
             return;
         }
-        
+
         // Find most successful mitigation strategy
-        let best_mitigation = self.successful_mitigations
+        let best_mitigation = self
+            .successful_mitigations
             .iter()
             .max_by(|a, b| a.success_score.partial_cmp(&b.success_score).unwrap())
             .unwrap();
-            
+
         self.prevention_strategy = Some(format!(
             "Apply strategy '{}' with adjustments: {}",
             best_mitigation.strategy,
             best_mitigation.adjustments_applied.join(", ")
         ));
     }
-    
+
     /// Check if this pattern matches an error
     pub fn matches(&self, error_type: &ErrorType, _context: &HashMap<String, String>) -> bool {
         // Simple signature matching for now
         self.error_signature == error_type.signature()
     }
-    
+
     /// Get recommended mitigation for this pattern
     pub fn recommend_mitigation(&self) -> Option<Mitigation> {
         self.successful_mitigations
@@ -127,7 +127,7 @@ impl PatternMatcher {
             threshold,
         }
     }
-    
+
     /// Process a new error gradient
     pub fn process_error(&mut self, gradient: &ErrorGradient) -> Option<ErrorPattern> {
         let signature = gradient.error_type.signature();
@@ -137,11 +137,11 @@ impl PatternMatcher {
             error_gradient: gradient.clone(),
             was_mitigated: false,
         };
-        
+
         if let Some(pattern) = self.patterns.get_mut(&signature) {
             // Add to existing pattern
             pattern.add_occurrence(occurrence);
-            
+
             if pattern.occurrences.len() >= self.threshold {
                 return Some(pattern.clone());
             }
@@ -150,10 +150,10 @@ impl PatternMatcher {
             let pattern = ErrorPattern::new(signature.clone(), occurrence);
             self.patterns.insert(signature, pattern);
         }
-        
+
         None
     }
-    
+
     /// Find patterns matching an error
     pub fn find_matching_patterns(&self, error_type: &ErrorType) -> Vec<&ErrorPattern> {
         let signature = error_type.signature();
@@ -162,7 +162,7 @@ impl PatternMatcher {
             .filter(|p| p.error_signature == signature && p.confidence > 0.5)
             .collect()
     }
-    
+
     /// Record a successful mitigation
     pub fn record_mitigation(
         &mut self,
@@ -178,7 +178,7 @@ impl PatternMatcher {
             adjustments_applied: adjustments,
             success_score,
         };
-        
+
         // Find pattern by ID
         for pattern in self.patterns.values_mut() {
             if pattern.pattern_id == pattern_id {
@@ -186,10 +186,10 @@ impl PatternMatcher {
                 return Ok(());
             }
         }
-        
+
         Err(Error::NotFound(format!("Pattern {} not found", pattern_id)))
     }
-    
+
     /// Get all high-confidence patterns
     pub fn get_high_confidence_patterns(&self) -> Vec<&ErrorPattern> {
         self.patterns
@@ -197,16 +197,17 @@ impl PatternMatcher {
             .filter(|p| p.confidence > 0.7)
             .collect()
     }
-    
+
     /// Export patterns for sharing
     pub fn export_patterns(&self) -> Vec<ErrorPattern> {
         self.patterns.values().cloned().collect()
     }
-    
+
     /// Import patterns from another matcher
     pub fn import_patterns(&mut self, patterns: Vec<ErrorPattern>) {
         for pattern in patterns {
-            self.patterns.insert(pattern.error_signature.clone(), pattern);
+            self.patterns
+                .insert(pattern.error_signature.clone(), pattern);
         }
     }
 }

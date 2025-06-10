@@ -6,8 +6,8 @@ use axum::{
     middleware::Next,
     response::Response,
 };
+use hal9_core::auth::{ApiKeyManager, AuthError, JwtManager, Permissions};
 use std::sync::Arc;
-use hal9_core::auth::{JwtManager, ApiKeyManager, Permissions, AuthError};
 
 /// Authentication state
 #[derive(Clone)]
@@ -71,7 +71,7 @@ pub async fn auth_middleware(
             Err(_) => {} // Try API key next
         }
     }
-    
+
     // Try API key
     if let Some(api_key) = extract_api_key(&req) {
         match auth_state.api_key_manager.validate_api_key(&api_key).await {
@@ -88,7 +88,7 @@ pub async fn auth_middleware(
             Err(_) => return Err(StatusCode::UNAUTHORIZED),
         }
     }
-    
+
     Err(StatusCode::UNAUTHORIZED)
 }
 
@@ -112,7 +112,9 @@ pub async fn optional_auth_middleware(
         }
     } else if let Some(api_key) = extract_api_key(&req) {
         // Try API key
-        if let Ok((key_info, permissions)) = auth_state.api_key_manager.validate_api_key(&api_key).await {
+        if let Ok((key_info, permissions)) =
+            auth_state.api_key_manager.validate_api_key(&api_key).await
+        {
             let user = AuthUser {
                 user_id: key_info.user_id.clone(),
                 username: format!("api_key_{}", key_info.name),
@@ -122,12 +124,19 @@ pub async fn optional_auth_middleware(
             req.extensions_mut().insert(user);
         }
     }
-    
+
     Ok(next.run(req).await)
 }
 
 /// Permission check middleware factory
-pub fn require_permission(permission: hal9_core::auth::Permission) -> impl Fn(Request, Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Response, StatusCode>> + Send>> + Clone {
+pub fn require_permission(
+    permission: hal9_core::auth::Permission,
+) -> impl Fn(
+    Request,
+    Next,
+) -> std::pin::Pin<
+    Box<dyn std::future::Future<Output = Result<Response, StatusCode>> + Send>,
+> + Clone {
     move |req: Request, next: Next| {
         let permission = permission.clone();
         Box::pin(async move {
@@ -143,7 +152,7 @@ pub fn require_permission(permission: hal9_core::auth::Permission) -> impl Fn(Re
 /// Get permissions for a role
 fn get_role_permissions(role: &str) -> Permissions {
     use hal9_core::auth::UserRole;
-    
+
     match role {
         "admin" => UserRole::Admin.default_permissions(),
         "user" => UserRole::User.default_permissions(),

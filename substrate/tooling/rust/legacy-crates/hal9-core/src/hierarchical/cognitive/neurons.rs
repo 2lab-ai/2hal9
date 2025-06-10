@@ -1,10 +1,10 @@
 //! Hierarchical neuron implementations for each cognitive layer
 
-use async_trait::async_trait;
-use uuid::Uuid;
-use std::collections::HashMap;
-use crate::Result;
 use super::*;
+use crate::Result;
+use async_trait::async_trait;
+use std::collections::HashMap;
+use uuid::Uuid;
 
 /// L5: Strategic Neuron - Long-term vision and goals
 pub struct StrategicNeuron {
@@ -61,7 +61,9 @@ impl StrategicNeuron {
                 strategic_context: HashMap::new(),
             },
             vision_model: VisionModel {},
-            goal_hierarchy: GoalHierarchy { root_goals: Vec::new() },
+            goal_hierarchy: GoalHierarchy {
+                root_goals: Vec::new(),
+            },
         }
     }
 }
@@ -71,15 +73,15 @@ impl CognitiveUnit for StrategicNeuron {
     type Input = CognitiveInput;
     type Output = CognitiveOutput;
     type State = StrategicState;
-    
+
     fn id(&self) -> &Uuid {
         &self.id
     }
-    
+
     fn layer(&self) -> CognitiveLayer {
         CognitiveLayer::Strategic
     }
-    
+
     async fn process(&mut self, input: Self::Input) -> Result<Self::Output> {
         // Strategic processing: vision alignment, goal setting
         let output = CognitiveOutput {
@@ -88,21 +90,21 @@ impl CognitiveUnit for StrategicNeuron {
             metadata: HashMap::new(),
             target_layers: vec![CognitiveLayer::Tactical],
         };
-        
+
         self.state.basic.metrics.activations_processed += 1;
         Ok(output)
     }
-    
+
     async fn learn(&mut self, _gradient: LearningGradient) -> Result<()> {
         // Adjust vision and goals based on feedback
         self.state.basic.metrics.learning_iterations += 1;
         Ok(())
     }
-    
+
     async fn introspect(&self) -> Self::State {
         self.state.clone()
     }
-    
+
     async fn reset(&mut self) -> Result<()> {
         self.state.active_goals.clear();
         self.state.strategic_context.clear();
@@ -112,13 +114,16 @@ impl CognitiveUnit for StrategicNeuron {
 
 impl CognitiveState for StrategicState {
     fn summary(&self) -> String {
-        format!("Strategic neuron with {} active goals", self.active_goals.len())
+        format!(
+            "Strategic neuron with {} active goals",
+            self.active_goals.len()
+        )
     }
-    
+
     fn is_healthy(&self) -> bool {
         self.basic.is_healthy()
     }
-    
+
     fn metrics(&self) -> StateMetrics {
         self.basic.metrics()
     }
@@ -300,13 +305,16 @@ pub struct ResponseCache {
 
 impl CognitiveState for ImplementationState {
     fn summary(&self) -> String {
-        format!("Implementation neuron - {} executions", self.execution_history.len())
+        format!(
+            "Implementation neuron - {} executions",
+            self.execution_history.len()
+        )
     }
-    
+
     fn is_healthy(&self) -> bool {
         self.basic.is_healthy()
     }
-    
+
     fn metrics(&self) -> StateMetrics {
         self.basic.metrics()
     }
@@ -314,13 +322,16 @@ impl CognitiveState for ImplementationState {
 
 impl CognitiveState for OperationalState {
     fn summary(&self) -> String {
-        format!("Operational neuron - {} tasks queued", self.task_queue.len())
+        format!(
+            "Operational neuron - {} tasks queued",
+            self.task_queue.len()
+        )
     }
-    
+
     fn is_healthy(&self) -> bool {
         self.basic.is_healthy() && self.task_queue.len() < 100
     }
-    
+
     fn metrics(&self) -> StateMetrics {
         self.basic.metrics()
     }
@@ -328,13 +339,16 @@ impl CognitiveState for OperationalState {
 
 impl CognitiveState for TacticalState {
     fn summary(&self) -> String {
-        format!("Tactical neuron - {} active strategies", self.active_strategies.len())
+        format!(
+            "Tactical neuron - {} active strategies",
+            self.active_strategies.len()
+        )
     }
-    
+
     fn is_healthy(&self) -> bool {
         self.basic.is_healthy()
     }
-    
+
     fn metrics(&self) -> StateMetrics {
         self.basic.metrics()
     }
@@ -342,15 +356,19 @@ impl CognitiveState for TacticalState {
 
 impl CognitiveState for ReflexiveState {
     fn summary(&self) -> String {
-        format!("Reflexive neuron - {} patterns, {:.1}% cache hit rate", 
-                self.patterns.len(),
-                (self.cache_stats.hits as f64 / (self.cache_stats.hits + self.cache_stats.misses) as f64) * 100.0)
+        format!(
+            "Reflexive neuron - {} patterns, {:.1}% cache hit rate",
+            self.patterns.len(),
+            (self.cache_stats.hits as f64
+                / (self.cache_stats.hits + self.cache_stats.misses) as f64)
+                * 100.0
+        )
     }
-    
+
     fn is_healthy(&self) -> bool {
         self.basic.is_healthy()
     }
-    
+
     fn metrics(&self) -> StateMetrics {
         self.basic.metrics()
     }

@@ -1,6 +1,6 @@
 use async_graphql::{
-    ComplexObject, Context, EmptyMutation, EmptySubscription, FieldResult,
-    InputObject, Interface, Object, Schema, SimpleObject, Subscription, ID,
+    ComplexObject, Context, EmptyMutation, EmptySubscription, FieldResult, InputObject, Interface,
+    Object, Schema, SimpleObject, Subscription, ID,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -9,7 +9,7 @@ use tokio_stream::Stream;
 use uuid::Uuid;
 
 use crate::{
-    auth::{User, Permission},
+    auth::{Permission, User},
     enterprise::{Organization, Team},
     neuron::NeuronState,
     signal::Signal,
@@ -267,11 +267,7 @@ impl QueryRoot {
     }
 
     /// Get signal by ID
-    async fn signal(
-        &self,
-        ctx: &Context<'_>,
-        id: ID,
-    ) -> FieldResult<Option<SignalResponse>> {
+    async fn signal(&self, ctx: &Context<'_>, id: ID) -> FieldResult<Option<SignalResponse>> {
         todo!("Implement signal resolver")
     }
 
@@ -287,11 +283,7 @@ impl QueryRoot {
     }
 
     /// Get neuron by ID
-    async fn neuron(
-        &self,
-        ctx: &Context<'_>,
-        id: ID,
-    ) -> FieldResult<Option<NeuronInfo>> {
+    async fn neuron(&self, ctx: &Context<'_>, id: ID) -> FieldResult<Option<NeuronInfo>> {
         todo!("Implement neuron resolver")
     }
 
@@ -337,20 +329,12 @@ impl QueryRoot {
     }
 
     /// Get organization by ID
-    async fn organization(
-        &self,
-        ctx: &Context<'_>,
-        id: ID,
-    ) -> FieldResult<Option<Organization>> {
+    async fn organization(&self, ctx: &Context<'_>, id: ID) -> FieldResult<Option<Organization>> {
         todo!("Implement organization resolver")
     }
 
     /// Get team by ID
-    async fn team(
-        &self,
-        ctx: &Context<'_>,
-        id: ID,
-    ) -> FieldResult<Option<Team>> {
+    async fn team(&self, ctx: &Context<'_>, id: ID) -> FieldResult<Option<Team>> {
         todo!("Implement team resolver")
     }
 }
@@ -380,11 +364,7 @@ impl MutationRoot {
     }
 
     /// Delete a neuron
-    async fn delete_neuron(
-        &self,
-        ctx: &Context<'_>,
-        id: ID,
-    ) -> FieldResult<bool> {
+    async fn delete_neuron(&self, ctx: &Context<'_>, id: ID) -> FieldResult<bool> {
         todo!("Implement delete_neuron mutation")
     }
 
@@ -398,11 +378,7 @@ impl MutationRoot {
     }
 
     /// Clear memory cache
-    async fn clear_memory(
-        &self,
-        ctx: &Context<'_>,
-        pattern: Option<String>,
-    ) -> FieldResult<i32> {
+    async fn clear_memory(&self, ctx: &Context<'_>, pattern: Option<String>) -> FieldResult<i32> {
         todo!("Implement clear_memory mutation")
     }
 
@@ -416,20 +392,12 @@ impl MutationRoot {
     }
 
     /// Create team
-    async fn create_team(
-        &self,
-        ctx: &Context<'_>,
-        input: CreateTeamInput,
-    ) -> FieldResult<Team> {
+    async fn create_team(&self, ctx: &Context<'_>, input: CreateTeamInput) -> FieldResult<Team> {
         todo!("Implement create_team mutation")
     }
 
     /// Assign role to user
-    async fn assign_role(
-        &self,
-        ctx: &Context<'_>,
-        input: AssignRoleInput,
-    ) -> FieldResult<bool> {
+    async fn assign_role(&self, ctx: &Context<'_>, input: AssignRoleInput) -> FieldResult<bool> {
         todo!("Implement assign_role mutation")
     }
 }
@@ -441,10 +409,7 @@ pub struct SubscriptionRoot;
 #[Subscription]
 impl SubscriptionRoot {
     /// Subscribe to signal updates
-    async fn signal_updates(
-        &self,
-        signal_id: Option<ID>,
-    ) -> impl Stream<Item = SignalUpdate> {
+    async fn signal_updates(&self, signal_id: Option<ID>) -> impl Stream<Item = SignalUpdate> {
         // Implementation would create a stream of signal updates
         tokio_stream::pending()
     }
@@ -467,10 +432,7 @@ impl SubscriptionRoot {
     }
 
     /// Subscribe to learning events
-    async fn learning_events(
-        &self,
-        layer: Option<String>,
-    ) -> impl Stream<Item = LearningEvent> {
+    async fn learning_events(&self, layer: Option<String>) -> impl Stream<Item = LearningEvent> {
         tokio_stream::pending()
     }
 }

@@ -1,18 +1,15 @@
 //! Code Generation API endpoints
 
 use axum::{
-    extract::{State, Json, Path},
+    extract::{Json, Path, State},
     response::IntoResponse,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::{
-    server::HAL9Server,
-    error::ServerError,
-};
+use crate::{error::ServerError, server::HAL9Server};
 use hal9_core::NeuronSignal;
 
 /// Code generation API state
@@ -166,7 +163,7 @@ pub struct CodeChange {
 
 /// Generate a new project
 pub async fn generate_project(
-    State(state): State<Arc<CodegenApiState>>,
+    State(_state): State<Arc<CodegenApiState>>,
     Json(request): Json<GenerateProjectRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
     // Create project generation signal
@@ -182,7 +179,7 @@ pub async fn generate_project(
         },
         request.description
     );
-    
+
     // Add preferences to metadata
     let mut metadata = HashMap::new();
     if let Some(backend) = request.preferences.backend {
@@ -194,10 +191,13 @@ pub async fn generate_project(
     if let Some(database) = request.preferences.database {
         metadata.insert("database".to_string(), database);
     }
-    metadata.insert("testing".to_string(), request.preferences.testing.to_string());
+    metadata.insert(
+        "testing".to_string(),
+        request.preferences.testing.to_string(),
+    );
     metadata.insert("docker".to_string(), request.preferences.docker.to_string());
     metadata.insert("ci_cd".to_string(), request.preferences.ci_cd.to_string());
-    
+
     // Send to architect neuron
     let mut signal = NeuronSignal::forward(
         "codegen-api",
@@ -207,79 +207,72 @@ pub async fn generate_project(
         signal_content,
     );
     signal.metadata = metadata;
-    
-    match state.server.send_signal(signal).await {
-        Ok(_) => {
-            Ok(Json(GenerateProjectResponse {
-                project_id: project_id.clone(),
-                status: "processing".to_string(),
-                message: "Project generation started".to_string(),
-                location: Some(format!("/projects/{}", project_id)),
-            }))
-        }
-        Err(e) => {
-            Err(ServerError::Internal(format!("Failed to start generation: {}", e)))
-        }
+
+    match _state.server.send_signal(signal).await {
+        Ok(_) => Ok(Json(GenerateProjectResponse {
+            project_id: project_id.clone(),
+            status: "processing".to_string(),
+            message: "Project generation started".to_string(),
+            location: Some(format!("/projects/{}", project_id)),
+        })),
+        Err(e) => Err(ServerError::Internal(format!(
+            "Failed to start generation: {}",
+            e
+        ))),
     }
 }
 
 /// Get code completion suggestions
 pub async fn code_completion(
-    State(state): State<Arc<CodegenApiState>>,
+    State(_state): State<Arc<CodegenApiState>>,
     Json(request): Json<CodeCompletionRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
     // Determine the appropriate implementation neuron based on file extension
-    let language = request.language.or_else(|| {
-        match request.file_path.split('.').next_back() {
+    let language = request
+        .language
+        .or_else(|| match request.file_path.split('.').next_back() {
             Some("rs") => Some("rust".to_string()),
             Some("py") => Some("python".to_string()),
             Some("ts") | Some("tsx") => Some("typescript".to_string()),
             Some("js") | Some("jsx") => Some("javascript".to_string()),
             Some("go") => Some("go".to_string()),
             _ => None,
-        }
-    });
-    
+        });
+
     let target_neuron = match language.as_deref() {
         Some("rust") => "codegen-rust-impl",
         Some("python") => "codegen-python-impl",
         Some("typescript") | Some("javascript") => "codegen-typescript-impl",
         Some("go") => "codegen-go-impl",
-        _ => return Err(ServerError::InvalidInput("Unsupported language".to_string())),
+        _ => {
+            return Err(ServerError::InvalidInput(
+                "Unsupported language".to_string(),
+            ))
+        }
     };
-    
+
     // Create completion signal
     let signal_content = format!(
         "Complete code at position {} in file {}:\n{}",
-        request.cursor_position,
-        request.file_path,
-        request.context
+        request.cursor_position, request.file_path, request.context
     );
-    
-    let signal = NeuronSignal::forward(
-        "codegen-api",
-        target_neuron,
-        "API",
-        "L2",
-        signal_content,
-    );
-    
+
+    let _signal = NeuronSignal::forward("codegen-api", target_neuron, "API", "L2", signal_content);
+
     // For now, return mock suggestions
     // In production, this would wait for neuron response
     Ok(Json(CodeCompletionResponse {
-        suggestions: vec![
-            CodeSuggestion {
-                text: "// TODO: Implement completion".to_string(),
-                description: "Add implementation".to_string(),
-                confidence: 0.9,
-            },
-        ],
+        suggestions: vec![CodeSuggestion {
+            text: "// TODO: Implement completion".to_string(),
+            description: "Add implementation".to_string(),
+            confidence: 0.9,
+        }],
     }))
 }
 
 /// Review code for issues and improvements
 pub async fn review_code(
-    State(state): State<Arc<CodegenApiState>>,
+    State(_state): State<Arc<CodegenApiState>>,
     Json(request): Json<CodeReviewRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
     // Send to test designer for comprehensive review
@@ -293,46 +286,42 @@ pub async fn review_code(
             ReviewFocus::Style => "style inconsistencies",
         });
     }
-    
+
     let signal_content = format!(
         "Review code for {}: {}\n\nCode:\n{}",
         review_aspects.join(", "),
         request.file_path,
         request.content
     );
-    
-    let signal = NeuronSignal::forward(
+
+    let _signal = NeuronSignal::forward(
         "codegen-api",
         "codegen-test-designer",
         "API",
         "L3",
         signal_content,
     );
-    
+
     // Mock response for now
     Ok(Json(CodeReviewResponse {
-        issues: vec![
-            CodeIssue {
-                severity: "warning".to_string(),
-                line: Some(10),
-                message: "Consider adding error handling".to_string(),
-                suggestion: Some("Use Result<T, E> for error handling".to_string()),
-            },
-        ],
-        suggestions: vec![
-            CodeSuggestion {
-                text: "Add unit tests for this function".to_string(),
-                description: "Improve test coverage".to_string(),
-                confidence: 0.85,
-            },
-        ],
+        issues: vec![CodeIssue {
+            severity: "warning".to_string(),
+            line: Some(10),
+            message: "Consider adding error handling".to_string(),
+            suggestion: Some("Use Result<T, E> for error handling".to_string()),
+        }],
+        suggestions: vec![CodeSuggestion {
+            text: "Add unit tests for this function".to_string(),
+            description: "Improve test coverage".to_string(),
+            confidence: 0.85,
+        }],
         overall_score: 7.5,
     }))
 }
 
 /// Refactor code
 pub async fn refactor_code(
-    State(state): State<Arc<CodegenApiState>>,
+    State(_state): State<Arc<CodegenApiState>>,
     Json(request): Json<RefactorRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
     // Determine appropriate neuron based on file type
@@ -341,9 +330,13 @@ pub async fn refactor_code(
         Some("py") => "codegen-python-impl",
         Some("ts") | Some("tsx") => "codegen-typescript-impl",
         Some("go") => "codegen-go-impl",
-        _ => return Err(ServerError::InvalidInput("Unsupported file type".to_string())),
+        _ => {
+            return Err(ServerError::InvalidInput(
+                "Unsupported file type".to_string(),
+            ))
+        }
     };
-    
+
     let refactor_instruction = match request.refactor_type {
         RefactorType::ExtractMethod => "Extract selected code into a method",
         RefactorType::ExtractVariable => "Extract expression into a variable",
@@ -352,44 +345,33 @@ pub async fn refactor_code(
         RefactorType::OptimizeImports => "Optimize and organize imports",
         RefactorType::FormatCode => "Format code according to style guide",
     };
-    
+
     let signal_content = if let Some(selection) = request.selection {
         format!(
             "{} in {} (lines {}-{})",
-            refactor_instruction,
-            request.file_path,
-            selection.start_line,
-            selection.end_line
+            refactor_instruction, request.file_path, selection.start_line, selection.end_line
         )
     } else {
         format!("{} in {}", refactor_instruction, request.file_path)
     };
-    
-    let signal = NeuronSignal::forward(
-        "codegen-api",
-        target_neuron,
-        "API",
-        "L2",
-        signal_content,
-    );
-    
+
+    let _signal = NeuronSignal::forward("codegen-api", target_neuron, "API", "L2", signal_content);
+
     // Mock response
     Ok(Json(RefactorResponse {
         success: true,
         original_code: "// Original code".to_string(),
         refactored_code: "// Refactored code".to_string(),
-        changes: vec![
-            CodeChange {
-                line: 10,
-                description: "Extracted method 'processData'".to_string(),
-            },
-        ],
+        changes: vec![CodeChange {
+            line: 10,
+            description: "Extracted method 'processData'".to_string(),
+        }],
     }))
 }
 
 /// Get project generation status
 pub async fn get_project_status(
-    State(state): State<Arc<CodegenApiState>>,
+    State(_state): State<Arc<CodegenApiState>>,
     Path(project_id): Path<String>,
 ) -> Result<impl IntoResponse, ServerError> {
     // In production, this would check actual generation status
@@ -404,7 +386,7 @@ pub async fn get_project_status(
 
 /// List available project templates
 pub async fn list_templates(
-    State(state): State<Arc<CodegenApiState>>,
+    State(_state): State<Arc<CodegenApiState>>,
 ) -> Result<impl IntoResponse, ServerError> {
     Ok(Json(serde_json::json!({
         "templates": {
@@ -437,23 +419,23 @@ pub async fn list_templates(
 }
 
 /// Health check for code generation service
-pub async fn codegen_health(
-    State(state): State<Arc<CodegenApiState>>,
-) -> impl IntoResponse {
+pub async fn codegen_health(State(_state): State<Arc<CodegenApiState>>) -> impl IntoResponse {
     // Check if code generation neurons are healthy
-    let neurons = ["codegen-architect",
+    let neurons = [
+        "codegen-architect",
         "codegen-api-designer",
         "codegen-db-designer",
         "codegen-frontend-designer",
-        "codegen-test-designer"];
-    
+        "codegen-test-designer",
+    ];
+
     let mut healthy_count = 0;
     let total_count = neurons.len();
-    
+
     // In production, check actual neuron health
     // For now, assume all healthy
     healthy_count = total_count;
-    
+
     Json(serde_json::json!({
         "status": if healthy_count == total_count { "healthy" } else { "degraded" },
         "neurons": {

@@ -1,12 +1,12 @@
 //! Protocol negotiation for establishing communication parameters
 
-use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
+use super::{CompressionType, EncryptionType, ProtocolCapabilities, ProtocolVersion};
 use crate::Result;
-use super::{ProtocolVersion, ProtocolCapabilities, CompressionType, EncryptionType};
-use std::sync::Arc;
-use std::collections::HashMap;
+use async_trait::async_trait;
 use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Protocol negotiation session
 #[derive(Clone)]
@@ -20,6 +20,7 @@ pub struct NegotiationSession {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum NegotiationState {
     Initiated,
     Offered,
@@ -43,24 +44,24 @@ impl SessionNegotiator {
             timeout,
         }
     }
-    
+
     pub fn get_session(&self, session_id: uuid::Uuid) -> Option<NegotiationSession> {
         self.sessions.read().get(&session_id).cloned()
     }
-    
+
     pub fn active_sessions(&self) -> Vec<NegotiationSession> {
         self.sessions.read().values().cloned().collect()
     }
-    
+
     pub fn cleanup_expired(&self) {
         let now = chrono::Utc::now();
         let timeout = self.timeout;
-        
+
         self.sessions.write().retain(|_, session| {
             if session.completed_at.is_some() {
                 return true;
             }
-            
+
             let elapsed = now - session.started_at;
             elapsed.to_std().unwrap_or_default() < timeout
         });
@@ -72,11 +73,11 @@ impl ProtocolNegotiator for SessionNegotiator {
     async fn initiate(&self, offered: &ProtocolOffer) -> Result<NegotiationResponse> {
         self.inner.initiate(offered).await
     }
-    
+
     async fn respond(&self, request: &NegotiationRequest) -> Result<ProtocolOffer> {
         self.inner.respond(request).await
     }
-    
+
     async fn finalize(&self, agreement: &NegotiationAgreement) -> Result<()> {
         // Update session
         if let Some(session) = self.sessions.write().get_mut(&agreement.session_id) {
@@ -84,7 +85,7 @@ impl ProtocolNegotiator for SessionNegotiator {
             session.completed_at = Some(chrono::Utc::now());
             session.agreement = Some(agreement.clone());
         }
-        
+
         self.inner.finalize(agreement).await
     }
 }
@@ -94,10 +95,10 @@ impl ProtocolNegotiator for SessionNegotiator {
 pub trait ProtocolNegotiator: Send + Sync {
     /// Initiate negotiation as client
     async fn initiate(&self, offered: &ProtocolOffer) -> Result<NegotiationResponse>;
-    
+
     /// Respond to negotiation as server
     async fn respond(&self, request: &NegotiationRequest) -> Result<ProtocolOffer>;
-    
+
     /// Finalize negotiation
     async fn finalize(&self, agreement: &NegotiationAgreement) -> Result<()>;
 }
@@ -171,33 +172,40 @@ pub struct DefaultNegotiator {
 impl ProtocolNegotiator for DefaultNegotiator {
     async fn initiate(&self, offered: &ProtocolOffer) -> Result<NegotiationResponse> {
         // Select best matching protocol
-        let selected = self.select_best_protocol(&offered.protocols)
+        let selected = self
+            .select_best_protocol(&offered.protocols)
             .ok_or_else(|| crate::Error::Protocol("No compatible protocol found".to_string()))?;
-        
+
         // Negotiate parameters
-        let params = self.negotiate_parameters(
-            &selected,
-            &offered.capabilities,
-            &offered.preferences,
-        );
-        
+        let params =
+            self.negotiate_parameters(&selected, &offered.capabilities, &offered.preferences);
+
         Ok(NegotiationResponse {
             selected_protocol: selected,
             negotiated_params: params,
         })
     }
-    
+
     async fn respond(&self, request: &NegotiationRequest) -> Result<ProtocolOffer> {
         // Filter our protocols to those the client supports
-        let compatible: Vec<ProtocolDescriptor> = self.supported_protocols.iter()
-            .filter(|our| request.offered_protocols.iter().any(|their| their.id == our.id))
+        let compatible: Vec<ProtocolDescriptor> = self
+            .supported_protocols
+            .iter()
+            .filter(|our| {
+                request
+                    .offered_protocols
+                    .iter()
+                    .any(|their| their.id == our.id)
+            })
             .cloned()
             .collect();
-        
+
         if compatible.is_empty() {
-            return Err(crate::Error::Protocol("No compatible protocols".to_string()));
+            return Err(crate::Error::Protocol(
+                "No compatible protocols".to_string(),
+            ));
         }
-        
+
         Ok(ProtocolOffer {
             protocols: compatible,
             capabilities: self.capabilities.clone(),
@@ -209,13 +217,17 @@ impl ProtocolNegotiator for DefaultNegotiator {
             },
         })
     }
-    
+
     async fn finalize(&self, agreement: &NegotiationAgreement) -> Result<()> {
         // Validate agreement
-        if !self.supported_protocols.iter().any(|p| p.id == agreement.protocol.id) {
+        if !self
+            .supported_protocols
+            .iter()
+            .any(|p| p.id == agreement.protocol.id)
+        {
             return Err(crate::Error::Protocol("Protocol not supported".to_string()));
         }
-        
+
         // Could store agreement for later reference
         tracing::info!(
             "Finalized protocol negotiation: {} v{}.{}.{}",
@@ -224,7 +236,7 @@ impl ProtocolNegotiator for DefaultNegotiator {
             agreement.parameters.version.minor,
             agreement.parameters.version.patch
         );
-        
+
         Ok(())
     }
 }
@@ -236,7 +248,7 @@ impl DefaultNegotiator {
             capabilities,
         }
     }
-    
+
     fn select_best_protocol(&self, offered: &[ProtocolDescriptor]) -> Option<ProtocolDescriptor> {
         for our_proto in &self.supported_protocols {
             for their_proto in offered {
@@ -248,7 +260,9 @@ impl DefaultNegotiator {
                                 return Some(ProtocolDescriptor {
                                     id: our_proto.id.clone(),
                                     versions: vec![our_ver.clone()],
-                                    features: our_proto.features.iter()
+                                    features: our_proto
+                                        .features
+                                        .iter()
                                         .filter(|f| their_proto.features.contains(f))
                                         .cloned()
                                         .collect(),
@@ -261,7 +275,7 @@ impl DefaultNegotiator {
         }
         None
     }
-    
+
     fn negotiate_parameters(
         &self,
         protocol: &ProtocolDescriptor,
@@ -271,7 +285,9 @@ impl DefaultNegotiator {
         // Select compression
         let compression = if preferences.preferred_compression.is_some() {
             let pref = preferences.preferred_compression.as_ref().unwrap();
-            if peer_capabilities.compression.contains(pref) && self.capabilities.compression.contains(pref) {
+            if peer_capabilities.compression.contains(pref)
+                && self.capabilities.compression.contains(pref)
+            {
                 pref.clone()
             } else {
                 CompressionType::None
@@ -280,11 +296,13 @@ impl DefaultNegotiator {
             // Choose best available
             self.select_best_compression(&peer_capabilities.compression)
         };
-        
+
         // Select encryption
         let encryption = if preferences.require_encryption {
             if let Some(enc) = preferences.preferred_encryption.as_ref() {
-                if peer_capabilities.encryption.contains(enc) && self.capabilities.encryption.contains(enc) {
+                if peer_capabilities.encryption.contains(enc)
+                    && self.capabilities.encryption.contains(enc)
+                {
                     enc.clone()
                 } else {
                     self.select_best_encryption(&peer_capabilities.encryption)
@@ -295,15 +313,19 @@ impl DefaultNegotiator {
                     .unwrap_or(EncryptionType::None)
             }
         } else {
-            preferences.preferred_encryption.as_ref()
+            preferences
+                .preferred_encryption
+                .as_ref()
                 .cloned()
                 .unwrap_or(EncryptionType::None)
         };
-        
+
         // Calculate max message size
-        let max_message_size = self.capabilities.max_message_size
+        let max_message_size = self
+            .capabilities
+            .max_message_size
             .min(peer_capabilities.max_message_size);
-        
+
         NegotiatedParameters {
             version: protocol.versions[0].clone(),
             compression,
@@ -312,17 +334,21 @@ impl DefaultNegotiator {
             features: protocol.features.clone(),
         }
     }
-    
+
     fn select_best_compression(&self, available: &[CompressionType]) -> CompressionType {
         // Preference order: Zstd > Lz4 > Gzip > None
-        for pref in &[CompressionType::Zstd, CompressionType::Lz4, CompressionType::Gzip] {
+        for pref in &[
+            CompressionType::Zstd,
+            CompressionType::Lz4,
+            CompressionType::Gzip,
+        ] {
             if available.contains(pref) && self.capabilities.compression.contains(pref) {
                 return pref.clone();
             }
         }
         CompressionType::None
     }
-    
+
     fn select_best_encryption(&self, available: &[EncryptionType]) -> Option<EncryptionType> {
         // Preference order: Aes256 > Tls > None
         for pref in &[EncryptionType::Aes256, EncryptionType::Tls] {

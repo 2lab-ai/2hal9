@@ -1,23 +1,23 @@
 //! Claude integration abstractions
 
+use crate::cost_tracker::CostTracker;
 use async_trait::async_trait;
+use hal9_core::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tracing::{debug, info, warn};
-use hal9_core::{Result, Error};
-use crate::cost_tracker::CostTracker;
 
 /// Claude interface abstraction
 #[async_trait]
 pub trait ClaudeInterface: Send + Sync {
     /// Send a message and get response
     async fn send_message(&self, message: &str) -> Result<String>;
-    
+
     /// Get the system prompt for this instance
     fn system_prompt(&self) -> &str;
-    
+
     /// Get token usage for the last request
     fn last_token_usage(&self) -> Option<TokenUsage>;
 }
@@ -42,17 +42,14 @@ impl MockClaude {
     /// Create a new mock Claude for a specific layer
     pub fn new(layer: &str, config: &hal9_core::config::ClaudeConfig) -> Self {
         let mut responses = HashMap::new();
-        
+
         // Add configuration-based mock responses if available
         if let Some(layer_responses) = config.mock_responses.get(layer) {
             for mock_resp in layer_responses {
-                responses.insert(
-                    mock_resp.trigger.clone(),
-                    mock_resp.response.clone()
-                );
+                responses.insert(mock_resp.trigger.clone(), mock_resp.response.clone());
             }
         }
-        
+
         // Add default layer-specific mock responses if no custom ones provided
         if responses.is_empty() {
             match layer {
@@ -77,13 +74,15 @@ impl MockClaude {
                 _ => {}
             }
         }
-        
+
         // Set delay from first response or use default
-        let delay_ms = config.mock_responses.get(layer)
+        let delay_ms = config
+            .mock_responses
+            .get(layer)
             .and_then(|resps| resps.first())
             .map(|r| r.delay_ms)
             .unwrap_or(100);
-        
+
         Self {
             layer: layer.to_string(),
             system_prompt: hal9_core::config::get_system_prompt(layer),
@@ -91,12 +90,13 @@ impl MockClaude {
             delay_ms,
         }
     }
-    
+
     /// Add a custom response for testing
     pub fn add_response(&mut self, trigger: &str, response: &str) {
-        self.responses.insert(trigger.to_string(), response.to_string());
+        self.responses
+            .insert(trigger.to_string(), response.to_string());
     }
-    
+
     /// Set response delay for testing
     pub fn set_delay(&mut self, delay_ms: u64) {
         self.delay_ms = delay_ms;
@@ -107,10 +107,10 @@ impl MockClaude {
 impl ClaudeInterface for MockClaude {
     async fn send_message(&self, message: &str) -> Result<String> {
         debug!("MockClaude[{}] received: {}", self.layer, message);
-        
+
         // Simulate processing delay
         tokio::time::sleep(tokio::time::Duration::from_millis(self.delay_ms)).await;
-        
+
         // Check for specific responses
         for (trigger, response) in &self.responses {
             if message.contains(trigger) || trigger == "default" {
@@ -118,15 +118,15 @@ impl ClaudeInterface for MockClaude {
                 return Ok(response.clone());
             }
         }
-        
+
         // Default response based on layer
         Ok(format!("Mock {} response to: {}", self.layer, message))
     }
-    
+
     fn system_prompt(&self) -> &str {
         &self.system_prompt
     }
-    
+
     fn last_token_usage(&self) -> Option<TokenUsage> {
         Some(TokenUsage {
             prompt_tokens: 100,
@@ -169,7 +169,7 @@ impl ClaudeAPIClient {
             "claude-3-haiku-20240307" => (0.00025, 0.00125),
             _ => (0.003, 0.015), // Default to sonnet pricing
         };
-        
+
         Self {
             api_key,
             model,
@@ -189,7 +189,7 @@ impl ClaudeAPIClient {
             cost_tracker: None,
         }
     }
-    
+
     /// Set cost tracker
     pub fn set_cost_tracker(&mut self, tracker: Arc<CostTracker>) {
         self.cost_tracker = Some(tracker);
@@ -200,9 +200,12 @@ impl ClaudeAPIClient {
 impl ClaudeInterface for ClaudeAPIClient {
     async fn send_message(&self, message: &str) -> Result<String> {
         // Acquire rate limit permit
-        let _permit = self.rate_limiter.acquire().await
+        let _permit = self
+            .rate_limiter
+            .acquire()
+            .await
             .map_err(|_| Error::ClaudeApi("Rate limiter error".to_string()))?;
-            
+
         let request = ClaudeRequest {
             model: self.model.clone(),
             messages: vec![
@@ -218,23 +221,27 @@ impl ClaudeInterface for ClaudeAPIClient {
             max_tokens: self.max_tokens,
             temperature: self.temperature,
         };
-        
+
         // Retry logic
         let mut last_error = None;
         for attempt in 0..self.retry_count {
             if attempt > 0 {
                 // Exponential backoff
                 let delay = Duration::from_millis(100 * 2u64.pow(attempt));
-                warn!("Retrying Claude API request (attempt {}), waiting {:?}", attempt + 1, delay);
+                warn!(
+                    "Retrying Claude API request (attempt {}), waiting {:?}",
+                    attempt + 1,
+                    delay
+                );
                 tokio::time::sleep(delay).await;
             }
-            
+
             match self.send_request(&request).await {
                 Ok(response) => return Ok(response),
                 Err(e) => {
                     warn!("Claude API request failed: {}", e);
                     last_error = Some(e);
-                    
+
                     // Don't retry on certain errors
                     if let Error::ClaudeApi(msg) = &last_error.as_ref().unwrap() {
                         if msg.contains("invalid_api_key") || msg.contains("permission_denied") {
@@ -244,14 +251,14 @@ impl ClaudeInterface for ClaudeAPIClient {
                 }
             }
         }
-        
+
         Err(last_error.unwrap_or_else(|| Error::ClaudeApi("Unknown error".to_string())))
     }
-    
+
     fn system_prompt(&self) -> &str {
         &self.system_prompt
     }
-    
+
     fn last_token_usage(&self) -> Option<TokenUsage> {
         self.last_usage.lock().ok()?.clone()
     }
@@ -266,8 +273,9 @@ impl ClaudeAPIClient {
             let estimated_tokens = request.max_tokens;
             tracker.check_request(estimated_tokens).await?;
         }
-        
-        let response = self.client
+
+        let response = self
+            .client
             .post("https://api.anthropic.com/v1/messages")
             .header("x-api-key", &self.api_key)
             .header("anthropic-version", "2023-06-01")
@@ -276,32 +284,35 @@ impl ClaudeAPIClient {
             .send()
             .await
             .map_err(|e| Error::ClaudeApi(e.to_string()))?;
-            
+
         if !response.status().is_success() {
             let error_text = response.text().await.unwrap_or_default();
             return Err(Error::ClaudeApi(format!("API error: {}", error_text)));
         }
-        
-        let api_response: ClaudeResponse = response.json().await
+
+        let api_response: ClaudeResponse = response
+            .json()
+            .await
             .map_err(|e| Error::ClaudeApi(e.to_string()))?;
-            
+
         // Update token usage and calculate cost
         if let Some(api_usage) = api_response.usage {
             let prompt_cost = (api_usage.input_tokens as f64 / 1000.0) * self.cost_per_1k_prompt;
-            let completion_cost = (api_usage.output_tokens as f64 / 1000.0) * self.cost_per_1k_completion;
+            let completion_cost =
+                (api_usage.output_tokens as f64 / 1000.0) * self.cost_per_1k_completion;
             let total_cost = prompt_cost + completion_cost;
-            
+
             info!(
                 "Claude API usage: prompt_tokens={}, completion_tokens={}, cost=${:.4}",
                 api_usage.input_tokens, api_usage.output_tokens, total_cost
             );
-            
+
             // Record cost with tracker
             if let Some(tracker) = &self.cost_tracker {
                 let total_tokens = api_usage.input_tokens + api_usage.output_tokens;
                 tracker.record_cost(total_cost, total_tokens as u64).await;
             }
-            
+
             if let Ok(mut last_usage) = self.last_usage.lock() {
                 last_usage.replace(TokenUsage {
                     prompt_tokens: api_usage.input_tokens,
@@ -310,8 +321,10 @@ impl ClaudeAPIClient {
                 });
             }
         }
-        
-        Ok(api_response.content.first()
+
+        Ok(api_response
+            .content
+            .first()
             .map(|c| c.text.clone())
             .unwrap_or_default())
     }
@@ -328,10 +341,10 @@ pub struct HybridClaude {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClaudeMode {
-    Mock,      // Always use mock
-    Api,       // Always use API (fail if not available)
-    Auto,      // Use API in production, mock in dev
-    Hybrid,    // Use API with automatic fallback to mock
+    Mock,   // Always use mock
+    Api,    // Always use API (fail if not available)
+    Auto,   // Use API in production, mock in dev
+    Hybrid, // Use API with automatic fallback to mock
 }
 
 impl HybridClaude {
@@ -342,7 +355,7 @@ impl HybridClaude {
     ) -> Result<Self> {
         // Create mock Claude
         let mock = Box::new(MockClaude::new(layer, config));
-        
+
         // Determine mode
         let mode = match config.mode.as_str() {
             "mock" => ClaudeMode::Mock,
@@ -351,12 +364,12 @@ impl HybridClaude {
             "hybrid" => ClaudeMode::Hybrid,
             _ => ClaudeMode::Auto,
         };
-        
+
         // Check if we're in production
         let is_production = std::env::var("HAL9_ENV")
             .map(|env| env == "production")
             .unwrap_or(false);
-        
+
         // Create API client if needed
         let api = match mode {
             ClaudeMode::Mock => None,
@@ -377,7 +390,10 @@ impl HybridClaude {
                     match Self::create_api_client(layer, config, cost_tracker.clone()) {
                         Ok(client) => Some(Box::new(client) as Box<dyn ClaudeInterface>),
                         Err(e) => {
-                            warn!("Failed to create API client in production, using mock: {}", e);
+                            warn!(
+                                "Failed to create API client in production, using mock: {}",
+                                e
+                            );
                             None
                         }
                     }
@@ -386,7 +402,7 @@ impl HybridClaude {
                 }
             }
         };
-        
+
         Ok(Self {
             mock,
             api,
@@ -395,16 +411,18 @@ impl HybridClaude {
             is_production,
         })
     }
-    
+
     fn create_api_client(
         layer: &str,
         config: &hal9_core::config::ClaudeConfig,
         cost_tracker: Arc<CostTracker>,
     ) -> Result<ClaudeAPIClient> {
-        let api_key = config.api_key.clone()
+        let api_key = config
+            .api_key
+            .clone()
             .or_else(|| std::env::var("ANTHROPIC_API_KEY").ok())
             .ok_or_else(|| Error::ClaudeApi("No API key provided".to_string()))?;
-        
+
         let mut client = ClaudeAPIClient::new(
             api_key,
             config.model.clone(),
@@ -412,11 +430,11 @@ impl HybridClaude {
             config.temperature,
             config.max_tokens,
         );
-        
+
         client.set_cost_tracker(cost_tracker);
         Ok(client)
     }
-    
+
     async fn should_use_api(&self) -> bool {
         match self.mode {
             ClaudeMode::Mock => false,
@@ -426,7 +444,7 @@ impl HybridClaude {
                 if self.api.is_none() {
                     return false;
                 }
-                
+
                 // Check cost limits
                 match self.cost_tracker.check_request(100).await {
                     Ok(_) => true,
@@ -456,15 +474,15 @@ impl ClaudeInterface for HybridClaude {
                 }
             }
         }
-        
+
         debug!("HybridClaude: Using mock for response");
         self.mock.send_message(message).await
     }
-    
+
     fn system_prompt(&self) -> &str {
         self.mock.system_prompt()
     }
-    
+
     fn last_token_usage(&self) -> Option<TokenUsage> {
         // Return API usage if we just used it, otherwise mock usage
         if let Some(api) = &self.api {
@@ -520,34 +538,33 @@ impl ClaudeInterface for FallbackClaude {
                 false
             }
         };
-        
+
         if should_use_fallback {
             debug!("Using fallback Claude (mock mode)");
             return self.fallback.send_message(message).await;
         }
-        
+
         // Try primary first
         match self.primary.send_message(message).await {
             Ok(response) => Ok(response),
             Err(e) => {
                 warn!("Primary Claude failed, switching to fallback: {}", e);
-                
+
                 // Enable fallback for 5 minutes
                 *self.use_fallback.lock().unwrap() = true;
-                *self.fallback_until.lock().unwrap() = Some(
-                    std::time::Instant::now() + Duration::from_secs(300)
-                );
-                
+                *self.fallback_until.lock().unwrap() =
+                    Some(std::time::Instant::now() + Duration::from_secs(300));
+
                 // Use fallback
                 self.fallback.send_message(message).await
             }
         }
     }
-    
+
     fn system_prompt(&self) -> &str {
         self.primary.system_prompt()
     }
-    
+
     fn last_token_usage(&self) -> Option<TokenUsage> {
         if *self.use_fallback.lock().unwrap() {
             self.fallback.last_token_usage()

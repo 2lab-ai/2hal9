@@ -8,18 +8,18 @@
 //! - Monitoring and observability
 
 pub mod feature_flags;
+pub mod monitoring;
+pub mod rollback;
 pub mod router;
 pub mod state_migration;
-pub mod rollback;
-pub mod monitoring;
 
-pub use feature_flags::{FeatureFlags, FeatureFlagManager, RequestContext};
-pub use router::{MigrationRouter, RoutingDecision};
-pub use state_migration::{StateMigrationEngine, MigrationProgress};
+pub use feature_flags::{FeatureFlagManager, FeatureFlags, RequestContext};
+pub use monitoring::{MigrationMetrics, MigrationMonitor};
 pub use rollback::{RollbackManager, RollbackStrategy};
-pub use monitoring::{MigrationMonitor, MigrationMetrics};
+pub use router::{MigrationRouter, RoutingDecision};
+pub use state_migration::{MigrationProgress, StateMigrationEngine};
 
-use crate::{Result, Error};
+use crate::{Error, Result};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -52,7 +52,7 @@ impl MigrationOrchestrator {
             current_phase: Arc::new(RwLock::new(0)),
         }
     }
-    
+
     fn create_phases() -> Vec<MigrationPhase> {
         vec![
             MigrationPhase {
@@ -96,12 +96,11 @@ impl MigrationOrchestrator {
                 description: "Gradually increase traffic to hierarchical".to_string(),
                 duration: std::time::Duration::from_secs(7 * 24 * 60 * 60), // 1 week
                 traffic_percentage: 75.0,
-                features: vec![
-                    "protocol_layer".to_string(),
-                    "substrate_layer".to_string(),
-                ],
+                features: vec!["protocol_layer".to_string(), "substrate_layer".to_string()],
                 validations: vec![
-                    MigrationValidation::SystemStability { duration: std::time::Duration::from_secs(3600) },
+                    MigrationValidation::SystemStability {
+                        duration: std::time::Duration::from_secs(3600),
+                    },
                     MigrationValidation::ResourceUsageOptimal,
                 ],
             },
@@ -118,20 +117,20 @@ impl MigrationOrchestrator {
             },
         ]
     }
-    
+
     /// Execute the migration process
     pub async fn execute(&self) -> Result<()> {
         tracing::info!("Starting HAL9 migration from flat to hierarchical architecture");
-        
+
         // Start monitoring
         self.monitor.start().await?;
-        
+
         // Execute each phase
         for (idx, phase) in self.phases.iter().enumerate() {
             *self.current_phase.write().await = idx;
-            
+
             tracing::info!("Starting migration phase {}: {}", idx + 1, phase.name);
-            
+
             // Execute phase
             match self.execute_phase(phase).await {
                 Ok(_) => {
@@ -139,74 +138,79 @@ impl MigrationOrchestrator {
                 }
                 Err(e) => {
                     tracing::error!("Phase {} failed: {}", phase.name, e);
-                    
+
                     // Attempt rollback
-                    self.rollback_manager.rollback_to_phase(idx.saturating_sub(1)).await?;
-                    
-                    return Err(Error::Migration(format!("Migration failed at phase {}: {}", phase.name, e)));
+                    self.rollback_manager
+                        .rollback_to_phase(idx.saturating_sub(1))
+                        .await?;
+
+                    return Err(Error::Migration(format!(
+                        "Migration failed at phase {}: {}",
+                        phase.name, e
+                    )));
                 }
             }
-            
+
             // Wait before next phase
             if idx < self.phases.len() - 1 {
                 tracing::info!("Waiting before next phase...");
                 tokio::time::sleep(std::time::Duration::from_secs(3600)).await; // 1 hour
             }
         }
-        
+
         tracing::info!("Migration completed successfully!");
         Ok(())
     }
-    
+
     async fn execute_phase(&self, phase: &MigrationPhase) -> Result<()> {
         // Update feature flags
         self.update_features_for_phase(phase).await?;
-        
+
         // Perform pre-checks
         for validation in &phase.validations {
             self.validate(validation).await?;
         }
-        
+
         // Monitor phase execution
         let start_time = std::time::Instant::now();
-        
+
         while start_time.elapsed() < phase.duration {
             // Check health metrics
             let health = self.monitor.get_health_score().await?;
             if health < 0.8 {
                 return Err(Error::Migration("Health score below threshold".to_string()));
             }
-            
+
             // Perform periodic validations
             for validation in &phase.validations {
                 if let Err(e) = self.validate(validation).await {
                     tracing::warn!("Validation failed during phase execution: {}", e);
                     // Give it some time to recover
                     tokio::time::sleep(std::time::Duration::from_secs(60)).await;
-                    
+
                     // Re-check
                     self.validate(validation).await?;
                 }
             }
-            
+
             // Sleep before next check
             tokio::time::sleep(std::time::Duration::from_secs(300)).await; // 5 minutes
         }
-        
+
         // Final validation
         for validation in &phase.validations {
             self.validate(validation).await?;
         }
-        
+
         Ok(())
     }
-    
+
     async fn update_features_for_phase(&self, phase: &MigrationPhase) -> Result<()> {
         let mut flags = self.feature_flags.get_flags();
-        
+
         // Update traffic percentage
         flags.hierarchical_traffic_percentage = phase.traffic_percentage;
-        
+
         // Enable phase features
         for feature in &phase.features {
             if let Some(config) = flags.features.get_mut(feature) {
@@ -214,35 +218,47 @@ impl MigrationOrchestrator {
                 config.percentage = 100.0;
             }
         }
-        
+
         self.feature_flags.update_flags(flags).await?;
         Ok(())
     }
-    
+
     async fn validate(&self, validation: &MigrationValidation) -> Result<()> {
         match validation {
             MigrationValidation::OutputParity { threshold } => {
                 let parity = self.monitor.get_output_parity().await?;
                 if parity < *threshold {
-                    return Err(Error::Migration(format!("Output parity {} below threshold {}", parity, threshold)));
+                    return Err(Error::Migration(format!(
+                        "Output parity {} below threshold {}",
+                        parity, threshold
+                    )));
                 }
             }
             MigrationValidation::PerformanceWithin { margin } => {
                 let perf_ratio = self.monitor.get_performance_ratio().await?;
                 if perf_ratio > *margin {
-                    return Err(Error::Migration(format!("Performance ratio {} exceeds margin {}", perf_ratio, margin)));
+                    return Err(Error::Migration(format!(
+                        "Performance ratio {} exceeds margin {}",
+                        perf_ratio, margin
+                    )));
                 }
             }
             MigrationValidation::ErrorRateBelow { threshold } => {
                 let error_rate = self.monitor.get_error_rate().await?;
                 if error_rate > *threshold {
-                    return Err(Error::Migration(format!("Error rate {} exceeds threshold {}", error_rate, threshold)));
+                    return Err(Error::Migration(format!(
+                        "Error rate {} exceeds threshold {}",
+                        error_rate, threshold
+                    )));
                 }
             }
             MigrationValidation::LatencyP99Below { threshold_ms } => {
                 let p99 = self.monitor.get_p99_latency().await?;
                 if p99 > *threshold_ms as f64 {
-                    return Err(Error::Migration(format!("P99 latency {}ms exceeds threshold {}ms", p99, threshold_ms)));
+                    return Err(Error::Migration(format!(
+                        "P99 latency {}ms exceeds threshold {}ms",
+                        p99, threshold_ms
+                    )));
                 }
             }
             MigrationValidation::StateIntegrity { check_all } => {
@@ -280,25 +296,32 @@ impl MigrationOrchestrator {
                 // This would integrate with customer feedback systems
                 let satisfaction = 0.98; // Placeholder
                 if satisfaction < *threshold {
-                    return Err(Error::Migration(format!("Customer satisfaction {} below threshold {}", satisfaction, threshold)));
+                    return Err(Error::Migration(format!(
+                        "Customer satisfaction {} below threshold {}",
+                        satisfaction, threshold
+                    )));
                 }
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Get current migration status
     pub async fn get_status(&self) -> MigrationStatus {
         let current_phase = *self.current_phase.read().await;
         let progress = self.state_migrator.get_progress().await;
         let metrics = self.monitor.get_current_metrics().await;
         let is_healthy = metrics.is_healthy();
-        
+
         MigrationStatus {
             current_phase,
             total_phases: self.phases.len(),
-            phase_name: self.phases.get(current_phase).map(|p| p.name.clone()).unwrap_or_default(),
+            phase_name: self
+                .phases
+                .get(current_phase)
+                .map(|p| p.name.clone())
+                .unwrap_or_default(),
             state_migration_progress: progress,
             metrics,
             is_healthy,
@@ -346,7 +369,7 @@ pub struct MigrationStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_migration_phases() {
         let phases = MigrationOrchestrator::create_phases();

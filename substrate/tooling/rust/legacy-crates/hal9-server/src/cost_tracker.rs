@@ -1,11 +1,11 @@
 //! Cost tracking and control for Claude API usage
 
+use crate::metrics::Metrics;
+use hal9_core::{config::CostControls, Error, Result};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tracing::{info, warn};
-use hal9_core::{Result, Error, config::CostControls};
-use crate::metrics::Metrics;
 
 /// Time-based cost window
 #[derive(Debug, Clone)]
@@ -26,11 +26,11 @@ impl CostWindow {
             tokens: 0,
         }
     }
-    
+
     fn is_expired(&self, window_duration: Duration) -> bool {
         self.start.elapsed() > window_duration
     }
-    
+
     fn add_cost(&mut self, cost: f64, tokens: u64) {
         self.cost += cost;
         self.tokens += tokens;
@@ -65,20 +65,20 @@ impl CostTracker {
             metrics: None,
         }
     }
-    
+
     /// Set metrics integration
     pub fn set_metrics(&mut self, metrics: Arc<Metrics>) {
         self.metrics = Some(metrics);
     }
-    
+
     /// Set alert callback
-    pub fn set_alert_callback<F>(&mut self, callback: F) 
-    where 
-        F: Fn(String) + Send + Sync + 'static 
+    pub fn set_alert_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(String) + Send + Sync + 'static,
     {
         self.alert_callback = Some(Arc::new(callback));
     }
-    
+
     /// Check if a request with given tokens is allowed
     pub async fn check_request(&self, estimated_tokens: u32) -> Result<()> {
         // Check token limit
@@ -90,10 +90,10 @@ impl CostTracker {
                 ),
             });
         }
-        
+
         // Update windows if expired
         self.update_windows().await;
-        
+
         // Check hourly limit (rough estimate)
         let hourly_cost = self.hourly_window.read().await.cost;
         if hourly_cost >= self.config.max_cost_per_hour {
@@ -104,7 +104,7 @@ impl CostTracker {
                 ),
             });
         }
-        
+
         // Check daily limit
         let daily_cost = self.daily_window.read().await.cost;
         if daily_cost >= self.config.max_cost_per_day {
@@ -115,23 +115,23 @@ impl CostTracker {
                 ),
             });
         }
-        
+
         // Check if we're approaching limits
         self.check_alerts(hourly_cost, daily_cost).await;
-        
+
         Ok(())
     }
-    
+
     /// Record actual cost after request
     pub async fn record_cost(&self, cost: f64, tokens: u64) {
         // Update windows
         self.update_windows().await;
-        
+
         // Add to windows
         self.hourly_window.write().await.add_cost(cost, tokens);
         self.daily_window.write().await.add_cost(cost, tokens);
         *self.total_cost.write().await += cost;
-        
+
         // Log cost
         info!(
             "API cost recorded: ${:.4} for {} tokens (hourly: ${:.2}, daily: ${:.2})",
@@ -140,20 +140,20 @@ impl CostTracker {
             self.hourly_window.read().await.cost,
             self.daily_window.read().await.cost
         );
-        
+
         // Check alerts after recording
         let hourly_cost = self.hourly_window.read().await.cost;
         let daily_cost = self.daily_window.read().await.cost;
         let total_cost = *self.total_cost.read().await;
-        
+
         // Update metrics if available
         if let Some(metrics) = &self.metrics {
             metrics.update_cost_metrics(hourly_cost, daily_cost, total_cost);
         }
-        
+
         self.check_alerts(hourly_cost, daily_cost).await;
     }
-    
+
     /// Update windows if they've expired
     async fn update_windows(&self) {
         // Check hourly window
@@ -163,7 +163,7 @@ impl CostTracker {
             *hourly = CostWindow::new();
         }
         drop(hourly);
-        
+
         // Check daily window
         let mut daily = self.daily_window.write().await;
         if daily.is_expired(Duration::from_secs(86400)) {
@@ -171,12 +171,12 @@ impl CostTracker {
             *daily = CostWindow::new();
         }
     }
-    
+
     /// Check if we should send alerts
     async fn check_alerts(&self, hourly_cost: f64, daily_cost: f64) {
         let hourly_ratio = hourly_cost / self.config.max_cost_per_hour;
         let daily_ratio = daily_cost / self.config.max_cost_per_day;
-        
+
         if hourly_ratio >= self.config.alert_threshold {
             let msg = format!(
                 "⚠️ Hourly cost alert: ${:.2} ({:.0}% of ${:.2} limit)",
@@ -185,12 +185,12 @@ impl CostTracker {
                 self.config.max_cost_per_hour
             );
             warn!("{}", msg);
-            
+
             if let Some(callback) = &self.alert_callback {
                 callback(msg);
             }
         }
-        
+
         if daily_ratio >= self.config.alert_threshold {
             let msg = format!(
                 "⚠️ Daily cost alert: ${:.2} ({:.0}% of ${:.2} limit)",
@@ -199,13 +199,13 @@ impl CostTracker {
                 self.config.max_cost_per_day
             );
             warn!("{}", msg);
-            
+
             if let Some(callback) = &self.alert_callback {
                 callback(msg);
             }
         }
     }
-    
+
     /// Get current cost statistics
     pub async fn get_stats(&self) -> CostStats {
         CostStats {
@@ -235,7 +235,7 @@ pub struct CostStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_cost_limits() {
         let config = CostControls {
@@ -244,21 +244,21 @@ mod tests {
             max_tokens_per_request: 1000,
             alert_threshold: 0.8,
         };
-        
+
         let tracker = CostTracker::new(config);
-        
+
         // Should allow initial request
         assert!(tracker.check_request(500).await.is_ok());
-        
+
         // Record cost
         tracker.record_cost(0.5, 500).await;
-        
+
         // Should still allow
         assert!(tracker.check_request(400).await.is_ok());
-        
+
         // Record more cost to exceed hourly limit
         tracker.record_cost(0.6, 600).await;
-        
+
         // Should now reject
         assert!(tracker.check_request(100).await.is_err());
     }

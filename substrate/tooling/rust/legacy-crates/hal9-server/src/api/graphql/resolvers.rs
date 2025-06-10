@@ -6,14 +6,14 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::{
-    auth::{User, AuthService},
-    enterprise::{Organization, Team, OrganizationService, TeamService},
+    auth::{AuthService, User},
+    enterprise::{Organization, OrganizationService, Team, TeamService},
     error::HAL9Error,
+    memory_manager::MemoryManager,
+    metrics::Metrics,
     neuron::{NeuronManager, NeuronState},
     router::Router,
     signal::Signal,
-    memory_manager::MemoryManager,
-    metrics::Metrics,
 };
 
 use super::schema::*;
@@ -41,7 +41,7 @@ impl QueryRoot {
     ) -> FieldResult<SignalResponse> {
         let context = ctx.data::<Arc<GraphQLContext>>()?;
         let user = ctx.data::<Arc<User>>()?;
-        
+
         // Create signal
         let signal = Signal {
             id: Uuid::new_v4(),
@@ -54,10 +54,10 @@ impl QueryRoot {
             created_at: Utc::now(),
             processed_at: None,
         };
-        
+
         // Route signal through system
         let result = context.router.route_signal(signal.clone()).await?;
-        
+
         // Convert to GraphQL response
         Ok(SignalResponse {
             id: ID(signal.id.to_string()),
@@ -71,7 +71,7 @@ impl QueryRoot {
             result: Some(result),
         })
     }
-    
+
     pub async fn resolve_signal(
         &self,
         ctx: &Context<'_>,
@@ -79,7 +79,7 @@ impl QueryRoot {
     ) -> FieldResult<Option<SignalResponse>> {
         let context = ctx.data::<Arc<GraphQLContext>>()?;
         let signal_id = Uuid::parse_str(&id.0)?;
-        
+
         // Query database for signal
         let signal = sqlx::query_as!(
             SignalRecord,
@@ -93,20 +93,25 @@ impl QueryRoot {
         )
         .fetch_optional(&context.db)
         .await?;
-        
+
         Ok(signal.map(|s| SignalResponse {
             id: ID(s.id.to_string()),
             signal_id: s.id,
             content: s.content,
             layer: s.target.unwrap_or_default(),
             priority: s.priority,
-            status: if s.processed_at.is_some() { "completed" } else { "pending" }.to_string(),
+            status: if s.processed_at.is_some() {
+                "completed"
+            } else {
+                "pending"
+            }
+            .to_string(),
             created_at: s.created_at,
             processed_at: s.processed_at,
             result: s.result,
         }))
     }
-    
+
     pub async fn resolve_neurons(
         &self,
         ctx: &Context<'_>,
@@ -115,12 +120,16 @@ impl QueryRoot {
         pagination: Option<PaginationInput>,
     ) -> FieldResult<NeuronConnection> {
         let context = ctx.data::<Arc<GraphQLContext>>()?;
-        let limit = pagination.as_ref().and_then(|p| p.limit).unwrap_or(20).min(100);
+        let limit = pagination
+            .as_ref()
+            .and_then(|p| p.limit)
+            .unwrap_or(20)
+            .min(100);
         let offset = pagination.as_ref().and_then(|p| p.offset).unwrap_or(0);
-        
+
         let neuron_manager = context.neuron_manager.read().await;
         let neurons = neuron_manager.list_neurons();
-        
+
         // Filter neurons
         let filtered: Vec<_> = neurons
             .into_iter()
@@ -129,17 +138,18 @@ impl QueryRoot {
             .skip(offset as usize)
             .take(limit as usize)
             .collect();
-        
+
         let total_count = filtered.len() as i32;
         let has_next_page = total_count > limit;
-        
+
         let edges: Vec<NeuronEdge> = filtered
             .into_iter()
             .enumerate()
             .map(|(idx, neuron)| {
-                let metrics = neuron_manager.get_neuron_metrics(&neuron.id)
+                let metrics = neuron_manager
+                    .get_neuron_metrics(&neuron.id)
                     .unwrap_or_default();
-                
+
                 NeuronEdge {
                     cursor: base64::encode(format!("neuron:{}", offset + idx as i32)),
                     node: NeuronInfo {
@@ -163,7 +173,7 @@ impl QueryRoot {
                 }
             })
             .collect();
-        
+
         Ok(NeuronConnection {
             edges,
             page_info: PageInfo {
@@ -175,14 +185,11 @@ impl QueryRoot {
             },
         })
     }
-    
-    pub async fn resolve_system_metrics(
-        &self,
-        ctx: &Context<'_>,
-    ) -> FieldResult<SystemMetrics> {
+
+    pub async fn resolve_system_metrics(&self, ctx: &Context<'_>) -> FieldResult<SystemMetrics> {
         let context = ctx.data::<Arc<GraphQLContext>>()?;
         let metrics = context.metrics.get_system_metrics().await?;
-        
+
         Ok(SystemMetrics {
             total_neurons: metrics.total_neurons,
             active_neurons: metrics.active_neurons,
@@ -193,7 +200,7 @@ impl QueryRoot {
             cpu_usage_percent: metrics.cpu_usage_percent,
         })
     }
-    
+
     pub async fn resolve_search_memory(
         &self,
         ctx: &Context<'_>,
@@ -201,19 +208,23 @@ impl QueryRoot {
         limit: Option<i32>,
     ) -> FieldResult<Vec<MemoryEntry>> {
         let context = ctx.data::<Arc<GraphQLContext>>()?;
-        let results = context.memory_manager
+        let results = context
+            .memory_manager
             .search(&query, limit.unwrap_or(10) as usize)
             .await?;
-        
-        Ok(results.into_iter().map(|entry| MemoryEntry {
-            id: ID(entry.id.to_string()),
-            key: entry.key,
-            content: entry.content,
-            embedding_similarity: entry.similarity,
-            access_count: entry.access_count,
-            created_at: entry.created_at,
-            last_accessed: entry.last_accessed,
-        }).collect())
+
+        Ok(results
+            .into_iter()
+            .map(|entry| MemoryEntry {
+                id: ID(entry.id.to_string()),
+                key: entry.key,
+                content: entry.content,
+                embedding_similarity: entry.similarity,
+                access_count: entry.access_count,
+                created_at: entry.created_at,
+                last_accessed: entry.last_accessed,
+            })
+            .collect())
     }
 }
 
@@ -227,23 +238,21 @@ impl MutationRoot {
     ) -> FieldResult<NeuronInfo> {
         let context = ctx.data::<Arc<GraphQLContext>>()?;
         let user = ctx.data::<Arc<User>>()?;
-        
+
         // Check permissions
         if !user.has_permission("neurons.create") {
             return Err("Insufficient permissions".into());
         }
-        
+
         let mut neuron_manager = context.neuron_manager.write().await;
-        let neuron = neuron_manager.create_neuron(
-            input.name,
-            input.neuron_type,
-            input.layer,
-            input.config,
-        ).await?;
-        
-        let metrics = neuron_manager.get_neuron_metrics(&neuron.id)
+        let neuron = neuron_manager
+            .create_neuron(input.name, input.neuron_type, input.layer, input.config)
+            .await?;
+
+        let metrics = neuron_manager
+            .get_neuron_metrics(&neuron.id)
             .unwrap_or_default();
-        
+
         Ok(NeuronInfo {
             id: ID(neuron.id.to_string()),
             neuron_id: neuron.id,
@@ -263,7 +272,7 @@ impl MutationRoot {
             updated_at: neuron.updated_at,
         })
     }
-    
+
     pub async fn resolve_update_neuron(
         &self,
         ctx: &Context<'_>,
@@ -271,25 +280,23 @@ impl MutationRoot {
     ) -> FieldResult<NeuronInfo> {
         let context = ctx.data::<Arc<GraphQLContext>>()?;
         let user = ctx.data::<Arc<User>>()?;
-        
+
         // Check permissions
         if !user.has_permission("neurons.update") {
             return Err("Insufficient permissions".into());
         }
-        
+
         let neuron_id = Uuid::parse_str(&input.id.0)?;
         let mut neuron_manager = context.neuron_manager.write().await;
-        
-        let neuron = neuron_manager.update_neuron(
-            neuron_id,
-            input.name,
-            input.config,
-            input.enabled,
-        ).await?;
-        
-        let metrics = neuron_manager.get_neuron_metrics(&neuron.id)
+
+        let neuron = neuron_manager
+            .update_neuron(neuron_id, input.name, input.config, input.enabled)
+            .await?;
+
+        let metrics = neuron_manager
+            .get_neuron_metrics(&neuron.id)
             .unwrap_or_default();
-        
+
         Ok(NeuronInfo {
             id: ID(neuron.id.to_string()),
             neuron_id: neuron.id,
@@ -309,7 +316,7 @@ impl MutationRoot {
             updated_at: neuron.updated_at,
         })
     }
-    
+
     pub async fn resolve_trigger_learning(
         &self,
         ctx: &Context<'_>,
@@ -317,17 +324,20 @@ impl MutationRoot {
     ) -> FieldResult<bool> {
         let context = ctx.data::<Arc<GraphQLContext>>()?;
         let user = ctx.data::<Arc<User>>()?;
-        
+
         // Check permissions
         if !user.has_permission("learning.trigger") {
             return Err("Insufficient permissions".into());
         }
-        
+
         // Trigger learning cycle
-        context.neuron_manager.write().await
+        context
+            .neuron_manager
+            .write()
+            .await
             .trigger_learning(layer)
             .await?;
-        
+
         Ok(true)
     }
 }

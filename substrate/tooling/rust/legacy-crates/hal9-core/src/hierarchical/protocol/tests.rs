@@ -15,11 +15,11 @@ mod tests {
         let v1_0_1 = ProtocolVersion::new(1, 0, 1);
         let v1_1_0 = ProtocolVersion::new(1, 1, 0);
         let v2_0_0 = ProtocolVersion::new(2, 0, 0);
-        
+
         // Same major version = compatible
         assert!(v1_0_0.is_compatible_with(&v1_0_1));
         assert!(v1_0_0.is_compatible_with(&v1_1_0));
-        
+
         // Different major version = incompatible
         assert!(!v1_0_0.is_compatible_with(&v2_0_0));
     }
@@ -28,33 +28,35 @@ mod tests {
     #[tokio::test]
     async fn test_protocol_negotiation() {
         // Create two negotiators representing different peers
-        let protocols_a = vec![
-            ProtocolDescriptor {
-                id: "test-protocol".to_string(),
-                versions: vec![ProtocolVersion::new(1, 0, 0), ProtocolVersion::new(1, 1, 0)],
-                features: vec!["feature1".to_string(), "feature2".to_string()],
-            }
-        ];
-        
+        let protocols_a = vec![ProtocolDescriptor {
+            id: "test-protocol".to_string(),
+            versions: vec![ProtocolVersion::new(1, 0, 0), ProtocolVersion::new(1, 1, 0)],
+            features: vec!["feature1".to_string(), "feature2".to_string()],
+        }];
+
         let capabilities_a = ProtocolCapabilities {
-            compression: vec![CompressionType::None, CompressionType::Gzip, CompressionType::Zstd],
+            compression: vec![
+                CompressionType::None,
+                CompressionType::Gzip,
+                CompressionType::Zstd,
+            ],
             encryption: vec![EncryptionType::None, EncryptionType::Tls],
             max_message_size: 1_000_000,
             streaming: true,
             bidirectional: true,
             ordered_delivery: true,
         };
-        
+
         let negotiator_a = DefaultNegotiator::new(protocols_a.clone(), capabilities_a.clone());
-        
+
         // Peer B with slightly different capabilities
-        let protocols_b = [ProtocolDescriptor {
-                id: "test-protocol".to_string(),
-                versions: vec![ProtocolVersion::new(1, 0, 0)],
-                features: vec!["feature1".to_string(), "feature3".to_string()],
-            }];
-        
-        let capabilities_b = ProtocolCapabilities {
+        let _protocols_b = [ProtocolDescriptor {
+            id: "test-protocol".to_string(),
+            versions: vec![ProtocolVersion::new(1, 0, 0)],
+            features: vec!["feature1".to_string(), "feature3".to_string()],
+        }];
+
+        let _capabilities_b = ProtocolCapabilities {
             compression: vec![CompressionType::None, CompressionType::Gzip],
             encryption: vec![EncryptionType::None],
             max_message_size: 500_000,
@@ -62,7 +64,7 @@ mod tests {
             bidirectional: false,
             ordered_delivery: true,
         };
-        
+
         // A initiates to B
         let offer = ProtocolOffer {
             protocols: protocols_a,
@@ -74,30 +76,39 @@ mod tests {
                 require_ordered_delivery: true,
             },
         };
-        
+
         let response = negotiator_a.initiate(&offer).await.unwrap();
-        
+
         // Should select compatible protocol and parameters
         assert_eq!(response.selected_protocol.id, "test-protocol");
-        assert_eq!(response.negotiated_params.version, ProtocolVersion::new(1, 0, 0));
+        assert_eq!(
+            response.negotiated_params.version,
+            ProtocolVersion::new(1, 0, 0)
+        );
     }
 
     /// Test basic channel transport functionality first
     #[tokio::test]
     async fn test_channel_transport_basic() {
         let transport = Arc::new(ChannelTransport::new());
-        
+
         // Test point-to-point
         let mut receiver = transport.receive_raw("test-endpoint").await.unwrap();
-        transport.send_raw("test-endpoint", vec![1, 2, 3]).await.unwrap();
-        
+        transport
+            .send_raw("test-endpoint", vec![1, 2, 3])
+            .await
+            .unwrap();
+
         let received = receiver.recv().await;
         assert_eq!(received, Some(vec![1, 2, 3]));
-        
+
         // Test pub/sub
         let mut sub = transport.subscribe_raw("test-topic").await.unwrap();
-        transport.publish_raw("test-topic", vec![4, 5, 6]).await.unwrap();
-        
+        transport
+            .publish_raw("test-topic", vec![4, 5, 6])
+            .await
+            .unwrap();
+
         let received = sub.recv().await;
         assert_eq!(received, Some(vec![4, 5, 6]));
     }
@@ -108,7 +119,7 @@ mod tests {
         // Test encoding/decoding first
         let transport = Arc::new(ChannelTransport::new());
         let protocol = SignalProtocol::new(transport.clone());
-        
+
         // Test encode/decode directly
         let test_signal = SignalMessage {
             id: Uuid::new_v4(),
@@ -118,19 +129,19 @@ mod tests {
             activation: Activation::new("Test".to_string(), 0.5),
             metadata: std::collections::HashMap::new(),
         };
-        
+
         // Test bincode serialization directly
         let encoded = bincode::serialize(&test_signal).unwrap();
         let decoded: SignalMessage = bincode::deserialize(&encoded).unwrap();
         assert_eq!(decoded.id, test_signal.id);
-        
+
         // Now test through transport
         let neuron_id = Uuid::new_v4();
         let endpoint = format!("neuron:{}", neuron_id);
-        
+
         // Set up raw receiver
         let mut raw_receiver = transport.receive_raw(&endpoint).await.unwrap();
-        
+
         // Send raw encoded signal
         let signal = SignalMessage {
             id: Uuid::new_v4(),
@@ -140,10 +151,10 @@ mod tests {
             activation: Activation::new("Test signal".to_string(), 0.85),
             metadata: std::collections::HashMap::new(),
         };
-        
+
         let encoded = bincode::serialize(&signal).unwrap();
         transport.send_raw(&endpoint, encoded).await.unwrap();
-        
+
         // Receive raw
         let received_raw = raw_receiver.recv().await.unwrap();
         let decoded: SignalMessage = bincode::deserialize(&received_raw).unwrap();
@@ -155,24 +166,24 @@ mod tests {
     async fn test_gradient_protocol_accumulation() {
         let transport = Arc::new(ChannelTransport::new());
         let protocol = GradientProtocol::new(transport.clone(), 3); // batch size 3
-        
+
         let neuron_id = Uuid::new_v4();
-        
+
         // Set up receiver
         let mut receiver = protocol.receive_gradients(neuron_id).await.unwrap();
-        
+
         // Accumulate gradients (should auto-flush at 3)
         for i in 0..3 {
             let grad = Gradient::new(0.1 * (i + 1) as f32, vec![1.0, 0.0, -1.0]);
             protocol.accumulate_gradient(neuron_id, grad).await.unwrap();
         }
-        
+
         // Should receive accumulated gradient
         let received = timeout(Duration::from_millis(100), receiver.recv())
             .await
             .expect("Timeout")
             .expect("No gradient received");
-        
+
         // Verify accumulated values (averaged)
         assert!((received.gradient.error - 0.2).abs() < 0.0001); // (0.1 + 0.2 + 0.3) / 3
         assert_eq!(received.gradient.accumulated_steps, 2); // 0 + 1 + 1
@@ -182,15 +193,15 @@ mod tests {
     #[tokio::test]
     async fn test_consensus_protocol_voting() {
         let transport = Arc::new(ChannelTransport::new());
-        
+
         // Create 5 nodes for consensus
         let mut nodes = Vec::new();
         let mut protocols = Vec::new();
-        
+
         for _ in 0..5 {
             let node_id = Uuid::new_v4();
             nodes.push(node_id);
-            
+
             let protocol = ConsensusProtocol::new(
                 transport.clone(),
                 node_id,
@@ -198,50 +209,56 @@ mod tests {
             );
             protocols.push(protocol);
         }
-        
+
         // Add all nodes as participants
         for protocol in &protocols {
             for &node in &nodes {
                 protocol.add_participant(node).await.unwrap();
             }
         }
-        
+
         // Start receivers
         for protocol in &protocols {
             protocol.start_receiver().await.unwrap();
         }
-        
+
         // Node 0 proposes a value
         let proposal_value = serde_json::json!({
             "action": "test_consensus",
             "value": 42
         });
-        
-        let proposal_id = protocols[0].propose(
-            proposal_value.clone(),
-            Duration::from_secs(60)
-        ).await.unwrap();
-        
+
+        let proposal_id = protocols[0]
+            .propose(proposal_value.clone(), Duration::from_secs(60))
+            .await
+            .unwrap();
+
         // Wait for proposal to propagate
         tokio::time::sleep(Duration::from_millis(50)).await;
-        
+
         // 3 nodes vote Accept (including proposer)
         for i in 0..3 {
-            protocols[i].vote(proposal_id, consensus::Vote::Accept).await.unwrap();
+            protocols[i]
+                .vote(proposal_id, consensus::Vote::Accept)
+                .await
+                .unwrap();
         }
-        
+
         // 1 node votes Reject
-        protocols[3].vote(proposal_id, consensus::Vote::Reject).await.unwrap();
-        
+        protocols[3]
+            .vote(proposal_id, consensus::Vote::Reject)
+            .await
+            .unwrap();
+
         // 1 node abstains
-        
+
         // Wait for consensus
         tokio::time::sleep(Duration::from_millis(50)).await;
-        
+
         // Check consensus reached (3/5 = 60% > 50% required)
         let metrics = protocols[0].metrics();
         assert_eq!(metrics.consensus_reached, 1);
-        
+
         // Check that only the proposer created a proposal
         assert_eq!(protocols[0].metrics().proposals_created, 1);
         // Other nodes shouldn't have created proposals
@@ -261,17 +278,17 @@ mod tests {
             max_message_size: 1_000_000,
             version_migration_enabled: true,
         };
-        
+
         let manager = ProtocolManager::new(config, transport);
-        
+
         // Initialize standard protocols
         manager.initialize_protocols().await.unwrap();
-        
+
         // Verify protocols are registered
         assert!(manager.get_protocol("signal-protocol").is_some());
         assert!(manager.get_protocol("gradient-protocol").is_some());
         assert!(manager.get_protocol("consensus-protocol").is_some());
-        
+
         // Test versioned message handling with a registered protocol
         let test_message = b"Hello, Protocol Layer!";
         let versioned = VersionedMessage::new(
@@ -279,10 +296,10 @@ mod tests {
             ProtocolVersion::new(1, 0, 0),
             test_message.to_vec(),
         );
-        
+
         let encoded = serde_json::to_vec(&versioned).unwrap();
         let (protocol_id, decoded) = manager.receive_versioned_message(&encoded).await.unwrap();
-        
+
         assert_eq!(protocol_id, "signal-protocol");
         assert_eq!(decoded, test_message);
     }
@@ -291,41 +308,41 @@ mod tests {
     #[test]
     fn test_compression_types() {
         let data = b"This is some test data that should be compressed. ".repeat(100);
-        
+
         // Test Gzip
         {
-            use flate2::write::GzEncoder;
             use flate2::read::GzDecoder;
+            use flate2::write::GzEncoder;
             use flate2::Compression;
-            use std::io::{Write, Read};
-            
+            use std::io::{Read, Write};
+
             let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
             encoder.write_all(&data).unwrap();
             let compressed = encoder.finish().unwrap();
-            
+
             assert!(compressed.len() < data.len());
-            
+
             let mut decoder = GzDecoder::new(&compressed[..]);
             let mut decompressed = Vec::new();
             decoder.read_to_end(&mut decompressed).unwrap();
-            
+
             assert_eq!(decompressed, data);
         }
-        
+
         // Test LZ4
         {
             let compressed = lz4_flex::compress_prepend_size(&data);
             assert!(compressed.len() < data.len());
-            
+
             let decompressed = lz4_flex::decompress_size_prepended(&compressed).unwrap();
             assert_eq!(decompressed, data);
         }
-        
+
         // Test Zstd
         {
             let compressed = zstd::encode_all(&data[..], 3).unwrap();
             assert!(compressed.len() < data.len());
-            
+
             let decompressed = zstd::decode_all(&compressed[..]).unwrap();
             assert_eq!(decompressed, data);
         }
@@ -335,7 +352,7 @@ mod tests {
     #[tokio::test]
     async fn test_stream_protocol() {
         use streams::*;
-        
+
         let config = StreamConfig {
             stream_id: Uuid::new_v4(),
             buffer_size: 10,
@@ -343,17 +360,17 @@ mod tests {
             ordering: StreamOrdering::Ordered,
             reliability: StreamReliability::AtLeastOnce,
         };
-        
+
         let (mut stream1, mut stream2) = ChannelStream::new(config.buffer_size);
-        
+
         // Send data from stream1 to stream2
         let data = b"Stream data chunk".to_vec();
         stream1.send(data.clone()).await.unwrap();
-        
+
         // Receive on stream2
         let received = stream2.recv().await.unwrap().unwrap();
         assert_eq!(received, data);
-        
+
         // Test stream closing
         assert!(!stream1.is_closed());
         Box::new(stream1).close().await.unwrap();
@@ -364,11 +381,11 @@ mod tests {
     #[tokio::test]
     async fn test_protocol_metrics() {
         let transport = Arc::new(ChannelTransport::new());
-        
+
         // Test signal protocol metrics
         {
             let protocol = SignalProtocol::new(transport.clone());
-            
+
             // Send some broadcast signals
             for i in 0..5 {
                 let signal = SignalMessage {
@@ -381,20 +398,20 @@ mod tests {
                 };
                 protocol.broadcast_signal(signal).await.unwrap();
             }
-            
+
             let metrics = protocol.metrics();
             assert_eq!(metrics.signals_sent, 5);
             assert_eq!(metrics.efficiency, 1.0); // No drops
         }
-        
+
         // Test gradient protocol metrics
         {
             let protocol = GradientProtocol::new(transport.clone(), 10);
-            
+
             // Set up a receiver for gradients
             let neuron_id = Uuid::new_v4();
             let _receiver = protocol.receive_gradients(neuron_id).await.unwrap();
-            
+
             // Send some gradients to that neuron
             for i in 0..3 {
                 let msg = GradientMessage {
@@ -413,7 +430,7 @@ mod tests {
                 };
                 protocol.send_gradient(msg).await.unwrap();
             }
-            
+
             let metrics = protocol.metrics();
             assert_eq!(metrics.gradients_sent, 3);
             assert!(metrics.average_error > 0.0);
@@ -424,25 +441,24 @@ mod tests {
     #[test]
     fn test_version_migration() {
         use versioning::*;
-        
+
         let mut registry = VersionRegistry::new(ProtocolVersion::new(1, 1, 0));
-        
+
         // Register a migration
         registry.register_migration(Box::new(V1_0ToV1_1Migration::default()));
-        
+
         // Test migration
         let old_message = serde_json::json!({
             "existing_field": "value"
         });
         let old_bytes = serde_json::to_vec(&old_message).unwrap();
-        
-        let migrated = registry.migrate_to_current(
-            &ProtocolVersion::new(1, 0, 0),
-            &old_bytes
-        ).unwrap();
-        
+
+        let migrated = registry
+            .migrate_to_current(&ProtocolVersion::new(1, 0, 0), &old_bytes)
+            .unwrap();
+
         let migrated_value: serde_json::Value = serde_json::from_slice(&migrated).unwrap();
-        
+
         // Should have added new field
         assert_eq!(migrated_value["existing_field"], "value");
         assert_eq!(migrated_value["new_field"], "default");

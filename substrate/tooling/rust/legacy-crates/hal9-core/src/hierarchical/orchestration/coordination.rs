@@ -1,27 +1,27 @@
 //! State coordination for distributed consensus and synchronization
 
+use crate::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use uuid::Uuid;
-use tokio::sync::{RwLock, broadcast};
 use std::sync::Arc;
-use crate::Result;
+use tokio::sync::{broadcast, RwLock};
+use uuid::Uuid;
 
 /// State coordinator for distributed state management
 #[async_trait]
 pub trait StateCoordinator: Send + Sync {
     /// Synchronize state across units
     async fn synchronize(&self, state: DistributedState) -> Result<SyncResult>;
-    
+
     /// Achieve consensus on a value
     async fn consensus(&self, proposal: ConsensusProposal) -> Result<ConsensusResult>;
-    
+
     /// Create a distributed lock
     async fn lock(&self, resource: ResourceId) -> Result<DistributedLock>;
-    
+
     /// Get global state snapshot
     async fn snapshot(&self) -> Result<GlobalStateSnapshot>;
-    
+
     /// Subscribe to state changes
     async fn subscribe(&self, filter: StateFilter) -> Result<StateSubscription>;
 }
@@ -115,7 +115,7 @@ impl DistributedLock {
         // Lock is automatically released when dropped
         Ok(())
     }
-    
+
     /// Extend lock duration
     pub async fn extend(&self, _duration: std::time::Duration) -> Result<()> {
         // Implementation would extend the lock
@@ -217,9 +217,16 @@ struct LogEntry {
 
 #[derive(Debug, Clone)]
 enum StateCommand {
-    Set { key: String, value: serde_json::Value },
-    Delete { key: String },
-    Sync { state: DistributedState },
+    Set {
+        key: String,
+        value: serde_json::Value,
+    },
+    Delete {
+        key: String,
+    },
+    Sync {
+        state: DistributedState,
+    },
 }
 
 impl RaftCoordinator {
@@ -242,9 +249,9 @@ impl StateCoordinator for RaftCoordinator {
     async fn synchronize(&self, state: DistributedState) -> Result<SyncResult> {
         let mut local_state = self.state.write().await;
         let key = state.state_id.to_string();
-        
+
         let mut conflicts = Vec::new();
-        
+
         if let Some(existing) = local_state.get(&key) {
             if existing.version > state.version {
                 // Local version is newer
@@ -256,9 +263,9 @@ impl StateCoordinator for RaftCoordinator {
                 });
             }
         }
-        
+
         local_state.insert(key, state.clone());
-        
+
         // Notify subscribers
         let _ = self.event_sender.send(StateEvent {
             event_id: Uuid::new_v4(),
@@ -268,27 +275,25 @@ impl StateCoordinator for RaftCoordinator {
             value: serde_json::to_value(&state.data).unwrap(),
             timestamp: chrono::Utc::now(),
         });
-        
+
         Ok(SyncResult {
             synchronized_units: vec![self.node_id],
             conflicts,
             version: state.version,
         })
     }
-    
+
     async fn consensus(&self, proposal: ConsensusProposal) -> Result<ConsensusResult> {
         // Simplified consensus - in real implementation would use Raft protocol
         let start_time = std::time::Instant::now();
-        
+
         // Simulate voting
-        let votes = vec![
-            Vote {
-                voter: self.node_id,
-                vote: VoteType::Accept,
-                timestamp: chrono::Utc::now(),
-            }
-        ];
-        
+        let votes = vec![Vote {
+            voter: self.node_id,
+            vote: VoteType::Accept,
+            timestamp: chrono::Utc::now(),
+        }];
+
         Ok(ConsensusResult {
             accepted: votes.len() >= proposal.required_votes,
             value: proposal.value,
@@ -296,7 +301,7 @@ impl StateCoordinator for RaftCoordinator {
             duration: start_time.elapsed(),
         })
     }
-    
+
     async fn lock(&self, resource: ResourceId) -> Result<DistributedLock> {
         // Simplified locking - real implementation would use distributed locking
         Ok(DistributedLock {
@@ -305,25 +310,29 @@ impl StateCoordinator for RaftCoordinator {
             coordinator: Arc::new(RaftCoordinator::new(self.node_id)),
         })
     }
-    
+
     async fn snapshot(&self) -> Result<GlobalStateSnapshot> {
         let state = self.state.read().await;
         let nodes = self.nodes.read().await;
-        
+
         let mut units = HashMap::new();
         for (node_id, _) in nodes.iter() {
-            units.insert(*node_id, UnitState {
-                unit_id: *node_id,
-                state: serde_json::Value::Object(serde_json::Map::new()),
-                version: 0,
-                health: HealthStatus::Healthy,
-            });
+            units.insert(
+                *node_id,
+                UnitState {
+                    unit_id: *node_id,
+                    state: serde_json::Value::Object(serde_json::Map::new()),
+                    version: 0,
+                    health: HealthStatus::Healthy,
+                },
+            );
         }
-        
-        let global_variables = state.iter()
+
+        let global_variables = state
+            .iter()
             .map(|(k, v)| (k.clone(), serde_json::to_value(&v.data).unwrap()))
             .collect();
-            
+
         Ok(GlobalStateSnapshot {
             timestamp: chrono::Utc::now(),
             units,
@@ -331,7 +340,7 @@ impl StateCoordinator for RaftCoordinator {
             consistency_level: ConsistencyLevel::Strong,
         })
     }
-    
+
     async fn subscribe(&self, _filter: StateFilter) -> Result<StateSubscription> {
         Ok(StateSubscription {
             receiver: self.event_sender.subscribe(),
@@ -349,21 +358,21 @@ impl VectorClock {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     pub fn increment(&mut self, node_id: Uuid) {
         *self.clocks.entry(node_id).or_insert(0) += 1;
     }
-    
+
     pub fn update(&mut self, other: &VectorClock) {
         for (node_id, &clock) in &other.clocks {
             let entry = self.clocks.entry(*node_id).or_insert(0);
             *entry = (*entry).max(clock);
         }
     }
-    
+
     pub fn happens_before(&self, other: &VectorClock) -> bool {
         let mut at_least_one_less = false;
-        
+
         // Check all clocks in self
         for (node_id, &self_clock) in &self.clocks {
             let other_clock = other.clocks.get(node_id).copied().unwrap_or(0);
@@ -374,14 +383,14 @@ impl VectorClock {
                 at_least_one_less = true;
             }
         }
-        
+
         // Check clocks in other that aren't in self
         for (node_id, &other_clock) in &other.clocks {
             if !self.clocks.contains_key(node_id) && other_clock > 0 {
                 at_least_one_less = true;
             }
         }
-        
+
         at_least_one_less
     }
 }

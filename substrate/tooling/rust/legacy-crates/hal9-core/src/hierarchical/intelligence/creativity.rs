@@ -1,11 +1,11 @@
 //! Creativity and innovation capabilities for generating novel solutions
 
+use super::*;
+use crate::Result;
 use async_trait::async_trait;
+use rand::prelude::*;
 use std::collections::HashMap;
 use uuid::Uuid;
-use rand::prelude::*;
-use crate::Result;
-use super::*;
 
 /// Creative system for generating novel ideas and solutions
 pub struct CreativeSystem {
@@ -31,6 +31,7 @@ struct InspirationSource {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum SourceType {
     Memory,
     Pattern,
@@ -39,6 +40,7 @@ enum SourceType {
     CrossDomain,
 }
 
+#[allow(dead_code)]
 enum GenerationMethod {
     Combination,
     Mutation,
@@ -52,12 +54,13 @@ struct ConceptBlender {
     compatibility_matrix: HashMap<(Uuid, Uuid), f32>,
 }
 
+#[allow(dead_code)]
 enum BlendingStrategy {
-    Intersection,     // Common features
-    Union,           // All features
-    Transformation,  // Morphing between concepts
-    Hybridization,   // Selective feature combination
-    Emergence,       // New features from interaction
+    Intersection,   // Common features
+    Union,          // All features
+    Transformation, // Morphing between concepts
+    Hybridization,  // Selective feature combination
+    Emergence,      // New features from interaction
 }
 
 struct NoveltyEvaluator {
@@ -81,6 +84,7 @@ struct ConceptRelationship {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum RelationType {
     IsA,
     PartOf,
@@ -103,12 +107,13 @@ struct DomainConstraint {
     parameters: HashMap<String, f32>,
 }
 
+#[allow(dead_code)]
 enum NoveltyMetric {
-    Uniqueness,      // How different from existing
-    Surprise,        // Unexpectedness
-    Complexity,      // Structural complexity
-    Usefulness,      // Practical applicability
-    Elegance,        // Simplicity despite complexity
+    Uniqueness, // How different from existing
+    Surprise,   // Unexpectedness
+    Complexity, // Structural complexity
+    Usefulness, // Practical applicability
+    Elegance,   // Simplicity despite complexity
 }
 
 struct SolutionSynthesizer {
@@ -117,12 +122,13 @@ struct SolutionSynthesizer {
     refinement_strategies: Vec<RefinementStrategy>,
 }
 
+#[allow(dead_code)]
 enum SynthesisMethod {
-    TopDown,         // Start from goal, decompose
-    BottomUp,        // Start from components, combine
-    MiddleOut,       // Start from core, expand
-    Evolutionary,    // Iterative improvement
-    Constraint,      // Satisfy constraints
+    TopDown,      // Start from goal, decompose
+    BottomUp,     // Start from components, combine
+    MiddleOut,    // Start from core, expand
+    Evolutionary, // Iterative improvement
+    Constraint,   // Satisfy constraints
 }
 
 struct EvaluationEngine {
@@ -160,10 +166,11 @@ struct ImpactDimension {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum MeasurementMethod {
-    Quantitative(String), // Metric name
+    Quantitative(String),     // Metric name
     Qualitative(Vec<String>), // Scale levels
-    Comparative, // Relative to baseline
+    Comparative,              // Relative to baseline
 }
 
 struct RiskAssessor {
@@ -177,12 +184,14 @@ struct RiskCategory {
     impact_model: ImpactModel,
 }
 
+#[allow(dead_code)]
 enum ProbabilityModel {
     Uniform(f32),
     Normal { mean: f32, std: f32 },
     Exponential { rate: f32 },
 }
 
+#[allow(dead_code)]
 enum ImpactModel {
     Linear { slope: f32 },
     Exponential { base: f32 },
@@ -195,6 +204,7 @@ struct MitigationStrategy {
     cost: f32,
 }
 
+#[allow(dead_code)]
 enum RefinementStrategy {
     Simplification,
     Optimization,
@@ -243,10 +253,7 @@ impl CreativeSystem {
                 ],
             },
             solution_synthesizer: SolutionSynthesizer {
-                synthesis_methods: vec![
-                    SynthesisMethod::TopDown,
-                    SynthesisMethod::Evolutionary,
-                ],
+                synthesis_methods: vec![SynthesisMethod::TopDown, SynthesisMethod::Evolutionary],
                 evaluation_engine: EvaluationEngine {
                     feasibility_checker: FeasibilityChecker {
                         resource_constraints: ResourceConstraints {
@@ -272,27 +279,37 @@ impl CreativeSystem {
             },
         }
     }
-    
+
     fn generate_raw_ideas(&self, _constraints: &[Constraint]) -> Vec<RawIdea> {
         let mut ideas = Vec::new();
         let mut rng = thread_rng();
-        
+
         // Generate ideas using different methods
         for method in &self.idea_generator.generation_methods {
             match method {
                 GenerationMethod::Combination => {
                     // Combine random inspiration sources
                     if self.idea_generator.inspiration_sources.len() >= 2 {
-                        let source1 = self.idea_generator.inspiration_sources.choose(&mut rng).unwrap();
-                        let source2 = self.idea_generator.inspiration_sources.choose(&mut rng).unwrap();
-                        
+                        let source1 = self
+                            .idea_generator
+                            .inspiration_sources
+                            .choose(&mut rng)
+                            .unwrap();
+                        let source2 = self
+                            .idea_generator
+                            .inspiration_sources
+                            .choose(&mut rng)
+                            .unwrap();
+
                         ideas.push(RawIdea {
                             id: Uuid::new_v4(),
                             components: vec![source1.id, source2.id],
                             generation_method: "combination".to_string(),
-                            raw_content: format!("Combine {} with {}", 
-                                               source1.source_type.to_string(), 
-                                               source2.source_type.to_string()),
+                            raw_content: format!(
+                                "Combine {} with {}",
+                                source1.source_type.to_string(),
+                                source2.source_type.to_string()
+                            ),
                         });
                     }
                 }
@@ -319,7 +336,7 @@ impl CreativeSystem {
                 _ => {}
             }
         }
-        
+
         // Add random element
         if rng.gen::<f32>() < self.idea_generator.randomness_factor {
             ideas.push(RawIdea {
@@ -329,13 +346,13 @@ impl CreativeSystem {
                 raw_content: "Random creative spark".to_string(),
             });
         }
-        
+
         ideas
     }
-    
+
     fn blend_concepts(&self, concepts: &[Concept]) -> Vec<BlendedConcept> {
         let mut blended = Vec::new();
-        
+
         for strategy in &self.concept_blender.blending_strategies {
             match strategy {
                 BlendingStrategy::Intersection => {
@@ -372,42 +389,40 @@ impl CreativeSystem {
                 _ => {}
             }
         }
-        
+
         blended
     }
-    
+
     fn find_common_attributes(&self, concepts: &[Concept]) -> HashMap<String, serde_json::Value> {
         if concepts.is_empty() {
             return HashMap::new();
         }
-        
+
         let mut common = concepts[0].attributes.clone();
-        
+
         for concept in concepts.iter().skip(1) {
-            common.retain(|k, v| {
-                concept.attributes.get(k).is_some_and(|v2| v == v2)
-            });
+            common.retain(|k, v| concept.attributes.get(k).is_some_and(|v2| v == v2));
         }
-        
+
         common
     }
-    
+
     fn morph_concepts(&self, concept1: &Concept, concept2: &Concept, ratio: f32) -> BlendedConcept {
         let mut morphed_attrs = HashMap::new();
-        
+
         // Take attributes from both concepts based on ratio
         for (k, v) in &concept1.attributes {
             if rand::random::<f32>() < (1.0 - ratio) {
                 morphed_attrs.insert(k.clone(), v.clone());
             }
         }
-        
+
         for (k, v) in &concept2.attributes {
             if rand::random::<f32>() < ratio {
                 morphed_attrs.insert(k.clone(), v.clone());
             }
         }
-        
+
         BlendedConcept {
             id: Uuid::new_v4(),
             source_concepts: vec![concept1.id, concept2.id],
@@ -416,15 +431,13 @@ impl CreativeSystem {
             emergent_properties: vec![],
         }
     }
-    
+
     fn generate_emergent_properties(&self, _concepts: &[Concept]) -> Vec<EmergentProperty> {
-        vec![
-            EmergentProperty {
-                name: "synergy".to_string(),
-                description: "Combined effect greater than sum".to_string(),
-                strength: 0.7,
-            },
-        ]
+        vec![EmergentProperty {
+            name: "synergy".to_string(),
+            description: "Combined effect greater than sum".to_string(),
+            strength: 0.7,
+        }]
     }
 }
 
@@ -460,7 +473,8 @@ impl SourceType {
             Self::Analogy => "analogy",
             Self::Random => "random",
             Self::CrossDomain => "cross_domain",
-        }.to_string()
+        }
+        .to_string()
     }
 }
 
@@ -468,29 +482,31 @@ impl SourceType {
 impl CreativityEngine for CreativeSystem {
     async fn generate_ideas(&self, constraints: &[Constraint]) -> Result<Vec<Idea>> {
         let raw_ideas = self.generate_raw_ideas(constraints);
-        
+
         let mut refined_ideas = Vec::new();
         for raw_idea in raw_ideas {
             refined_ideas.push(Idea {
                 id: raw_idea.id,
                 description: raw_idea.raw_content,
-                inspiration_sources: raw_idea.components.iter()
+                inspiration_sources: raw_idea
+                    .components
+                    .iter()
                     .map(|id| id.to_string())
                     .collect(),
                 novelty: rand::random::<f32>() * 0.5 + 0.5, // Placeholder
             });
         }
-        
+
         Ok(refined_ideas)
     }
-    
+
     async fn combine_concepts(&self, concepts: &[Concept]) -> Result<Vec<NovelConcept>> {
         let blended = self.blend_concepts(concepts);
-        
+
         let mut novel_concepts = Vec::new();
         for blend in blended {
             let novelty_score = self.evaluate_novelty(&blend).await?;
-            
+
             novel_concepts.push(NovelConcept {
                 base_concepts: blend.source_concepts.clone(),
                 transformation: blend.strategy,
@@ -502,14 +518,14 @@ impl CreativityEngine for CreativeSystem {
                 novelty_score,
             });
         }
-        
+
         Ok(novel_concepts)
     }
-    
+
     async fn evaluate_novelty(&self, solution: &Solution) -> Result<f32> {
         // Multi-criteria novelty evaluation
         let mut scores = Vec::new();
-        
+
         for metric in &self.novelty_evaluator.evaluation_criteria {
             let score = match metric {
                 NoveltyMetric::Uniqueness => {
@@ -528,7 +544,7 @@ impl CreativityEngine for CreativeSystem {
             };
             scores.push(score);
         }
-        
+
         // Average scores
         Ok(scores.iter().sum::<f32>() / scores.len() as f32)
     }
@@ -539,17 +555,17 @@ impl CreativeSystem {
         // Simplified similarity calculation
         0.3 // Placeholder
     }
-    
+
     fn calculate_surprise_factor(&self, solution: &Solution) -> f32 {
         // Measure how unexpected the solution is
         solution.novelty_score * 0.8
     }
-    
+
     async fn evaluate_novelty(&self, blend: &BlendedConcept) -> Result<f32> {
         // Evaluate novelty of blended concept
         let uniqueness = 1.0 - (blend.source_concepts.len() as f32 / 10.0).min(1.0);
         let emergence = blend.emergent_properties.len() as f32 / 5.0;
-        
+
         Ok((uniqueness + emergence) / 2.0)
     }
 }
@@ -599,6 +615,7 @@ struct MappingEngine {
     mapping_constraints: Vec<MappingConstraint>,
 }
 
+#[allow(dead_code)]
 enum SimilarityMetric {
     Structural,
     Functional,
@@ -606,6 +623,7 @@ enum SimilarityMetric {
     Superficial,
 }
 
+#[allow(dead_code)]
 enum MappingConstraint {
     OneToOne,
     PreserveRelations,

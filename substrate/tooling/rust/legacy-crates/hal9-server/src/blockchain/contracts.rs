@@ -142,20 +142,13 @@ pub struct NeuronOnChain {
 }
 
 impl NeuronContract {
-    pub fn new(
-        address: Address,
-        client: Arc<BlockchainClient>,
-    ) -> Result<Self> {
+    pub fn new(address: Address, client: Arc<BlockchainClient>) -> Result<Self> {
         let abi: Abi = serde_json::from_str(NEURON_REGISTRY_ABI)?;
-        let contract = Contract::new(
-            address,
-            abi,
-            client.provider.clone() as Arc<dyn Middleware>,
-        );
-        
+        let contract = Contract::new(address, abi, client.provider.clone() as Arc<dyn Middleware>);
+
         Ok(Self { contract, client })
     }
-    
+
     /// Register a new neuron on-chain
     pub async fn register_neuron(
         &self,
@@ -165,47 +158,46 @@ impl NeuronContract {
         capabilities: Vec<String>,
     ) -> Result<String> {
         let neuron_id_bytes = H256::from_slice(&neuron_id.as_bytes()[..32]);
-        
-        let tx = self.contract
+
+        let tx = self
+            .contract
             .method::<_, ()>(
                 "registerNeuron",
                 (neuron_id_bytes, owner, layer, capabilities),
             )?
             .tx;
-        
+
         let tx_hash = self.client.send_transaction(tx).await?;
         Ok(tx_hash)
     }
-    
+
     /// Update neuron metadata
-    pub async fn update_neuron(
-        &self,
-        neuron_id: Uuid,
-        metadata: String,
-    ) -> Result<String> {
+    pub async fn update_neuron(&self, neuron_id: Uuid, metadata: String) -> Result<String> {
         let neuron_id_bytes = H256::from_slice(&neuron_id.as_bytes()[..32]);
-        
-        let tx = self.contract
+
+        let tx = self
+            .contract
             .method::<_, ()>("updateNeuron", (neuron_id_bytes, metadata))?
             .tx;
-        
+
         let tx_hash = self.client.send_transaction(tx).await?;
         Ok(tx_hash)
     }
-    
+
     /// Get neuron details
     pub async fn get_neuron(&self, neuron_id: Uuid) -> Result<Option<NeuronOnChain>> {
         let neuron_id_bytes = H256::from_slice(&neuron_id.as_bytes()[..32]);
-        
-        let result: (Address, String, bool, U256) = self.contract
+
+        let result: (Address, String, bool, U256) = self
+            .contract
             .method("getNeuron", neuron_id_bytes)?
             .call()
             .await?;
-        
+
         if result.0 == Address::zero() {
             return Ok(None);
         }
-        
+
         Ok(Some(NeuronOnChain {
             id: neuron_id,
             owner: result.0,
@@ -217,7 +209,7 @@ impl NeuronContract {
             last_proof: None,
         }))
     }
-    
+
     /// Submit computation proof
     pub async fn submit_proof(
         &self,
@@ -226,14 +218,15 @@ impl NeuronContract {
         computation_time: u64,
     ) -> Result<String> {
         let neuron_id_bytes = H256::from_slice(&neuron_id.as_bytes()[..32]);
-        
-        let tx = self.contract
+
+        let tx = self
+            .contract
             .method::<_, ()>(
                 "submitProof",
                 (neuron_id_bytes, proof_hash, U256::from(computation_time)),
             )?
             .tx;
-        
+
         let tx_hash = self.client.send_transaction(tx).await?;
         Ok(tx_hash)
     }
@@ -255,57 +248,40 @@ pub struct TokenStats {
 }
 
 impl IncentiveContract {
-    pub fn new(
-        address: Address,
-        client: Arc<BlockchainClient>,
-    ) -> Result<Self> {
+    pub fn new(address: Address, client: Arc<BlockchainClient>) -> Result<Self> {
         let abi: Abi = serde_json::from_str(INCENTIVE_TOKEN_ABI)?;
-        let contract = Contract::new(
-            address,
-            abi,
-            client.provider.clone() as Arc<dyn Middleware>,
-        );
-        
+        let contract = Contract::new(address, abi, client.provider.clone() as Arc<dyn Middleware>);
+
         Ok(Self { contract, client })
     }
-    
+
     /// Get token balance
     pub async fn balance_of(&self, account: Address) -> Result<U256> {
-        let balance: U256 = self.contract
-            .method("balanceOf", account)?
-            .call()
-            .await?;
-        
+        let balance: U256 = self.contract.method("balanceOf", account)?.call().await?;
+
         Ok(balance)
     }
-    
+
     /// Stake tokens
     pub async fn stake(&self, amount: U256) -> Result<String> {
-        let tx = self.contract
-            .method::<_, ()>("stake", amount)?
-            .tx;
-        
+        let tx = self.contract.method::<_, ()>("stake", amount)?.tx;
+
         let tx_hash = self.client.send_transaction(tx).await?;
         Ok(tx_hash)
     }
-    
+
     /// Unstake tokens
     pub async fn unstake(&self, amount: U256) -> Result<String> {
-        let tx = self.contract
-            .method::<_, ()>("unstake", amount)?
-            .tx;
-        
+        let tx = self.contract.method::<_, ()>("unstake", amount)?.tx;
+
         let tx_hash = self.client.send_transaction(tx).await?;
         Ok(tx_hash)
     }
-    
+
     /// Get staked balance
     pub async fn get_stake(&self, account: Address) -> Result<U256> {
-        let staked: U256 = self.contract
-            .method("getStake", account)?
-            .call()
-            .await?;
-        
+        let staked: U256 = self.contract.method("getStake", account)?.call().await?;
+
         Ok(staked)
     }
 }
@@ -344,7 +320,7 @@ impl ComputationMarketContract {
     pub fn new(address: Address, client: Arc<BlockchainClient>) -> Self {
         Self { address, client }
     }
-    
+
     /// Create a new computation task
     pub async fn create_task(
         &self,
@@ -355,17 +331,17 @@ impl ComputationMarketContract {
     ) -> Result<Uuid> {
         // Implementation would interact with smart contract
         let task_id = Uuid::new_v4();
-        
+
         tracing::info!(
             "Created computation task {} of type {} with max price {}",
             task_id,
             task_type,
             max_price
         );
-        
+
         Ok(task_id)
     }
-    
+
     /// Bid on a computation task
     pub async fn bid_on_task(
         &self,
@@ -382,10 +358,10 @@ impl ComputationMarketContract {
             task_id,
             estimated_time
         );
-        
+
         Ok("0xmocktxhash".to_string())
     }
-    
+
     /// Submit computation result
     pub async fn submit_result(
         &self,
@@ -401,7 +377,7 @@ impl ComputationMarketContract {
             result_hash,
             task_id
         );
-        
+
         Ok("0xmocktxhash".to_string())
     }
 }
@@ -416,14 +392,14 @@ impl ContractDeployer {
     pub fn new(client: Arc<BlockchainClient>) -> Self {
         Self { client }
     }
-    
+
     /// Deploy neuron registry contract
     pub async fn deploy_neuron_registry(&self) -> Result<Address> {
         // In real implementation, would compile and deploy contract
         // For now, return mock address
         Ok("0x1234567890123456789012345678901234567890".parse()?)
     }
-    
+
     /// Deploy incentive token contract
     pub async fn deploy_incentive_token(
         &self,
@@ -438,7 +414,7 @@ impl ContractDeployer {
             symbol,
             initial_supply
         );
-        
+
         Ok("0x2345678901234567890123456789012345678901".parse()?)
     }
 }
@@ -446,7 +422,7 @@ impl ContractDeployer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_neuron_id_to_bytes32() {
         let neuron_id = Uuid::new_v4();

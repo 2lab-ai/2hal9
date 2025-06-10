@@ -3,17 +3,20 @@
 //! This protocol enables multiple neurons to reach consensus on decisions,
 //! supporting various consensus algorithms like voting, quorum, and Byzantine fault tolerance.
 
-use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::collections::{HashMap, HashSet};
-use std::time::Duration;
-use uuid::Uuid;
-use tokio::sync::RwLock;
-use crate::{Result, Error};
+use super::{
+    CompressionType, EncryptionType, NegotiatedProtocol, Protocol, ProtocolCapabilities,
+    ProtocolVersion,
+};
 use crate::hierarchical::substrate::transport::{DefaultTransport, TypedTransport};
-use super::{Protocol, ProtocolVersion, ProtocolCapabilities, NegotiatedProtocol, CompressionType, EncryptionType};
+use crate::{Error, Result};
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::RwLock;
+use uuid::Uuid;
 
 /// Consensus message types
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,7 +29,7 @@ pub enum ConsensusMessage {
         timestamp: chrono::DateTime<chrono::Utc>,
         ttl: Duration,
     },
-    
+
     /// Vote on a proposal
     Vote {
         proposal_id: Uuid,
@@ -34,20 +37,20 @@ pub enum ConsensusMessage {
         vote: Vote,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
-    
+
     /// Request current state
     StateRequest {
         requester: Uuid,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
-    
+
     /// Share current state
     StateResponse {
         responder: Uuid,
         proposals: Vec<ProposalState>,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
-    
+
     /// Announce consensus reached
     ConsensusReached {
         proposal_id: Uuid,
@@ -87,19 +90,20 @@ pub enum ProposalStatus {
 
 /// Consensus algorithm types
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 pub enum ConsensusAlgorithm {
     /// Simple majority (>50%)
     SimpleMajority,
-    
+
     /// Super majority (>66%)
     SuperMajority,
-    
+
     /// Unanimous (100%)
     Unanimous,
-    
+
     /// Quorum-based (configurable threshold)
     Quorum { threshold: f32 },
-    
+
     /// Byzantine fault tolerant (>66% with fault tolerance)
     Byzantine,
 }
@@ -110,7 +114,9 @@ impl ConsensusAlgorithm {
             Self::SimpleMajority => (total_participants / 2) + 1,
             Self::SuperMajority | Self::Byzantine => (total_participants * 2 / 3) + 1,
             Self::Unanimous => total_participants,
-            Self::Quorum { threshold } => ((total_participants as f32 * threshold).ceil() as usize).max(1),
+            Self::Quorum { threshold } => {
+                ((total_participants as f32 * threshold).ceil() as usize).max(1)
+            }
         }
     }
 }
@@ -153,17 +159,17 @@ impl ConsensusProtocol {
             metrics: Arc::new(ConsensusMetrics::default()),
         }
     }
-    
+
     /// Add a participant to the consensus group
     pub async fn add_participant(&self, participant: Uuid) -> Result<()> {
         self.participants.write().await.insert(participant);
         Ok(())
     }
-    
+
     /// Remove a participant from the consensus group
     pub async fn remove_participant(&self, participant: Uuid) -> Result<()> {
         self.participants.write().await.remove(&participant);
-        
+
         // Re-evaluate all pending proposals
         let mut proposals = self.proposals.write().await;
         for proposal in proposals.values_mut() {
@@ -171,15 +177,15 @@ impl ConsensusProtocol {
                 self.evaluate_proposal(proposal, self.participants.read().await.len());
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Propose a value for consensus
     pub async fn propose(&self, value: serde_json::Value, ttl: Duration) -> Result<Uuid> {
         let proposal_id = Uuid::new_v4();
         let now = chrono::Utc::now();
-        
+
         let proposal = ProposalState {
             proposal_id,
             proposer: self.node_id,
@@ -189,10 +195,10 @@ impl ConsensusProtocol {
             expires_at: now + chrono::Duration::from_std(ttl).unwrap(),
             status: ProposalStatus::Pending,
         };
-        
+
         // Store proposal
         self.proposals.write().await.insert(proposal_id, proposal);
-        
+
         // Broadcast proposal
         let message = ConsensusMessage::Propose {
             proposal_id,
@@ -201,33 +207,36 @@ impl ConsensusProtocol {
             timestamp: now,
             ttl,
         };
-        
+
         self.broadcast_message(message).await?;
-        
-        self.metrics.proposals_created.fetch_add(1, Ordering::Relaxed);
-        
+
+        self.metrics
+            .proposals_created
+            .fetch_add(1, Ordering::Relaxed);
+
         Ok(proposal_id)
     }
-    
+
     /// Vote on a proposal
     pub async fn vote(&self, proposal_id: Uuid, vote: Vote) -> Result<()> {
         let mut proposals = self.proposals.write().await;
-        
-        let proposal = proposals.get_mut(&proposal_id)
+
+        let proposal = proposals
+            .get_mut(&proposal_id)
             .ok_or_else(|| Error::Protocol("Unknown proposal".to_string()))?;
-        
+
         if proposal.status != ProposalStatus::Pending {
             return Err(Error::Protocol("Proposal is not pending".to_string()));
         }
-        
+
         if chrono::Utc::now() > proposal.expires_at {
             proposal.status = ProposalStatus::Expired;
             return Err(Error::Protocol("Proposal has expired".to_string()));
         }
-        
+
         // Record vote
         proposal.votes.insert(self.node_id, vote);
-        
+
         // Broadcast vote
         let message = ConsensusMessage::Vote {
             proposal_id,
@@ -235,53 +244,61 @@ impl ConsensusProtocol {
             vote,
             timestamp: chrono::Utc::now(),
         };
-        
+
         drop(proposals); // Release lock before async operation
         self.broadcast_message(message).await?;
-        
+
         // Re-acquire lock and check if consensus reached
         let mut proposals = self.proposals.write().await;
         let proposal = proposals.get_mut(&proposal_id).unwrap();
         let participant_count = self.participants.read().await.len();
-        
+
         self.evaluate_proposal(proposal, participant_count);
-        
+
         if proposal.status == ProposalStatus::Accepted {
             self.announce_consensus(proposal.clone()).await?;
         }
-        
+
         self.metrics.votes_cast.fetch_add(1, Ordering::Relaxed);
-        
+
         Ok(())
     }
-    
+
     /// Check if a proposal has reached consensus
     fn evaluate_proposal(&self, proposal: &mut ProposalState, participant_count: usize) {
         // Only evaluate if still pending
         if proposal.status != ProposalStatus::Pending {
             return;
         }
-        
-        let accept_votes = proposal.votes.values()
+
+        let accept_votes = proposal
+            .votes
+            .values()
             .filter(|v| **v == Vote::Accept)
             .count();
-        
-        let reject_votes = proposal.votes.values()
+
+        let reject_votes = proposal
+            .votes
+            .values()
             .filter(|v| **v == Vote::Reject)
             .count();
-        
+
         let required = self.algorithm.required_votes(participant_count);
-        
+
         if accept_votes >= required {
             proposal.status = ProposalStatus::Accepted;
-            self.metrics.consensus_reached.fetch_add(1, Ordering::Relaxed);
+            self.metrics
+                .consensus_reached
+                .fetch_add(1, Ordering::Relaxed);
         } else if reject_votes > participant_count - required {
             // Enough rejections to prevent consensus
             proposal.status = ProposalStatus::Rejected;
-            self.metrics.consensus_failed.fetch_add(1, Ordering::Relaxed);
+            self.metrics
+                .consensus_failed
+                .fetch_add(1, Ordering::Relaxed);
         }
     }
-    
+
     /// Announce that consensus has been reached
     async fn announce_consensus(&self, proposal: ProposalState) -> Result<()> {
         let message = ConsensusMessage::ConsensusReached {
@@ -290,14 +307,20 @@ impl ConsensusProtocol {
             votes: proposal.votes.into_iter().collect(),
             timestamp: chrono::Utc::now(),
         };
-        
+
         self.broadcast_message(message).await
     }
-    
+
     /// Handle incoming consensus messages
     pub async fn handle_message(&self, message: ConsensusMessage) -> Result<()> {
         match message {
-            ConsensusMessage::Propose { proposal_id, proposer, value, timestamp, ttl } => {
+            ConsensusMessage::Propose {
+                proposal_id,
+                proposer,
+                value,
+                timestamp,
+                ttl,
+            } => {
                 // Only create proposal if it doesn't already exist
                 let mut proposals = self.proposals.write().await;
                 if !proposals.contains_key(&proposal_id) {
@@ -310,12 +333,17 @@ impl ConsensusProtocol {
                         expires_at: timestamp + chrono::Duration::from_std(ttl).unwrap(),
                         status: ProposalStatus::Pending,
                     };
-                    
+
                     proposals.insert(proposal_id, proposal);
                 }
             }
-            
-            ConsensusMessage::Vote { proposal_id, voter, vote, .. } => {
+
+            ConsensusMessage::Vote {
+                proposal_id,
+                voter,
+                vote,
+                ..
+            } => {
                 let mut proposals = self.proposals.write().await;
                 if let Some(proposal) = proposals.get_mut(&proposal_id) {
                     proposal.votes.insert(voter, vote);
@@ -323,29 +351,30 @@ impl ConsensusProtocol {
                     self.evaluate_proposal(proposal, participant_count);
                 }
             }
-            
+
             ConsensusMessage::StateRequest { requester, .. } => {
                 let proposals = self.proposals.read().await;
                 let state: Vec<_> = proposals.values().cloned().collect();
-                
+
                 let response = ConsensusMessage::StateResponse {
                     responder: self.node_id,
                     proposals: state,
                     timestamp: chrono::Utc::now(),
                 };
-                
+
                 self.send_to_node(requester, response).await?;
             }
-            
+
             ConsensusMessage::StateResponse { proposals, .. } => {
                 // Merge state from other node
                 let mut our_proposals = self.proposals.write().await;
                 for proposal in proposals {
-                    our_proposals.entry(proposal.proposal_id)
+                    our_proposals
+                        .entry(proposal.proposal_id)
                         .or_insert(proposal);
                 }
             }
-            
+
             ConsensusMessage::ConsensusReached { proposal_id, .. } => {
                 let mut proposals = self.proposals.write().await;
                 if let Some(proposal) = proposals.get_mut(&proposal_id) {
@@ -353,15 +382,15 @@ impl ConsensusProtocol {
                 }
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Start receiving consensus messages
     pub async fn start_receiver(&self) -> Result<()> {
         let endpoint = format!("consensus:{}", self.node_id);
         let mut receiver = self.transport.receive::<Vec<u8>>(&endpoint).await?;
-        
+
         let protocol = self.clone();
         tokio::spawn(async move {
             while let Some(data) = receiver.recv().await {
@@ -372,10 +401,13 @@ impl ConsensusProtocol {
                 }
             }
         });
-        
+
         // Also subscribe to broadcast channel
-        let mut broadcast_receiver = self.transport.subscribe::<Vec<u8>>("consensus:broadcast").await?;
-        
+        let mut broadcast_receiver = self
+            .transport
+            .subscribe::<Vec<u8>>("consensus:broadcast")
+            .await?;
+
         let protocol = self.clone();
         tokio::spawn(async move {
             while let Some(data) = broadcast_receiver.recv().await {
@@ -386,31 +418,29 @@ impl ConsensusProtocol {
                 }
             }
         });
-        
+
         Ok(())
     }
-    
+
     async fn broadcast_message(&self, message: ConsensusMessage) -> Result<()> {
         let encoded = self.encode_message(&message)?;
         self.transport.publish("consensus:broadcast", encoded).await
     }
-    
+
     async fn send_to_node(&self, node_id: Uuid, message: ConsensusMessage) -> Result<()> {
         let encoded = self.encode_message(&message)?;
         let endpoint = format!("consensus:{}", node_id);
         self.transport.send(&endpoint, encoded).await
     }
-    
+
     fn encode_message(&self, message: &ConsensusMessage) -> Result<Vec<u8>> {
-        serde_json::to_vec(message)
-            .map_err(|e| Error::Serialization(e.to_string()))
+        serde_json::to_vec(message).map_err(|e| Error::Serialization(e.to_string()))
     }
-    
+
     fn decode_message(&self, data: &[u8]) -> Result<ConsensusMessage> {
-        serde_json::from_slice(data)
-            .map_err(|e| Error::Deserialization(e.to_string()))
+        serde_json::from_slice(data).map_err(|e| Error::Deserialization(e.to_string()))
     }
-    
+
     /// Get consensus protocol metrics
     pub fn metrics(&self) -> ConsensusProtocolMetrics {
         ConsensusProtocolMetrics {
@@ -418,7 +448,10 @@ impl ConsensusProtocol {
             votes_cast: self.metrics.votes_cast.load(Ordering::Relaxed),
             consensus_reached: self.metrics.consensus_reached.load(Ordering::Relaxed),
             consensus_failed: self.metrics.consensus_failed.load(Ordering::Relaxed),
-            average_consensus_time_ms: self.metrics.average_consensus_time_ms.load(Ordering::Relaxed),
+            average_consensus_time_ms: self
+                .metrics
+                .average_consensus_time_ms
+                .load(Ordering::Relaxed),
         }
     }
 }
@@ -453,30 +486,37 @@ impl Protocol for ConsensusProtocol {
     fn id(&self) -> &str {
         "consensus-protocol"
     }
-    
+
     fn version(&self) -> ProtocolVersion {
         self.version.clone()
     }
-    
-    async fn negotiate(&self, peer_capabilities: &ProtocolCapabilities) -> Result<NegotiatedProtocol> {
+
+    async fn negotiate(
+        &self,
+        peer_capabilities: &ProtocolCapabilities,
+    ) -> Result<NegotiatedProtocol> {
         let negotiated = NegotiatedProtocol {
             version: self.version.clone(),
             compression: CompressionType::None, // Consensus messages are typically small
-            encryption: EncryptionType::Tls, // Important for Byzantine fault tolerance
+            encryption: EncryptionType::Tls,    // Important for Byzantine fault tolerance
             max_message_size: peer_capabilities.max_message_size.min(100_000), // 100KB max
         };
-        
+
         Ok(negotiated)
     }
-    
+
     async fn encode_raw(&self, _message_type: &str, _data: Vec<u8>) -> Result<Vec<u8>> {
-        Err(Error::Protocol("Use consensus-specific methods".to_string()))
+        Err(Error::Protocol(
+            "Use consensus-specific methods".to_string(),
+        ))
     }
-    
+
     async fn decode_raw(&self, _data: &[u8]) -> Result<(String, Vec<u8>)> {
-        Err(Error::Protocol("Use consensus-specific methods".to_string()))
+        Err(Error::Protocol(
+            "Use consensus-specific methods".to_string(),
+        ))
     }
-    
+
     fn capabilities(&self) -> ProtocolCapabilities {
         ProtocolCapabilities {
             compression: vec![CompressionType::None],
@@ -493,74 +533,71 @@ impl Protocol for ConsensusProtocol {
 mod tests {
     use super::*;
     use crate::hierarchical::substrate::ChannelTransport;
-    
+
     #[tokio::test]
     async fn test_consensus_algorithm() {
         assert_eq!(ConsensusAlgorithm::SimpleMajority.required_votes(10), 6);
         assert_eq!(ConsensusAlgorithm::SuperMajority.required_votes(10), 7);
         assert_eq!(ConsensusAlgorithm::Unanimous.required_votes(10), 10);
-        assert_eq!(ConsensusAlgorithm::Quorum { threshold: 0.75 }.required_votes(10), 8);
+        assert_eq!(
+            ConsensusAlgorithm::Quorum { threshold: 0.75 }.required_votes(10),
+            8
+        );
     }
-    
+
     #[tokio::test]
     async fn test_consensus_protocol() {
         let transport = Arc::new(ChannelTransport::new());
-        
+
         // Create three nodes
         let node1 = Uuid::new_v4();
         let node2 = Uuid::new_v4();
         let node3 = Uuid::new_v4();
-        
-        let protocol1 = ConsensusProtocol::new(
-            transport.clone(),
-            node1,
-            ConsensusAlgorithm::SimpleMajority,
-        );
-        
-        let protocol2 = ConsensusProtocol::new(
-            transport.clone(),
-            node2,
-            ConsensusAlgorithm::SimpleMajority,
-        );
-        
-        let protocol3 = ConsensusProtocol::new(
-            transport.clone(),
-            node3,
-            ConsensusAlgorithm::SimpleMajority,
-        );
-        
+
+        let protocol1 =
+            ConsensusProtocol::new(transport.clone(), node1, ConsensusAlgorithm::SimpleMajority);
+
+        let protocol2 =
+            ConsensusProtocol::new(transport.clone(), node2, ConsensusAlgorithm::SimpleMajority);
+
+        let protocol3 =
+            ConsensusProtocol::new(transport.clone(), node3, ConsensusAlgorithm::SimpleMajority);
+
         // Add participants
         for p in &[&protocol1, &protocol2, &protocol3] {
             p.add_participant(node1).await.unwrap();
             p.add_participant(node2).await.unwrap();
             p.add_participant(node3).await.unwrap();
         }
-        
+
         // Start receivers
         protocol1.start_receiver().await.unwrap();
         protocol2.start_receiver().await.unwrap();
         protocol3.start_receiver().await.unwrap();
-        
+
         // Node 1 proposes a value
         let value = serde_json::json!({"action": "test", "value": 42});
-        let proposal_id = protocol1.propose(value, Duration::from_secs(60)).await.unwrap();
-        
+        let proposal_id = protocol1
+            .propose(value, Duration::from_secs(60))
+            .await
+            .unwrap();
+
         // Wait for proposal to propagate
         tokio::time::sleep(Duration::from_millis(10)).await;
-        
+
         // Nodes vote
         protocol1.vote(proposal_id, Vote::Accept).await.unwrap();
         protocol2.vote(proposal_id, Vote::Accept).await.unwrap();
         // Node 3 abstains
-        
+
         // Wait for consensus
         tokio::time::sleep(Duration::from_millis(10)).await;
-        
+
         // Check that consensus was reached
         let proposals = protocol1.proposals.read().await;
         let proposal = proposals.get(&proposal_id).unwrap();
         assert_eq!(proposal.status, ProposalStatus::Accepted);
-        
+
         // Check metrics
         let metrics = protocol1.metrics();
         assert_eq!(metrics.proposals_created, 1);

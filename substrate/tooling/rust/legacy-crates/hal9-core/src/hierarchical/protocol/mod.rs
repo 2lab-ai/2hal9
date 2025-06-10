@@ -3,49 +3,52 @@
 //! This layer defines how components communicate, providing versioning,
 //! negotiation, and different protocol types for various communication patterns.
 
-use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
 use crate::Result;
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 
+pub mod consensus;
+pub mod gradient;
+pub mod manager;
 pub mod messages;
 pub mod negotiation;
-pub mod versioning;
-pub mod streams;
 pub mod signal;
-pub mod gradient;
-pub mod consensus;
-pub mod manager;
+pub mod streams;
+pub mod versioning;
 
 #[cfg(test)]
 mod tests;
 
+pub use consensus::{ConsensusMessage, ConsensusProtocol};
+pub use gradient::{Gradient, GradientMessage, GradientProtocol};
+pub use manager::*;
 pub use messages::*;
 pub use negotiation::*;
-pub use versioning::*;
+pub use signal::{Activation, SignalMessage, SignalProtocol};
 pub use streams::*;
-pub use manager::*;
-pub use signal::{SignalProtocol, SignalMessage, Activation};
-pub use gradient::{GradientProtocol, GradientMessage, Gradient};
-pub use consensus::{ConsensusProtocol, ConsensusMessage};
+pub use versioning::*;
 
 /// Base protocol trait for all communication protocols
 #[async_trait]
 pub trait Protocol: Send + Sync + 'static {
     /// Protocol identifier
     fn id(&self) -> &str;
-    
+
     /// Protocol version
     fn version(&self) -> ProtocolVersion;
-    
+
     /// Negotiate protocol parameters with peer
-    async fn negotiate(&self, peer_capabilities: &ProtocolCapabilities) -> Result<NegotiatedProtocol>;
-    
+    async fn negotiate(
+        &self,
+        peer_capabilities: &ProtocolCapabilities,
+    ) -> Result<NegotiatedProtocol>;
+
     /// Encode raw message bytes for transmission
     async fn encode_raw(&self, message_type: &str, data: Vec<u8>) -> Result<Vec<u8>>;
-    
+
     /// Decode raw message bytes from transmission
     async fn decode_raw(&self, data: &[u8]) -> Result<(String, Vec<u8>)>;
-    
+
     /// Get protocol capabilities
     fn capabilities(&self) -> ProtocolCapabilities;
 }
@@ -55,16 +58,15 @@ pub trait Protocol: Send + Sync + 'static {
 pub trait TypedProtocol: Protocol {
     /// Encode a typed message
     async fn encode<M: Message>(&self, message: M) -> Result<Vec<u8>> {
-        let data = bincode::serialize(&message)
-            .map_err(|e| crate::Error::Serialization(e.to_string()))?;
+        let data =
+            bincode::serialize(&message).map_err(|e| crate::Error::Serialization(e.to_string()))?;
         self.encode_raw(std::any::type_name::<M>(), data).await
     }
-    
+
     /// Decode a typed message
     async fn decode<M: Message>(&self, data: &[u8]) -> Result<M> {
         let (_msg_type, raw_data) = self.decode_raw(data).await?;
-        bincode::deserialize(&raw_data)
-            .map_err(|e| crate::Error::Deserialization(e.to_string()))
+        bincode::deserialize(&raw_data).map_err(|e| crate::Error::Deserialization(e.to_string()))
     }
 }
 
@@ -81,9 +83,13 @@ pub struct ProtocolVersion {
 
 impl ProtocolVersion {
     pub fn new(major: u16, minor: u16, patch: u16) -> Self {
-        Self { major, minor, patch }
+        Self {
+            major,
+            minor,
+            patch,
+        }
     }
-    
+
     pub fn is_compatible_with(&self, other: &Self) -> bool {
         self.major == other.major
     }
@@ -101,6 +107,7 @@ pub struct ProtocolCapabilities {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub enum CompressionType {
     None,
     Gzip,
@@ -109,6 +116,7 @@ pub enum CompressionType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub enum EncryptionType {
     None,
     Tls,

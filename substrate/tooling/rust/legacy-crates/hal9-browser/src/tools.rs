@@ -4,10 +4,10 @@ use async_trait::async_trait;
 use serde_json::{json, Value};
 use std::sync::Arc;
 
-use hal9_core::mcp::tools::{Tool, ToolDefinition};
-use hal9_core::{Result, Error};
+use crate::controller::{BrowserAction, ExtractType, WaitCondition};
 use crate::BrowserController;
-use crate::controller::{BrowserAction, WaitCondition, ExtractType};
+use hal9_core::mcp::tools::{Tool, ToolDefinition};
+use hal9_core::{Error, Result};
 
 /// Base trait for browser tools
 #[async_trait]
@@ -32,7 +32,7 @@ impl Tool for NavigateTool {
     fn name(&self) -> &str {
         "browser_navigate"
     }
-    
+
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "browser_navigate".to_string(),
@@ -46,18 +46,19 @@ impl Tool for NavigateTool {
                     }
                 },
                 "required": ["url"]
-            })
+            }),
         }
     }
-    
+
     async fn execute(&self, params: Value) -> Result<Value> {
-        let url = params["url"].as_str()
+        let url = params["url"]
+            .as_str()
             .ok_or_else(|| Error::InvalidInput("URL parameter is required".to_string()))?;
-        
-        let action = BrowserAction::Navigate { 
-            url: url.to_string() 
+
+        let action = BrowserAction::Navigate {
+            url: url.to_string(),
         };
-        
+
         match self.controller.execute_action(action).await {
             Ok(result) => Ok(json!({
                 "status": "success",
@@ -84,7 +85,7 @@ impl Tool for ClickTool {
     fn name(&self) -> &str {
         "browser_click"
     }
-    
+
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "browser_click".to_string(),
@@ -98,18 +99,19 @@ impl Tool for ClickTool {
                     }
                 },
                 "required": ["selector"]
-            })
+            }),
         }
     }
-    
+
     async fn execute(&self, params: Value) -> Result<Value> {
-        let selector = params["selector"].as_str()
+        let selector = params["selector"]
+            .as_str()
             .ok_or_else(|| Error::InvalidInput("Selector parameter is required".to_string()))?;
-        
-        let action = BrowserAction::Click { 
-            selector: selector.to_string() 
+
+        let action = BrowserAction::Click {
+            selector: selector.to_string(),
         };
-        
+
         match self.controller.execute_action(action).await {
             Ok(result) => Ok(json!({
                 "status": "success",
@@ -136,7 +138,7 @@ impl Tool for TypeTool {
     fn name(&self) -> &str {
         "browser_type"
     }
-    
+
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "browser_type".to_string(),
@@ -154,21 +156,23 @@ impl Tool for TypeTool {
                     }
                 },
                 "required": ["selector", "text"]
-            })
+            }),
         }
     }
-    
+
     async fn execute(&self, params: Value) -> Result<Value> {
-        let selector = params["selector"].as_str()
+        let selector = params["selector"]
+            .as_str()
             .ok_or_else(|| Error::InvalidInput("Selector parameter is required".to_string()))?;
-        let text = params["text"].as_str()
+        let text = params["text"]
+            .as_str()
             .ok_or_else(|| Error::InvalidInput("Text parameter is required".to_string()))?;
-        
-        let action = BrowserAction::Type { 
+
+        let action = BrowserAction::Type {
             selector: selector.to_string(),
             text: text.to_string(),
         };
-        
+
         match self.controller.execute_action(action).await {
             Ok(result) => Ok(json!({
                 "status": "success",
@@ -195,7 +199,7 @@ impl Tool for ExtractTool {
     fn name(&self) -> &str {
         "browser_extract"
     }
-    
+
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "browser_extract".to_string(),
@@ -219,30 +223,34 @@ impl Tool for ExtractTool {
                     }
                 },
                 "required": ["selector"]
-            })
+            }),
         }
     }
-    
+
     async fn execute(&self, params: Value) -> Result<Value> {
-        let selector = params["selector"].as_str()
+        let selector = params["selector"]
+            .as_str()
             .ok_or_else(|| Error::InvalidInput("Selector parameter is required".to_string()))?;
-        
+
         let extract_type = match params["type"].as_str() {
             Some("html") => ExtractType::Html,
             Some("attribute") => {
-                let attr = params["attribute"].as_str()
-                    .ok_or_else(|| Error::InvalidInput("Attribute parameter required for type 'attribute'".to_string()))?;
+                let attr = params["attribute"].as_str().ok_or_else(|| {
+                    Error::InvalidInput(
+                        "Attribute parameter required for type 'attribute'".to_string(),
+                    )
+                })?;
                 ExtractType::Attribute(attr.to_string())
             }
             Some("all_text") => ExtractType::AllText,
             _ => ExtractType::Text,
         };
-        
-        let action = BrowserAction::Extract { 
+
+        let action = BrowserAction::Extract {
             selector: selector.to_string(),
             extract_type,
         };
-        
+
         match self.controller.execute_action(action).await {
             Ok(result) => Ok(json!({
                 "status": "success",
@@ -269,7 +277,7 @@ impl Tool for ScreenshotTool {
     fn name(&self) -> &str {
         "browser_screenshot"
     }
-    
+
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "browser_screenshot".to_string(),
@@ -283,15 +291,15 @@ impl Tool for ScreenshotTool {
                         "default": false
                     }
                 }
-            })
+            }),
         }
     }
-    
+
     async fn execute(&self, params: Value) -> Result<Value> {
         let full_page = params["full_page"].as_bool().unwrap_or(false);
-        
+
         let action = BrowserAction::Screenshot { full_page };
-        
+
         match self.controller.execute_action(action).await {
             Ok(result) => Ok(json!({
                 "status": "success",
@@ -318,7 +326,7 @@ impl Tool for WaitForTool {
     fn name(&self) -> &str {
         "browser_wait"
     }
-    
+
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "browser_wait".to_string(),
@@ -341,31 +349,34 @@ impl Tool for WaitForTool {
                     }
                 },
                 "required": ["condition"]
-            })
+            }),
         }
     }
-    
+
     async fn execute(&self, params: Value) -> Result<Value> {
-        let condition_type = params["condition"].as_str()
+        let condition_type = params["condition"]
+            .as_str()
             .ok_or_else(|| Error::InvalidInput("Condition parameter is required".to_string()))?;
-        
+
         let condition = match condition_type {
             "selector" => {
-                let selector = params["selector"].as_str()
-                    .ok_or_else(|| Error::InvalidInput("Selector required for 'selector' condition".to_string()))?;
+                let selector = params["selector"].as_str().ok_or_else(|| {
+                    Error::InvalidInput("Selector required for 'selector' condition".to_string())
+                })?;
                 WaitCondition::Selector(selector.to_string())
             }
             "navigation" => WaitCondition::Navigation,
             "duration" => {
-                let duration = params["duration"].as_u64()
-                    .ok_or_else(|| Error::InvalidInput("Duration required for 'duration' condition".to_string()))?;
+                let duration = params["duration"].as_u64().ok_or_else(|| {
+                    Error::InvalidInput("Duration required for 'duration' condition".to_string())
+                })?;
                 WaitCondition::Duration(duration)
             }
             _ => return Err(Error::InvalidInput("Invalid condition type".to_string())),
         };
-        
+
         let action = BrowserAction::WaitFor { condition };
-        
+
         match self.controller.execute_action(action).await {
             Ok(result) => Ok(json!({
                 "status": "success",
@@ -390,7 +401,6 @@ pub fn create_browser_tools(controller: Arc<BrowserController>) -> Vec<Box<dyn T
 
 #[cfg(test)]
 mod tests {
-    
 
     #[test]
     #[ignore = "Requires proper BrowserController mock"]
@@ -398,7 +408,7 @@ mod tests {
         // TODO: Create proper mock for BrowserController
         // let controller = Arc::new(MockBrowserController::new());
         // let tool = NavigateTool::new(controller);
-        // 
+        //
         // assert_eq!(tool.name(), "browser_navigate");
         // let definition = tool.definition();
         // assert!(definition.input_schema["properties"]["url"].is_object());

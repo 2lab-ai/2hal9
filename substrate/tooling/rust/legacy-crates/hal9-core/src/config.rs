@@ -8,31 +8,31 @@ use std::collections::HashMap;
 pub struct ServerConfig {
     pub server_id: String,
     pub neurons: Vec<NeuronConfig>,
-    
+
     /// Optional monitoring configuration
     #[serde(default)]
     pub monitoring: MonitoringConfig,
-    
+
     /// Optional Claude API configuration
     #[serde(default)]
     pub claude: ClaudeConfig,
-    
+
     /// Optional network configuration for distributed mode
     #[serde(default)]
     pub network: NetworkConfig,
-    
+
     /// Optional memory configuration
     #[serde(default)]
     pub memory: MemoryConfig,
-    
+
     /// Optional backward propagation configuration
     #[serde(default)]
     pub backward_propagation: BackwardPropagationConfig,
-    
+
     /// Optional authentication configuration
     #[serde(default)]
     pub auth: AuthConfig,
-    
+
     /// Optional browser automation configuration
     #[serde(default)]
     pub browser: Option<BrowserConfig>,
@@ -43,16 +43,16 @@ pub struct ServerConfig {
 pub struct BackwardPropagationConfig {
     #[serde(default = "default_bp_enabled")]
     pub enabled: bool,
-    
+
     #[serde(default = "default_learning_rate")]
     pub learning_rate: f32,
-    
+
     #[serde(default = "default_pattern_threshold")]
     pub pattern_threshold: usize,
-    
+
     #[serde(default = "default_adjustment_decay")]
     pub adjustment_decay: f32,
-    
+
     #[serde(default = "default_max_gradient_depth")]
     pub max_gradient_depth: usize,
 }
@@ -75,11 +75,11 @@ pub struct MemoryConfig {
     /// Enable memory system
     #[serde(default = "default_false")]
     pub enabled: bool,
-    
+
     /// Database path
     #[serde(default = "default_memory_database_path")]
     pub database_path: String,
-    
+
     /// Cleanup configuration
     #[serde(default)]
     pub cleanup: MemoryCleanupConfig,
@@ -101,7 +101,7 @@ pub struct MemoryCleanupConfig {
     /// Retention days
     #[serde(default = "default_retention_days")]
     pub retention_days: u32,
-    
+
     /// Minimum importance to keep
     #[serde(default = "default_min_importance")]
     pub min_importance: f32,
@@ -121,20 +121,20 @@ impl Default for MemoryCleanupConfig {
 pub struct NeuronConfig {
     pub id: String,
     pub layer: String,
-    
+
     /// Command to spawn neuron process (for CLI mode)
     #[serde(default = "default_claude_command")]
     pub claude_command: String,
-    
+
     /// System prompt for the neuron
     pub system_prompt: Option<String>,
-    
+
     /// Forward connections (neurons this one sends to)
     pub forward_connections: Vec<String>,
-    
+
     /// Backward connections (neurons this one receives errors from)
     pub backward_connections: Vec<String>,
-    
+
     /// Optional neuron-specific configuration
     #[serde(default)]
     pub settings: HashMap<String, serde_json::Value>,
@@ -146,11 +146,11 @@ pub struct MonitoringConfig {
     /// Enable metrics collection
     #[serde(default = "default_true")]
     pub enabled: bool,
-    
+
     /// Metrics export interval in seconds
     #[serde(default = "default_metrics_interval")]
     pub metrics_interval: u64,
-    
+
     /// Log level (trace, debug, info, warn, error)
     #[serde(default = "default_log_level")]
     pub log_level: String,
@@ -162,34 +162,34 @@ pub struct ClaudeConfig {
     /// Integration mode: "mock", "api", "hybrid", "auto", or "cli"
     #[serde(default = "default_claude_mode")]
     pub mode: String,
-    
+
     /// API key (from environment if not specified)
     pub api_key: Option<String>,
-    
+
     /// Model to use
     #[serde(default = "default_claude_model")]
     pub model: String,
-    
+
     /// Default temperature
     #[serde(default = "default_temperature")]
     pub temperature: f32,
-    
+
     /// Default max tokens
     #[serde(default = "default_max_tokens")]
     pub max_tokens: u32,
-    
+
     /// Rate limit (requests per minute)
     #[serde(default = "default_rate_limit")]
     pub rate_limit: u32,
-    
+
     /// Mock responses for testing (layer -> responses)
     #[serde(default)]
     pub mock_responses: HashMap<String, Vec<MockResponse>>,
-    
+
     /// Fallback to mock on API errors
     #[serde(default = "default_true")]
     pub fallback_to_mock: bool,
-    
+
     /// Cost controls
     #[serde(default)]
     pub cost_controls: CostControls,
@@ -201,15 +201,15 @@ pub struct CostControls {
     /// Maximum cost per hour in USD
     #[serde(default = "default_max_cost_per_hour")]
     pub max_cost_per_hour: f64,
-    
+
     /// Maximum cost per day in USD
     #[serde(default = "default_max_cost_per_day")]
     pub max_cost_per_day: f64,
-    
+
     /// Maximum tokens per request
     #[serde(default = "default_max_tokens_per_request")]
     pub max_tokens_per_request: u32,
-    
+
     /// Alert threshold (percentage of limit)
     #[serde(default = "default_alert_threshold")]
     pub alert_threshold: f64,
@@ -221,34 +221,34 @@ pub struct NetworkConfig {
     /// Enable distributed mode
     #[serde(default = "default_false")]
     pub enabled: bool,
-    
+
     /// TCP bind address
     #[serde(default = "default_bind_address")]
     pub bind_address: String,
-    
+
     /// Enable service discovery
     #[serde(default = "default_true")]
     pub discovery_enabled: bool,
-    
+
     /// Discovery multicast address
     #[serde(default = "default_multicast_address")]
     pub discovery_address: String,
-    
+
     /// Discovery group (for multi-tenancy)
     #[serde(default = "default_discovery_group")]
     pub discovery_group: String,
-    
+
     /// Maximum connections
     #[serde(default = "default_max_connections")]
     pub max_connections: usize,
-    
+
     /// Enable TLS encryption
     #[serde(default = "default_false")]
     pub tls_enabled: bool,
-    
+
     /// TLS certificate path
     pub tls_cert: Option<String>,
-    
+
     /// TLS key path
     pub tls_key: Option<String>,
 }
@@ -258,10 +258,10 @@ pub struct NetworkConfig {
 pub struct MockResponse {
     /// Trigger phrase to match (partial match)
     pub trigger: String,
-    
+
     /// Response template
     pub response: String,
-    
+
     /// Optional delay in milliseconds
     #[serde(default = "default_mock_delay")]
     pub delay_ms: u64,
@@ -273,19 +273,19 @@ pub struct AuthConfig {
     /// Enable authentication
     #[serde(default = "default_false")]
     pub enabled: bool,
-    
+
     /// JWT secret key
     #[serde(default = "default_jwt_secret")]
     pub jwt_secret: String,
-    
+
     /// Database path for auth data
     #[serde(default = "default_auth_database_path")]
     pub database_path: String,
-    
+
     /// Access token duration in minutes
     #[serde(default = "default_access_token_duration")]
     pub access_token_duration_minutes: i64,
-    
+
     /// Refresh token duration in days
     #[serde(default = "default_refresh_token_duration")]
     pub refresh_token_duration_days: i64,
@@ -484,31 +484,31 @@ pub struct BrowserSettings {
     /// Maximum concurrent browser contexts
     #[serde(default = "default_max_browser_contexts")]
     pub max_contexts: usize,
-    
+
     /// Browser type (chromium, firefox, webkit)
     #[serde(default = "default_browser_type")]
     pub browser_type: String,
-    
+
     /// Headless mode
     #[serde(default = "default_browser_headless")]
     pub headless: bool,
-    
+
     /// Viewport width
     #[serde(default = "default_viewport_width")]
     pub viewport_width: u32,
-    
+
     /// Viewport height
     #[serde(default = "default_viewport_height")]
     pub viewport_height: u32,
-    
+
     /// Default timeout in milliseconds
     #[serde(default = "default_browser_timeout")]
     pub default_timeout: u32,
-    
+
     /// Resource limits
     #[serde(default)]
     pub resource_limits: BrowserResourceLimits,
-    
+
     /// Security configuration
     #[serde(default)]
     pub security: BrowserSecurityConfig,
@@ -519,13 +519,13 @@ pub struct BrowserSettings {
 pub struct BrowserResourceLimits {
     #[serde(default = "default_max_cpu_percent")]
     pub max_cpu_percent: u8,
-    
+
     #[serde(default = "default_max_memory_mb")]
     pub max_memory_mb: u32,
-    
+
     #[serde(default = "default_max_execution_time_secs")]
     pub max_execution_time_secs: u64,
-    
+
     #[serde(default = "default_max_concurrent_actions")]
     pub max_concurrent_actions: usize,
 }
@@ -547,19 +547,19 @@ pub struct BrowserSecurityConfig {
     /// URL whitelist patterns
     #[serde(default)]
     pub url_whitelist: Vec<String>,
-    
+
     /// URL blacklist patterns
     #[serde(default)]
     pub url_blacklist: Vec<String>,
-    
+
     /// Enable credential vault
     #[serde(default = "default_true")]
     pub enable_credential_vault: bool,
-    
+
     /// Enable audit logging
     #[serde(default = "default_true")]
     pub enable_audit_log: bool,
-    
+
     /// Rate limit per minute
     #[serde(default = "default_browser_rate_limit")]
     pub rate_limit_per_minute: u32,
@@ -629,26 +629,26 @@ fn default_browser_rate_limit() -> u32 {
 /// Layer-specific system prompts
 pub fn get_system_prompt(layer: &str) -> String {
     match layer {
-        "L4" => {
-            "You are a strategic planning AI neuron in a hierarchical neural network.
+        "L4" => "You are a strategic planning AI neuron in a hierarchical neural network.
 Your role is to receive high-level objectives and break them down into strategic initiatives.
 Output format: List of 2-3 strategic directives for L3 neurons.
-Focus on WHAT needs to be achieved, not HOW.".to_string()
-        }
-        "L3" => {
-            "You are a system design AI neuron in a hierarchical neural network.
+Focus on WHAT needs to be achieved, not HOW."
+            .to_string(),
+        "L3" => "You are a system design AI neuron in a hierarchical neural network.
 Your role is to receive strategic directives and create architectural designs.
 Output format: Technical design specifications for L2 neurons.
-Focus on system architecture and component interaction.".to_string()
-        }
-        "L2" => {
-            "You are an implementation AI neuron in a hierarchical neural network.
+Focus on system architecture and component interaction."
+            .to_string(),
+        "L2" => "You are an implementation AI neuron in a hierarchical neural network.
 Your role is to receive design specifications and implement solutions.
 Output format: Actual code, configurations, or detailed procedures.
-Focus on concrete implementation details.".to_string()
-        }
+Focus on concrete implementation details."
+            .to_string(),
         _ => {
-            format!("You are a {} layer AI neuron in a hierarchical neural network.", layer)
+            format!(
+                "You are a {} layer AI neuron in a hierarchical neural network.",
+                layer
+            )
         }
     }
 }

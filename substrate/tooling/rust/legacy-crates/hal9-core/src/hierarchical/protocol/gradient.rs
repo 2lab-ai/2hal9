@@ -3,15 +3,18 @@
 //! This protocol handles the propagation of learning signals (gradients) backward
 //! through the network, enabling distributed learning and adaptation.
 
-use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::collections::HashMap;
-use uuid::Uuid;
-use crate::{Result, Error};
+use super::{
+    CompressionType, EncryptionType, NegotiatedProtocol, Protocol, ProtocolCapabilities,
+    ProtocolVersion,
+};
 use crate::hierarchical::substrate::transport::{DefaultTransport, MessageTransport};
-use super::{Protocol, ProtocolVersion, ProtocolCapabilities, NegotiatedProtocol, CompressionType, EncryptionType};
+use crate::{Error, Result};
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
+use uuid::Uuid;
 
 /// Gradient message for backward propagation
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,23 +46,23 @@ impl Gradient {
             accumulated_steps: 0,
         }
     }
-    
+
     /// Accumulate gradient for batch processing
     pub fn accumulate(&mut self, other: &Gradient) {
         if self.direction.len() != other.direction.len() {
             tracing::warn!("Gradient dimension mismatch");
             return;
         }
-        
+
         for (i, val) in other.direction.iter().enumerate() {
             self.direction[i] += val;
         }
-        
+
         self.error += other.error;
         self.accumulated_steps += 1;
         self.magnitude = self.direction.iter().map(|x| x * x).sum::<f32>().sqrt();
     }
-    
+
     /// Apply gradient clipping
     pub fn clip(&mut self, max_norm: f32) {
         if self.magnitude > max_norm {
@@ -70,7 +73,7 @@ impl Gradient {
             self.magnitude = max_norm;
         }
     }
-    
+
     /// Check if gradient is significant enough to propagate
     pub fn is_significant(&self) -> bool {
         self.magnitude > 0.001
@@ -88,6 +91,7 @@ pub struct LearningContext {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub enum LossType {
     MeanSquaredError,
     CrossEntropy,
@@ -110,25 +114,25 @@ impl GradientAccumulator {
             auto_flush,
         }
     }
-    
+
     pub fn add(&mut self, neuron_id: Uuid, gradient: Gradient) -> Option<Gradient> {
         let entry = self.gradients.entry(neuron_id).or_default();
         entry.push(gradient);
-        
+
         if self.auto_flush && entry.len() >= self.batch_size {
             self.flush_neuron(neuron_id)
         } else {
             None
         }
     }
-    
+
     pub fn flush_neuron(&mut self, neuron_id: Uuid) -> Option<Gradient> {
         self.gradients.remove(&neuron_id).map(|grads| {
             let mut accumulated = grads[0].clone();
             for grad in grads.iter().skip(1) {
                 accumulated.accumulate(grad);
             }
-            
+
             // Average the accumulated gradient
             // The total number of gradients is accumulated_steps + 1 (the original)
             let total_gradients = accumulated.accumulated_steps + 1;
@@ -137,15 +141,21 @@ impl GradientAccumulator {
             for val in &mut accumulated.direction {
                 *val *= factor;
             }
-            accumulated.magnitude = accumulated.direction.iter().map(|x| x * x).sum::<f32>().sqrt();
-            
+            accumulated.magnitude = accumulated
+                .direction
+                .iter()
+                .map(|x| x * x)
+                .sum::<f32>()
+                .sqrt();
+
             accumulated
         })
     }
-    
+
     pub fn flush_all(&mut self) -> HashMap<Uuid, Gradient> {
         let neuron_ids: Vec<_> = self.gradients.keys().cloned().collect();
-        neuron_ids.into_iter()
+        neuron_ids
+            .into_iter()
             .filter_map(|id| self.flush_neuron(id).map(|g| (id, g)))
             .collect()
     }
@@ -179,38 +189,38 @@ impl GradientProtocol {
             metrics: Arc::new(GradientMetrics::default()),
         }
     }
-    
+
     /// Send a gradient to a specific neuron
     pub async fn send_gradient(&self, gradient: GradientMessage) -> Result<()> {
         // Validate gradient
         if !gradient.gradient.is_significant() {
             return Ok(()); // Too small to matter
         }
-        
+
         // Encode and send
         let encoded = self.encode_internal(&gradient)?;
         let destination = format!("neuron:{}:gradient", gradient.target_neuron);
-        
+
         self.transport.send_raw(&destination, encoded).await?;
-        
+
         // Update metrics
         self.metrics.gradients_sent.fetch_add(1, Ordering::Relaxed);
         self.metrics.total_error.fetch_add(
             (gradient.gradient.error.abs() * 1000.0) as u64,
-            Ordering::Relaxed
+            Ordering::Relaxed,
         );
-        
+
         Ok(())
     }
-    
+
     /// Accumulate gradient for batch processing
     pub async fn accumulate_gradient(&self, neuron_id: Uuid, gradient: Gradient) -> Result<()> {
         let mut accumulator = self.accumulator.lock();
-        
+
         if let Some(flushed) = accumulator.add(neuron_id, gradient) {
             // Auto-flushed, send it
             drop(accumulator); // Release lock before async operation
-            
+
             let message = GradientMessage {
                 id: Uuid::new_v4(),
                 source_neuron: Uuid::nil(), // Accumulated gradient has no single source
@@ -225,18 +235,20 @@ impl GradientProtocol {
                     loss_type: LossType::MeanSquaredError,
                 },
             };
-            
+
             self.send_gradient(message).await?;
         }
-        
-        self.metrics.gradients_accumulated.fetch_add(1, Ordering::Relaxed);
+
+        self.metrics
+            .gradients_accumulated
+            .fetch_add(1, Ordering::Relaxed);
         Ok(())
     }
-    
+
     /// Flush all accumulated gradients
     pub async fn flush_gradients(&self) -> Result<()> {
         let flushed = self.accumulator.lock().flush_all();
-        
+
         for (neuron_id, gradient) in flushed {
             let message = GradientMessage {
                 id: Uuid::new_v4(),
@@ -252,55 +264,54 @@ impl GradientProtocol {
                     loss_type: LossType::MeanSquaredError,
                 },
             };
-            
+
             self.send_gradient(message).await?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Receive gradients for a neuron
     pub async fn receive_gradients(&self, neuron_id: Uuid) -> Result<GradientReceiver> {
         let endpoint = format!("neuron:{}:gradient", neuron_id);
         let receiver = self.transport.receive_raw(&endpoint).await?;
-        
+
         Ok(GradientReceiver {
             receiver,
             protocol: self,
         })
     }
-    
+
     /// Apply gradient clipping
     pub fn clip_gradient(&self, mut gradient: Gradient, max_norm: f32) -> Gradient {
         gradient.clip(max_norm);
-        
+
         if gradient.magnitude >= max_norm {
             self.metrics.clipping_events.fetch_add(1, Ordering::Relaxed);
         }
-        
+
         gradient
     }
-    
+
     fn encode_internal(&self, gradient: &GradientMessage) -> Result<Vec<u8>> {
-        let data = bincode::serialize(gradient)
-            .map_err(|e| Error::Serialization(e.to_string()))?;
-        
+        let data = bincode::serialize(gradient).map_err(|e| Error::Serialization(e.to_string()))?;
+
         // Apply compression if negotiated (gradients benefit from compression)
         let compressed = if let Some(neg) = &self.negotiated {
             match neg.compression {
-                CompressionType::Zstd => {
-                    zstd::encode_all(data.as_slice(), 3)
-                        .map_err(|e| Error::Protocol(format!("Compression failed: {}", e)))?
-                }
+                CompressionType::Zstd => zstd::encode_all(data.as_slice(), 3)
+                    .map_err(|e| Error::Protocol(format!("Compression failed: {}", e)))?,
                 CompressionType::Gzip => {
                     use flate2::write::GzEncoder;
                     use flate2::Compression;
                     use std::io::Write;
-                    
+
                     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-                    encoder.write_all(&data)
+                    encoder
+                        .write_all(&data)
                         .map_err(|e| Error::Protocol(format!("Compression failed: {}", e)))?;
-                    encoder.finish()
+                    encoder
+                        .finish()
                         .map_err(|e| Error::Protocol(format!("Compression failed: {}", e)))?
                 }
                 _ => data,
@@ -308,25 +319,24 @@ impl GradientProtocol {
         } else {
             data
         };
-        
+
         Ok(compressed)
     }
-    
+
     fn decode_internal(&self, data: &[u8]) -> Result<GradientMessage> {
         // Decompress if needed
         let decompressed = if let Some(neg) = &self.negotiated {
             match neg.compression {
-                CompressionType::Zstd => {
-                    zstd::decode_all(data)
-                        .map_err(|e| Error::Protocol(format!("Decompression failed: {}", e)))?
-                }
+                CompressionType::Zstd => zstd::decode_all(data)
+                    .map_err(|e| Error::Protocol(format!("Decompression failed: {}", e)))?,
                 CompressionType::Gzip => {
                     use flate2::read::GzDecoder;
                     use std::io::Read;
-                    
+
                     let mut decoder = GzDecoder::new(data);
                     let mut decompressed = Vec::new();
-                    decoder.read_to_end(&mut decompressed)
+                    decoder
+                        .read_to_end(&mut decompressed)
                         .map_err(|e| Error::Protocol(format!("Decompression failed: {}", e)))?;
                     decompressed
                 }
@@ -335,15 +345,17 @@ impl GradientProtocol {
         } else {
             data.to_vec()
         };
-        
+
         let gradient = bincode::deserialize(&decompressed)
             .map_err(|e| Error::Deserialization(e.to_string()))?;
-        
-        self.metrics.gradients_received.fetch_add(1, Ordering::Relaxed);
-        
+
+        self.metrics
+            .gradients_received
+            .fetch_add(1, Ordering::Relaxed);
+
         Ok(gradient)
     }
-    
+
     /// Get protocol metrics
     pub fn metrics(&self) -> GradientProtocolMetrics {
         let sent = self.metrics.gradients_sent.load(Ordering::Relaxed);
@@ -351,7 +363,7 @@ impl GradientProtocol {
         let accumulated = self.metrics.gradients_accumulated.load(Ordering::Relaxed);
         let total_error = self.metrics.total_error.load(Ordering::Relaxed) as f32 / 1000.0;
         let clipping_events = self.metrics.clipping_events.load(Ordering::Relaxed);
-        
+
         GradientProtocolMetrics {
             gradients_sent: sent,
             gradients_received: received,
@@ -405,42 +417,59 @@ impl Protocol for GradientProtocol {
     fn id(&self) -> &str {
         "gradient-protocol"
     }
-    
+
     fn version(&self) -> ProtocolVersion {
         self.version.clone()
     }
-    
-    async fn negotiate(&self, peer_capabilities: &ProtocolCapabilities) -> Result<NegotiatedProtocol> {
+
+    async fn negotiate(
+        &self,
+        peer_capabilities: &ProtocolCapabilities,
+    ) -> Result<NegotiatedProtocol> {
         // Prefer Zstd for gradients (better compression ratio)
-        let compression = if peer_capabilities.compression.contains(&CompressionType::Zstd) {
+        let compression = if peer_capabilities
+            .compression
+            .contains(&CompressionType::Zstd)
+        {
             CompressionType::Zstd
-        } else if peer_capabilities.compression.contains(&CompressionType::Gzip) {
+        } else if peer_capabilities
+            .compression
+            .contains(&CompressionType::Gzip)
+        {
             CompressionType::Gzip
         } else {
             CompressionType::None
         };
-        
+
         let negotiated = NegotiatedProtocol {
             version: self.version.clone(),
             compression,
             encryption: EncryptionType::None, // Could add encryption for federated learning
             max_message_size: peer_capabilities.max_message_size.min(10_000_000), // 10MB max
         };
-        
+
         Ok(negotiated)
     }
-    
+
     async fn encode_raw(&self, _message_type: &str, _data: Vec<u8>) -> Result<Vec<u8>> {
-        Err(Error::Protocol("Use send_gradient for gradient protocol".to_string()))
+        Err(Error::Protocol(
+            "Use send_gradient for gradient protocol".to_string(),
+        ))
     }
-    
+
     async fn decode_raw(&self, _data: &[u8]) -> Result<(String, Vec<u8>)> {
-        Err(Error::Protocol("Use receive_gradients for gradient protocol".to_string()))
+        Err(Error::Protocol(
+            "Use receive_gradients for gradient protocol".to_string(),
+        ))
     }
-    
+
     fn capabilities(&self) -> ProtocolCapabilities {
         ProtocolCapabilities {
-            compression: vec![CompressionType::None, CompressionType::Gzip, CompressionType::Zstd],
+            compression: vec![
+                CompressionType::None,
+                CompressionType::Gzip,
+                CompressionType::Zstd,
+            ],
             encryption: vec![EncryptionType::None, EncryptionType::Tls],
             max_message_size: 10_000_000, // 10MB for large gradient batches
             streaming: false,
@@ -454,59 +483,59 @@ impl Protocol for GradientProtocol {
 mod tests {
     use super::*;
     use crate::hierarchical::substrate::ChannelTransport;
-    
+
     #[tokio::test]
     async fn test_gradient_operations() {
         let gradient = Gradient::new(0.5, vec![0.1, -0.2, 0.3]);
         assert!((gradient.magnitude - (0.01 + 0.04 + 0.09_f32).sqrt()).abs() < 0.0001);
         assert!(gradient.is_significant());
-        
+
         // Test accumulation
         let mut grad1 = Gradient::new(0.1, vec![1.0, 0.0, -1.0]);
         let grad2 = Gradient::new(0.2, vec![0.0, 1.0, 1.0]);
         grad1.accumulate(&grad2);
-        
+
         assert_eq!(grad1.direction, vec![1.0, 1.0, 0.0]);
         assert_eq!(grad1.error, 0.3);
         assert_eq!(grad1.accumulated_steps, 1);
-        
+
         // Test clipping
         let mut large_grad = Gradient::new(1.0, vec![10.0, 10.0, 10.0]);
         large_grad.clip(1.0);
         assert!((large_grad.magnitude - 1.0).abs() < 0.01);
     }
-    
+
     #[tokio::test]
     async fn test_gradient_accumulator() {
         let mut accumulator = GradientAccumulator::new(3, true);
         let neuron_id = Uuid::new_v4();
-        
+
         // Add gradients
         let g1 = Gradient::new(0.1, vec![1.0, 0.0]);
         let g2 = Gradient::new(0.2, vec![0.0, 1.0]);
-        
+
         assert!(accumulator.add(neuron_id, g1).is_none());
         assert!(accumulator.add(neuron_id, g2).is_none());
-        
+
         // Third gradient should trigger flush
         let g3 = Gradient::new(0.3, vec![1.0, 1.0]);
         let flushed = accumulator.add(neuron_id, g3).unwrap();
-        
+
         // Check averaged gradient
         assert!((flushed.error - 0.2).abs() < 0.0001); // (0.1 + 0.2 + 0.3) / 3
         assert!((flushed.direction[0] - 2.0 / 3.0).abs() < 0.0001); // (1 + 0 + 1) / 3
         assert!((flushed.direction[1] - 2.0 / 3.0).abs() < 0.0001); // (0 + 1 + 1) / 3
     }
-    
+
     #[tokio::test]
     async fn test_gradient_protocol() {
         let transport = Arc::new(ChannelTransport::new());
         let protocol = GradientProtocol::new(transport.clone(), 5);
-        
+
         // Set up receiver
         let neuron_id = Uuid::new_v4();
         let mut receiver = protocol.receive_gradients(neuron_id).await.unwrap();
-        
+
         // Send gradient
         let gradient_msg = GradientMessage {
             id: Uuid::new_v4(),
@@ -522,15 +551,15 @@ mod tests {
                 loss_type: LossType::CrossEntropy,
             },
         };
-        
+
         protocol.send_gradient(gradient_msg.clone()).await.unwrap();
-        
+
         // Receive gradient
         let received = receiver.recv().await.unwrap();
         assert_eq!(received.id, gradient_msg.id);
         assert_eq!(received.gradient.error, 0.25);
         assert_eq!(received.learning_context.epoch, 5);
-        
+
         // Check metrics
         let metrics = protocol.metrics();
         assert_eq!(metrics.gradients_sent, 1);

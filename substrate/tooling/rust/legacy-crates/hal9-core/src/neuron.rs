@@ -1,7 +1,7 @@
 //! Neuron abstraction and interfaces
 
+use crate::{NeuronSignal, Result};
 use async_trait::async_trait;
-use crate::{Result, NeuronSignal};
 
 /// Neuron identifier type
 pub type NeuronId = String;
@@ -26,7 +26,7 @@ impl Layer {
             _ => None,
         }
     }
-    
+
     /// Get layer name
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -36,7 +36,7 @@ impl Layer {
             Layer::L1 => "L1",
         }
     }
-    
+
     /// Get layer description
     pub fn description(&self) -> &'static str {
         match self {
@@ -73,16 +73,16 @@ pub struct NeuronHealth {
 pub trait NeuronInterface: Send + Sync {
     /// Get neuron ID
     fn id(&self) -> &str;
-    
+
     /// Get neuron layer
     fn layer(&self) -> Layer;
-    
+
     /// Process an incoming signal
     async fn process_signal(&self, signal: &NeuronSignal) -> Result<String>;
-    
+
     /// Get current health status
     async fn health(&self) -> Result<NeuronHealth>;
-    
+
     /// Shutdown the neuron gracefully
     async fn shutdown(&self) -> Result<()>;
 }

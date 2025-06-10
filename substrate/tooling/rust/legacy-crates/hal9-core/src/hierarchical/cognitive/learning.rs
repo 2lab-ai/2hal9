@@ -1,19 +1,19 @@
 //! Learning mechanisms for cognitive units
 
+use crate::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use uuid::Uuid;
-use crate::Result;
 
 /// Learning mechanism trait
 #[async_trait]
 pub trait LearningMechanism: Send + Sync {
     /// Apply learning from gradient
     async fn apply_gradient(&mut self, gradient: &LearningGradient) -> Result<LearningOutcome>;
-    
+
     /// Extract patterns from experience
     async fn extract_patterns(&self, experiences: &[Experience]) -> Result<Vec<LearnedPattern>>;
-    
+
     /// Consolidate learning into long-term memory
     async fn consolidate(&mut self) -> Result<ConsolidationReport>;
 }
@@ -94,12 +94,13 @@ impl HebbianLearning {
             learning_rate,
         }
     }
-    
+
     pub fn strengthen_connection(&mut self, from: Uuid, to: Uuid, activation: f32) {
         let key = (from, to);
         let current = self.connection_weights.get(&key).copied().unwrap_or(0.5);
         let new_weight = current + self.learning_rate * activation * (1.0 - current);
-        self.connection_weights.insert(key, new_weight.clamp(0.0, 1.0));
+        self.connection_weights
+            .insert(key, new_weight.clamp(0.0, 1.0));
     }
 }
 
@@ -131,18 +132,24 @@ impl ReinforcementLearning {
             exploration_rate,
         }
     }
-    
+
     pub fn update_q_value(&mut self, state: State, action: Action, reward: f32, next_state: State) {
-        let current_q = self.q_table.get(&(state.clone(), action.clone())).copied().unwrap_or(0.0);
-        
+        let current_q = self
+            .q_table
+            .get(&(state.clone(), action.clone()))
+            .copied()
+            .unwrap_or(0.0);
+
         let max_next_q = self.get_max_q_value(&next_state);
-        let new_q = current_q + self.learning_rate * (reward + self.discount_factor * max_next_q - current_q);
-        
+        let new_q = current_q
+            + self.learning_rate * (reward + self.discount_factor * max_next_q - current_q);
+
         self.q_table.insert((state, action), new_q);
     }
-    
+
     fn get_max_q_value(&self, state: &State) -> f32 {
-        self.q_table.iter()
+        self.q_table
+            .iter()
             .filter(|((s, _), _)| s == state)
             .map(|(_, q)| *q)
             .max_by(|a, b| a.partial_cmp(b).unwrap())
@@ -195,12 +202,20 @@ impl MetaLearning {
             strategy_performance: HashMap::new(),
         }
     }
-    
-    pub async fn select_best_strategy(&self, _data_characteristics: &DataCharacteristics) -> Option<&dyn LearningStrategy> {
+
+    pub async fn select_best_strategy(
+        &self,
+        _data_characteristics: &DataCharacteristics,
+    ) -> Option<&dyn LearningStrategy> {
         // Select strategy based on past performance and data characteristics
-        self.learning_strategies.iter()
+        self.learning_strategies
+            .iter()
             .max_by_key(|s| {
-                let metrics = self.strategy_performance.get(s.id()).cloned().unwrap_or_default();
+                let metrics = self
+                    .strategy_performance
+                    .get(s.id())
+                    .cloned()
+                    .unwrap_or_default();
                 (metrics.success_rate * 1000.0) as u32
             })
             .map(|s| s.as_ref())
@@ -233,17 +248,19 @@ impl ExperienceReplay {
             capacity,
         }
     }
-    
+
     pub fn add(&mut self, experience: Experience) {
         if self.buffer.len() >= self.capacity {
             self.buffer.remove(0);
         }
         self.buffer.push(experience);
     }
-    
+
     pub fn sample(&self, n: usize) -> Vec<&Experience> {
         use rand::seq::SliceRandom;
         let mut rng = rand::thread_rng();
-        self.buffer.choose_multiple(&mut rng, n.min(self.buffer.len())).collect()
+        self.buffer
+            .choose_multiple(&mut rng, n.min(self.buffer.len()))
+            .collect()
     }
 }

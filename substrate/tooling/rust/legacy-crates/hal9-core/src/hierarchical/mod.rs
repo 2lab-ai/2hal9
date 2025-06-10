@@ -14,12 +14,12 @@
 //! Each layer provides abstractions to the layers above it, enabling complex behaviors
 //! to emerge from simple rules.
 
-pub mod substrate;
-pub mod protocol;
 pub mod cognitive;
-pub mod orchestration;
 pub mod intelligence;
 pub mod interfaces;
+pub mod orchestration;
+pub mod protocol;
+pub mod substrate;
 
 pub use interfaces::*;
 
@@ -29,11 +29,11 @@ pub const ARCHITECTURE_VERSION: &str = "1.0.0";
 /// Re-export commonly used types
 pub mod prelude {
     pub use crate::hierarchical::{
-        substrate::{Substrate, SubstrateCapabilities},
-        protocol::{Protocol, ProtocolVersion},
-        cognitive::{CognitiveUnit, CognitiveLayer},
+        cognitive::{CognitiveLayer, CognitiveUnit},
+        intelligence::{Goal, IntelligenceCoordinator},
+        interfaces::{LayerBoundary, LayerInterface},
         orchestration::{Orchestrator, TopologyManager},
-        intelligence::{IntelligenceCoordinator, Goal},
-        interfaces::{LayerInterface, LayerBoundary},
+        protocol::{Protocol, ProtocolVersion},
+        substrate::{Substrate, SubstrateCapabilities},
     };
 }

@@ -1,11 +1,11 @@
 //! Network layer for distributed neuron communication
 
-pub mod tcp_transport;
+pub mod connection_pool;
 pub mod discovery;
 pub mod protocol;
-pub mod connection_pool;
+pub mod tcp_transport;
 
+pub use connection_pool::{ConnectionManager, ConnectionPool};
+pub use discovery::{DiscoveryConfig, ServerInfo, ServiceDiscovery};
+pub use protocol::{MessageCodec, NetworkMessage};
 pub use tcp_transport::{TcpTransport, TransportConfig};
-pub use discovery::{ServiceDiscovery, DiscoveryConfig, ServerInfo};
-pub use protocol::{NetworkMessage, MessageCodec};
-pub use connection_pool::{ConnectionPool, ConnectionManager};

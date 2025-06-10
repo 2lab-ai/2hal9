@@ -1,10 +1,10 @@
 //! Error gradient calculation and propagation
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
-use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
+use uuid::Uuid;
 
 use super::ErrorType;
 use crate::{Error, Gradient};
@@ -62,12 +62,12 @@ impl ErrorGradient {
             propagation_depth: 0,
         }
     }
-    
+
     /// Add a suggested adjustment
     pub fn add_adjustment(&mut self, adjustment: Adjustment) {
         self.suggested_adjustments.push(adjustment);
     }
-    
+
     /// Create a propagated gradient (for sending upstream)
     pub fn propagate(&self, new_target: String) -> Self {
         let mut propagated = self.clone();
@@ -79,13 +79,20 @@ impl ErrorGradient {
         propagated.timestamp = Utc::now();
         propagated
     }
-    
+
     /// Convert to signal gradient format
     pub fn to_signal_gradient(&self) -> Gradient {
-        let adjustments = self.suggested_adjustments.iter()
-            .map(|a| format!("{}: {} -> {}", a.parameter, a.current_value, a.suggested_value))
+        let adjustments = self
+            .suggested_adjustments
+            .iter()
+            .map(|a| {
+                format!(
+                    "{}: {} -> {}",
+                    a.parameter, a.current_value, a.suggested_value
+                )
+            })
             .collect();
-            
+
         Gradient {
             error_type: format!("{:?}", self.error_type),
             magnitude: self.magnitude,
@@ -104,7 +111,7 @@ impl GradientCalculator {
     pub fn new(config: super::BackwardPropagationConfig) -> Self {
         Self { _config: config }
     }
-    
+
     /// Calculate gradient from a processing error
     pub fn calculate_from_error(
         &self,
@@ -115,54 +122,52 @@ impl GradientCalculator {
         attempted_solution: &str,
     ) -> ErrorGradient {
         let error_type = self.classify_error(error);
-        
+
         let context = ErrorContext {
             original_task: task.to_string(),
             attempted_solution: attempted_solution.to_string(),
             failure_point: error.to_string(),
             environmental_factors: HashMap::new(),
         };
-        
+
         let mut gradient = ErrorGradient::new(
             error_type,
             source_neuron.to_string(),
             target_neuron.to_string(),
             context,
         );
-        
+
         // Add adjustments based on error type
         self.suggest_adjustments(&mut gradient, error);
-        
+
         gradient
     }
-    
+
     /// Classify system error into error type
     fn classify_error(&self, error: &Error) -> ErrorType {
         match error {
-            Error::Timeout(duration) => ErrorType::Timeout { 
-                duration_ms: duration * 1000 
+            Error::Timeout(duration) => ErrorType::Timeout {
+                duration_ms: duration * 1000,
             },
-            Error::CostLimit { reason } => ErrorType::ResourceExhausted { 
-                resource: format!("cost: {}", reason) 
+            Error::CostLimit { reason } => ErrorType::ResourceExhausted {
+                resource: format!("cost: {}", reason),
             },
             Error::ToolExecution(msg) => {
                 let tool = msg.split(':').next().unwrap_or("unknown");
-                ErrorType::ToolExecutionFailed { 
-                    tool: tool.to_string(), 
-                    error: msg.clone() 
+                ErrorType::ToolExecutionFailed {
+                    tool: tool.to_string(),
+                    error: msg.clone(),
                 }
+            }
+            Error::Communication(msg) | Error::Network(msg) => ErrorType::CommunicationError {
+                target: msg.clone(),
             },
-            Error::Communication(msg) | Error::Network(msg) => {
-                ErrorType::CommunicationError { 
-                    target: msg.clone() 
-                }
-            },
-            _ => ErrorType::TaskFailed { 
-                reason: error.to_string() 
+            _ => ErrorType::TaskFailed {
+                reason: error.to_string(),
             },
         }
     }
-    
+
     /// Suggest adjustments based on error type
     fn suggest_adjustments(&self, gradient: &mut ErrorGradient, _error: &Error) {
         match &gradient.error_type {
@@ -174,7 +179,7 @@ impl GradientCalculator {
                     confidence: 0.8,
                     rationale: "Double timeout to prevent future timeouts".to_string(),
                 });
-                
+
                 gradient.add_adjustment(Adjustment {
                     parameter: "task_complexity_limit".to_string(),
                     current_value: json!(null),
@@ -183,7 +188,7 @@ impl GradientCalculator {
                     rationale: "Limit task complexity to reduce processing time".to_string(),
                 });
             }
-            
+
             ErrorType::ToolExecutionFailed { tool, .. } => {
                 gradient.add_adjustment(Adjustment {
                     parameter: format!("tool_{}_validation", tool),
@@ -193,7 +198,7 @@ impl GradientCalculator {
                     rationale: format!("Enable validation for {} tool", tool),
                 });
             }
-            
+
             ErrorType::ResourceExhausted { resource } => {
                 if resource.contains("cost") {
                     gradient.add_adjustment(Adjustment {
@@ -205,7 +210,7 @@ impl GradientCalculator {
                     });
                 }
             }
-            
+
             _ => {
                 // Generic adjustment for other errors
                 gradient.add_adjustment(Adjustment {

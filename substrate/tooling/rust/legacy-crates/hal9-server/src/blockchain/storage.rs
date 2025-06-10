@@ -62,16 +62,16 @@ impl Default for IPFSConfig {
 
 impl IPFSStorage {
     pub fn new(config: IPFSConfig) -> Result<Self> {
-        let client = IpfsClient::from_str(&config.api_url)
-            .context("Failed to create IPFS client")?;
-        
+        let client =
+            IpfsClient::from_str(&config.api_url).context("Failed to create IPFS client")?;
+
         Ok(Self {
             client,
             config,
             pinned_content: Arc::new(RwLock::new(HashMap::new())),
         })
     }
-    
+
     /// Store computation result
     pub async fn store_computation_result(
         &self,
@@ -82,19 +82,24 @@ impl IPFSStorage {
         if data.len() as u64 > self.config.max_file_size {
             return Err(anyhow::anyhow!("Data exceeds maximum file size"));
         }
-        
+
         // Add to IPFS
         let cursor = Cursor::new(data);
-        let response = self.client.add(cursor).await
+        let response = self
+            .client
+            .add(cursor)
+            .await
             .context("Failed to add to IPFS")?;
-        
+
         let cid = response.hash;
-        
+
         // Pin if configured
         if self.config.pin_content {
-            self.client.pin_add(&cid, false).await
+            self.client
+                .pin_add(&cid, false)
+                .await
                 .context("Failed to pin content")?;
-            
+
             // Track pinned content
             let pinned = PinnedContent {
                 cid: cid.clone(),
@@ -103,28 +108,29 @@ impl IPFSStorage {
                 pinned_at: chrono::Utc::now(),
                 metadata,
             };
-            
-            self.pinned_content.write().await
+
+            self.pinned_content
+                .write()
+                .await
                 .insert(result_id.to_string(), pinned);
         }
-        
+
         Ok(cid)
     }
-    
+
     /// Retrieve computation result
-    pub async fn retrieve_computation_result(
-        &self,
-        cid: &str,
-    ) -> Result<Vec<u8>> {
-        let stream = self.client.cat(cid)
+    pub async fn retrieve_computation_result(&self, cid: &str) -> Result<Vec<u8>> {
+        let stream = self
+            .client
+            .cat(cid)
             .map_ok(|chunk| chunk.to_vec())
             .try_concat()
             .await
             .context("Failed to retrieve from IPFS")?;
-        
+
         Ok(stream)
     }
-    
+
     /// Store neuron model
     pub async fn store_neuron_model(
         &self,
@@ -136,7 +142,7 @@ impl IPFSStorage {
         metadata.insert("neuron_id".to_string(), neuron_id.to_string());
         metadata.insert("version".to_string(), version.to_string());
         metadata.insert("timestamp".to_string(), chrono::Utc::now().to_rfc3339());
-        
+
         // Create wrapper with metadata
         let model_package = ModelPackage {
             neuron_id,
@@ -144,18 +150,18 @@ impl IPFSStorage {
             data: model_data.to_vec(),
             metadata: metadata.clone(),
         };
-        
+
         let serialized = serde_json::to_vec(&model_package)?;
-        
+
         // Add to IPFS
         let cursor = Cursor::new(serialized);
         let response = self.client.add(cursor).await?;
         let cid = response.hash;
-        
+
         // Pin the model
         if self.config.pin_content {
             self.client.pin_add(&cid, false).await?;
-            
+
             let pinned = PinnedContent {
                 cid: cid.clone(),
                 content_type: ContentType::NeuronModel,
@@ -163,39 +169,41 @@ impl IPFSStorage {
                 pinned_at: chrono::Utc::now(),
                 metadata,
             };
-            
-            self.pinned_content.write().await
+
+            self.pinned_content
+                .write()
+                .await
                 .insert(format!("{}_v{}", neuron_id, version), pinned);
         }
-        
+
         Ok(cid)
     }
-    
+
     /// List pinned content
     pub async fn list_pinned(&self) -> Result<Vec<PinnedContent>> {
         let pinned = self.pinned_content.read().await;
         Ok(pinned.values().cloned().collect())
     }
-    
+
     /// Garbage collect unpinned content
     pub async fn garbage_collect(&self) -> Result<()> {
-        self.client.repo_gc().await
+        self.client
+            .repo_gc()
+            .await
             .context("Failed to run garbage collection")?;
         Ok(())
     }
-    
+
     /// Get content statistics
     pub async fn get_stats(&self) -> Result<StorageStats> {
         let repo_stat = self.client.stats_repo().await?;
         let pinned = self.pinned_content.read().await;
-        
+
         Ok(StorageStats {
             repo_size: repo_stat.repo_size,
             num_objects: repo_stat.num_objects,
             pinned_count: pinned.len() as u64,
-            total_pinned_size: pinned.values()
-                .map(|p| p.size)
-                .sum(),
+            total_pinned_size: pinned.values().map(|p| p.size).sum(),
         })
     }
 }
@@ -271,13 +279,13 @@ impl DecentralizedStorage {
             storage_proofs: Arc::new(RwLock::new(HashMap::new())),
         }
     }
-    
+
     /// Add IPFS backend
     pub fn with_ipfs(mut self, config: IPFSConfig) -> Result<Self> {
         self.ipfs = Some(IPFSStorage::new(config)?);
         Ok(self)
     }
-    
+
     /// Store data with redundancy across multiple providers
     pub async fn store_with_redundancy(
         &self,
@@ -285,18 +293,16 @@ impl DecentralizedStorage {
         content_type: &str,
     ) -> Result<StorageProof> {
         let mut storage_locations = Vec::new();
-        
+
         // Calculate content hash
         let content_hash = self.calculate_hash(data);
-        
+
         // Store on IPFS
         if let Some(ref ipfs) = self.ipfs {
-            let cid = ipfs.store_computation_result(
-                Uuid::new_v4(),
-                data,
-                HashMap::new(),
-            ).await?;
-            
+            let cid = ipfs
+                .store_computation_result(Uuid::new_v4(), data, HashMap::new())
+                .await?;
+
             storage_locations.push(StorageLocation {
                 provider: StorageProvider::IPFS,
                 identifier: cid,
@@ -304,7 +310,7 @@ impl DecentralizedStorage {
                 cost: None,
             });
         }
-        
+
         // Store on Arweave (if available)
         if let Some(ref arweave) = self.arweave {
             let tx_id = arweave.store(data).await?;
@@ -315,7 +321,7 @@ impl DecentralizedStorage {
                 cost: Some(arweave.calculate_cost(data.len())),
             });
         }
-        
+
         // Store on Filecoin (if available)
         if let Some(ref filecoin) = self.filecoin {
             let deal_id = filecoin.store_with_deal(data).await?;
@@ -326,7 +332,7 @@ impl DecentralizedStorage {
                 cost: Some(filecoin.calculate_cost(data.len())),
             });
         }
-        
+
         // Create storage proof
         let proof = StorageProof {
             content_hash,
@@ -335,20 +341,23 @@ impl DecentralizedStorage {
             timestamp: chrono::Utc::now(),
             expiry: None,
         };
-        
+
         // Store proof
-        self.storage_proofs.write().await
+        self.storage_proofs
+            .write()
+            .await
             .insert(content_hash.to_string(), proof.clone());
-        
+
         Ok(proof)
     }
-    
+
     /// Retrieve data from any available provider
     pub async fn retrieve(&self, content_hash: &H256) -> Result<Vec<u8>> {
         let proofs = self.storage_proofs.read().await;
-        let proof = proofs.get(&content_hash.to_string())
+        let proof = proofs
+            .get(&content_hash.to_string())
             .ok_or_else(|| anyhow::anyhow!("Storage proof not found"))?;
-        
+
         // Try each storage location
         for location in &proof.storage_locations {
             match location.provider {
@@ -373,10 +382,10 @@ impl DecentralizedStorage {
                 }
             }
         }
-        
+
         Err(anyhow::anyhow!("Failed to retrieve from any provider"))
     }
-    
+
     /// Calculate content hash
     fn calculate_hash(&self, data: &[u8]) -> H256 {
         use sha2::{Digest, Sha256};
@@ -384,23 +393,24 @@ impl DecentralizedStorage {
         hasher.update(data);
         H256::from_slice(&hasher.finalize())
     }
-    
+
     /// Verify storage proof
     pub async fn verify_storage(&self, content_hash: &H256) -> Result<bool> {
         let proofs = self.storage_proofs.read().await;
-        let proof = proofs.get(&content_hash.to_string())
+        let proof = proofs
+            .get(&content_hash.to_string())
             .ok_or_else(|| anyhow::anyhow!("Storage proof not found"))?;
-        
+
         // Check if at least one location is accessible
         for location in &proof.storage_locations {
             if self.check_availability(&location).await? {
                 return Ok(true);
             }
         }
-        
+
         Ok(false)
     }
-    
+
     /// Check if storage location is available
     async fn check_availability(&self, location: &StorageLocation) -> Result<bool> {
         match location.provider {
@@ -431,7 +441,7 @@ impl ArweaveStorage {
         // Placeholder implementation
         Ok("ar://mock-transaction-id".to_string())
     }
-    
+
     fn calculate_cost(&self, size: usize) -> u64 {
         // Mock cost calculation
         (size as u64 / 1024) * 10 // 10 units per KB
@@ -449,7 +459,7 @@ impl FilecoinStorage {
         // Placeholder implementation
         Ok("fil://mock-deal-id".to_string())
     }
-    
+
     fn calculate_cost(&self, size: usize) -> u64 {
         // Mock cost calculation
         (size as u64 / 1024 / 1024) * 100 // 100 units per MB
@@ -470,7 +480,7 @@ impl StorageIndex {
             metadata_index: Arc::new(RwLock::new(HashMap::new())),
         }
     }
-    
+
     /// Index content for a neuron
     pub async fn index_neuron_content(
         &self,
@@ -479,63 +489,55 @@ impl StorageIndex {
         metadata: HashMap<String, String>,
     ) -> Result<()> {
         // Add to content mapping
-        self.content_mapping.write().await
+        self.content_mapping
+            .write()
+            .await
             .entry(neuron_id)
             .or_insert_with(Vec::new)
             .push(content_hash);
-        
+
         // Index metadata
         let mut index = self.metadata_index.write().await;
         for (key, value) in metadata {
             let index_key = format!("{}:{}", key, value);
-            index.entry(index_key)
+            index
+                .entry(index_key)
                 .or_insert_with(Vec::new)
                 .push(content_hash);
         }
-        
+
         Ok(())
     }
-    
+
     /// Query content by metadata
-    pub async fn query_by_metadata(
-        &self,
-        key: &str,
-        value: &str,
-    ) -> Result<Vec<H256>> {
+    pub async fn query_by_metadata(&self, key: &str, value: &str) -> Result<Vec<H256>> {
         let index_key = format!("{}:{}", key, value);
         let index = self.metadata_index.read().await;
-        
-        Ok(index.get(&index_key)
-            .cloned()
-            .unwrap_or_default())
+
+        Ok(index.get(&index_key).cloned().unwrap_or_default())
     }
-    
+
     /// Get all content for a neuron
-    pub async fn get_neuron_content(
-        &self,
-        neuron_id: Uuid,
-    ) -> Result<Vec<H256>> {
+    pub async fn get_neuron_content(&self, neuron_id: Uuid) -> Result<Vec<H256>> {
         let mapping = self.content_mapping.read().await;
-        Ok(mapping.get(&neuron_id)
-            .cloned()
-            .unwrap_or_default())
+        Ok(mapping.get(&neuron_id).cloned().unwrap_or_default())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_storage_proof_creation() {
         let storage = DecentralizedStorage::new(3);
-        
+
         let data = b"test computation result";
         let content_hash = storage.calculate_hash(data);
-        
+
         assert_eq!(content_hash.as_bytes().len(), 32);
     }
-    
+
     #[test]
     fn test_ipfs_config() {
         let config = IPFSConfig::default();

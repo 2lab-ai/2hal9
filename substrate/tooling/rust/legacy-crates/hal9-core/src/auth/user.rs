@@ -1,11 +1,11 @@
 //! User management module
 
+use crate::auth::types::{AuthError, AuthResult, Permission, Permissions};
+use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use sqlx::{FromRow, SqlitePool};
 use uuid::Uuid;
-use bcrypt::{hash, verify, DEFAULT_COST};
-use sqlx::{SqlitePool, FromRow};
-use crate::auth::types::{AuthError, AuthResult, Permissions, Permission};
 
 /// User roles
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -105,7 +105,7 @@ impl UserManager {
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
-    
+
     /// Initialize user tables
     pub async fn initialize(&self) -> AuthResult<()> {
         sqlx::query(
@@ -120,41 +120,45 @@ impl UserManager {
                 updated_at INTEGER NOT NULL,
                 is_active BOOLEAN DEFAULT TRUE
             )
-            "#
+            "#,
         )
         .execute(&self.pool)
         .await
         .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
-        
+
         // Create indexes
         sqlx::query("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)")
             .execute(&self.pool)
             .await
             .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
-            
+
         sqlx::query("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
             .execute(&self.pool)
             .await
             .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
-        
+
         Ok(())
     }
-    
+
     /// Create a new user
     pub async fn create_user(&self, request: CreateUserRequest) -> AuthResult<User> {
         // Validate input
         if request.username.is_empty() || request.email.is_empty() {
-            return Err(AuthError::ValidationError("Username and email are required".to_string()));
+            return Err(AuthError::ValidationError(
+                "Username and email are required".to_string(),
+            ));
         }
-        
+
         if request.password.len() < 8 {
-            return Err(AuthError::ValidationError("Password must be at least 8 characters".to_string()));
+            return Err(AuthError::ValidationError(
+                "Password must be at least 8 characters".to_string(),
+            ));
         }
-        
+
         // Hash password
         let password_hash = hash(request.password.as_bytes(), DEFAULT_COST)
             .map_err(|e| AuthError::PasswordHashError(e.to_string()))?;
-        
+
         let user = User {
             id: Uuid::new_v4().to_string(),
             username: request.username,
@@ -165,7 +169,7 @@ impl UserManager {
             updated_at: Utc::now().timestamp(),
             is_active: true,
         };
-        
+
         // Insert user
         sqlx::query(
             r#"
@@ -190,73 +194,70 @@ impl UserManager {
                 AuthError::DatabaseError(e.to_string())
             }
         })?;
-        
+
         Ok(user)
     }
-    
+
     /// Authenticate user with username and password
     pub async fn authenticate(&self, username: &str, password: &str) -> AuthResult<User> {
         let user = self.get_user_by_username(username).await?;
-        
+
         if !user.is_active {
             return Err(AuthError::InvalidCredentials);
         }
-        
+
         // Verify password
         if !verify(password.as_bytes(), &user.password_hash)
-            .map_err(|e| AuthError::PasswordHashError(e.to_string()))? {
+            .map_err(|e| AuthError::PasswordHashError(e.to_string()))?
+        {
             return Err(AuthError::InvalidCredentials);
         }
-        
+
         Ok(user)
     }
-    
+
     /// Get user by ID
     pub async fn get_user(&self, user_id: &str) -> AuthResult<User> {
-        sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE id = $1"
-        )
-        .bind(user_id)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|_| AuthError::UserNotFound)
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|_| AuthError::UserNotFound)
     }
-    
+
     /// Get user by username
     pub async fn get_user_by_username(&self, username: &str) -> AuthResult<User> {
-        sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE username = $1"
-        )
-        .bind(username)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|_| AuthError::UserNotFound)
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = $1")
+            .bind(username)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|_| AuthError::UserNotFound)
     }
-    
+
     /// Update user
     pub async fn update_user(&self, user_id: &str, request: UpdateUserRequest) -> AuthResult<User> {
         let mut user = self.get_user(user_id).await?;
-        
+
         if let Some(email) = request.email {
             user.email = email;
         }
-        
+
         if let Some(role) = request.role {
             user.role = role.to_string();
         }
-        
+
         if let Some(is_active) = request.is_active {
             user.is_active = is_active;
         }
-        
+
         user.updated_at = Utc::now().timestamp();
-        
+
         sqlx::query(
             r#"
             UPDATE users 
             SET email = $2, role = $3, is_active = $4, updated_at = $5
             WHERE id = $1
-            "#
+            "#,
         )
         .bind(&user.id)
         .bind(&user.email)
@@ -266,10 +267,10 @@ impl UserManager {
         .execute(&self.pool)
         .await
         .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
-        
+
         Ok(user)
     }
-    
+
     /// Delete user
     pub async fn delete_user(&self, user_id: &str) -> AuthResult<()> {
         sqlx::query("DELETE FROM users WHERE id = $1")
@@ -277,10 +278,10 @@ impl UserManager {
             .execute(&self.pool)
             .await
             .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
-        
+
         Ok(())
     }
-    
+
     /// List all users
     pub async fn list_users(&self) -> AuthResult<Vec<User>> {
         sqlx::query_as::<_, User>("SELECT * FROM users ORDER BY created_at DESC")

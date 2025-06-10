@@ -1,9 +1,9 @@
 //! Neural signal types for inter-neuron communication
 
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 /// A signal passed between neurons
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,7 +51,7 @@ impl NeuronSignal {
             metadata: HashMap::new(),
         }
     }
-    
+
     /// Create a backward error signal
     pub fn backward(
         from: &str,
