@@ -229,7 +229,7 @@ impl AdaptiveFlowController {
             .ok_or_else(|| Error::Routing("No viable route found".to_string()))
     }
     
-    fn meets_constraints(&self, route: &Route, constraints: &RoutingConstraints, loads: &LoadTracker) -> bool {
+    fn meets_constraints(&self, route: &Route, constraints: &RoutingConstraints, _loads: &LoadTracker) -> bool {
         // Check if route avoids specified units
         for unit in &constraints.avoid_units {
             if route.path.contains(unit) {

@@ -93,7 +93,7 @@ impl CognitiveUnit for StrategicNeuron {
         Ok(output)
     }
     
-    async fn learn(&mut self, gradient: LearningGradient) -> Result<()> {
+    async fn learn(&mut self, _gradient: LearningGradient) -> Result<()> {
         // Adjust vision and goals based on feedback
         self.state.basic.metrics.learning_iterations += 1;
         Ok(())

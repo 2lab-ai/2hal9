@@ -321,7 +321,7 @@ impl StateMigrationEngine {
     }
     
     /// Verify integrity of migrated states
-    pub async fn verify_integrity(&self, check_all: bool) -> Result<bool> {
+    pub async fn verify_integrity(&self, _check_all: bool) -> Result<bool> {
         // TODO: Implement integrity verification
         Ok(true)
     }

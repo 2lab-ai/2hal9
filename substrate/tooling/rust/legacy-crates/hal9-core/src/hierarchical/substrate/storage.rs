@@ -922,16 +922,16 @@ impl StorageTransaction for PostgresTransaction {
 
 /// S3 storage for cloud deployment
 pub struct S3Storage {
-    bucket: String,
+    _bucket: String,
     // Would use AWS SDK
-    metrics: std::sync::Arc<parking_lot::Mutex<StorageMetrics>>,
+    _metrics: std::sync::Arc<parking_lot::Mutex<StorageMetrics>>,
 }
 
 impl S3Storage {
     pub fn new(bucket: &str) -> Self {
         Self {
-            bucket: bucket.to_string(),
-            metrics: std::sync::Arc::new(parking_lot::Mutex::new(StorageMetrics::default())),
+            _bucket: bucket.to_string(),
+            _metrics: std::sync::Arc::new(parking_lot::Mutex::new(StorageMetrics::default())),
         }
     }
 }

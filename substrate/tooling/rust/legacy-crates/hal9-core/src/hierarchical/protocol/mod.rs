@@ -128,30 +128,30 @@ pub struct NegotiatedProtocol {
 
 /// Query protocol for request/response patterns
 pub struct QueryProtocol {
-    version: ProtocolVersion,
-    timeout: std::time::Duration,
+    _version: ProtocolVersion,
+    _timeout: std::time::Duration,
 }
 
 impl QueryProtocol {
     pub fn new(timeout: std::time::Duration) -> Self {
         Self {
-            version: ProtocolVersion::new(1, 0, 0),
-            timeout,
+            _version: ProtocolVersion::new(1, 0, 0),
+            _timeout: timeout,
         }
     }
 }
 
 /// Stream protocol for continuous data flows
 pub struct StreamProtocol {
-    version: ProtocolVersion,
-    buffer_size: usize,
+    _version: ProtocolVersion,
+    _buffer_size: usize,
 }
 
 impl StreamProtocol {
     pub fn new(buffer_size: usize) -> Self {
         Self {
-            version: ProtocolVersion::new(1, 0, 0),
-            buffer_size,
+            _version: ProtocolVersion::new(1, 0, 0),
+            _buffer_size: buffer_size,
         }
     }
 }

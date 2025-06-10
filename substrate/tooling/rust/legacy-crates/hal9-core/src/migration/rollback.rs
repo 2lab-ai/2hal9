@@ -242,7 +242,7 @@ impl RollbackManager {
         Ok(())
     }
     
-    async fn restore_system_state(&self, state: &SystemState) -> Result<()> {
+    async fn restore_system_state(&self, _state: &SystemState) -> Result<()> {
         // TODO: Implement state restoration
         tracing::info!("Restoring system state");
         Ok(())
@@ -260,7 +260,7 @@ impl RollbackManager {
         Ok(())
     }
     
-    async fn restore_partial_state(&self, state: &SystemState, component: &str) -> Result<()> {
+    async fn restore_partial_state(&self, _state: &SystemState, component: &str) -> Result<()> {
         // TODO: Implement partial state restoration
         tracing::info!("Restoring partial state for component: {}", component);
         Ok(())

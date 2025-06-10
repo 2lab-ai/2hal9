@@ -184,7 +184,7 @@ impl StreamMultiplexer {
     
     /// Create a new multiplexed stream
     pub async fn create_stream(&self, config: StreamConfig) -> Result<Uuid> {
-        let (local, remote) = ChannelStream::new(config.buffer_size);
+        let (local, _remote) = ChannelStream::new(config.buffer_size);
         let stream_id = local.id();
         
         self.streams.insert(stream_id, Box::new(local));

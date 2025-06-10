@@ -58,7 +58,7 @@ enum Commands {
         
         /// Additional options
         #[arg(short, long)]
-        options: Vec<String>,
+        _options: Vec<String>,
     },
     
     /// Generate tests for code
@@ -68,7 +68,7 @@ enum Commands {
         
         /// Test framework to use
         #[arg(short, long)]
-        framework: Option<String>,
+        _framework: Option<String>,
     },
     
     /// Refactor code
@@ -190,7 +190,7 @@ async fn main() -> Result<()> {
 }
 
 async fn generate_new_project(
-    client: CodegenClient,
+    _client: CodegenClient,
     name: Option<String>,
     project_type: Option<String>,
     skip_interactive: bool,
@@ -381,9 +381,9 @@ async fn generate_new_project(
 }
 
 async fn add_feature(
-    client: CodegenClient,
+    _client: CodegenClient,
     feature: String,
-    options: Vec<String>,
+    _options: Vec<String>,
 ) -> Result<()> {
     println!("{} Adding {} to project...", "🔧".bright_blue(), feature.bright_white());
     
@@ -394,9 +394,9 @@ async fn add_feature(
 }
 
 async fn generate_tests(
-    client: CodegenClient,
+    _client: CodegenClient,
     path: PathBuf,
-    framework: Option<String>,
+    _framework: Option<String>,
 ) -> Result<()> {
     println!("{} Generating tests for {}...", "🧪".bright_blue(), path.display());
     
@@ -407,7 +407,7 @@ async fn generate_tests(
 }
 
 async fn refactor_code(
-    client: CodegenClient,
+    _client: CodegenClient,
     file: PathBuf,
     refactor_type: Option<String>,
     start: Option<usize>,
@@ -443,7 +443,7 @@ async fn refactor_code(
 }
 
 async fn review_code(
-    client: CodegenClient,
+    _client: CodegenClient,
     path: PathBuf,
     focus: Vec<String>,
 ) -> Result<()> {
@@ -490,7 +490,7 @@ async fn review_code(
     Ok(())
 }
 
-async fn interactive_chat(client: CodegenClient) -> Result<()> {
+async fn interactive_chat(_client: CodegenClient) -> Result<()> {
     println!("{}", "💬 HAL9 Code Generation Chat".bright_blue().bold());
     println!("Type 'exit' or 'quit' to leave\n");
     
@@ -517,11 +517,11 @@ async fn interactive_chat(client: CodegenClient) -> Result<()> {
 }
 
 async fn learn_from_codebase(
-    client: CodegenClient,
-    path: PathBuf,
-    name: String,
+    _client: CodegenClient,
+    _path: PathBuf,
+    _name: String,
 ) -> Result<()> {
-    println!("{} Learning from codebase: {}...", "🧠".bright_blue(), name.bright_white());
+    println!("{} Learning from codebase: {}...", "🧠".bright_blue(), _name.bright_white());
     
     // TODO: Implement learning functionality
     println!("{} Learning functionality not yet implemented", "⚠️".yellow());
@@ -530,9 +530,9 @@ async fn learn_from_codebase(
 }
 
 async fn generate_similar(
-    client: CodegenClient,
+    _client: CodegenClient,
     reference: PathBuf,
-    name: String,
+    _name: String,
 ) -> Result<()> {
     println!("{} Generating similar code to {}...", "🔄".bright_blue(), reference.display());
     

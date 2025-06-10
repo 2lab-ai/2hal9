@@ -333,7 +333,7 @@ impl EmergenceDetector for EmergenceAnalyzer {
             
             // Detect bifurcations
             let bifurcations = self.detect_bifurcations(&trajectory.points);
-            for (idx, bifurcation_type) in bifurcations {
+            for (idx, _bifurcation_type) in bifurcations {
                 if idx > 0 && idx < trajectory.points.len() - 1 {
                     transitions.push(PhaseTransition {
                         from_state: format!("state_{}", idx - 1),
@@ -480,7 +480,7 @@ impl EmergenceAnalyzer {
         bifurcations
     }
     
-    fn detect_synchronization_transitions(&self, trajectory: &[StatePoint]) -> Vec<PhaseTransition> {
+    fn detect_synchronization_transitions(&self, _trajectory: &[StatePoint]) -> Vec<PhaseTransition> {
         // Placeholder for synchronization detection
         Vec::new()
     }

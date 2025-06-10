@@ -374,7 +374,7 @@ mod tests {
     // Helper methods
     fn extract_name(&self, description: &str) -> Option<String> {
         // Look for patterns like "called X", "named X", "function X"
-        let lower = description.to_lowercase();
+        let _lower = description.to_lowercase();
         let words: Vec<&str> = description.split_whitespace().collect();
         
         // Look for "called <name>" or "named <name>"
@@ -460,7 +460,7 @@ mod tests {
         }
     }
     
-    fn extract_fields(&self, description: &str) -> String {
+    fn extract_fields(&self, _description: &str) -> String {
         "    id: Uuid,\n    name: String,\n    value: i32,".to_string()
     }
     
@@ -472,7 +472,7 @@ mod tests {
         "            id: Uuid::new_v4(),\n            name,\n            value,".to_string()
     }
     
-    fn generate_test_body(&self, description: &str) -> String {
+    fn generate_test_body(&self, _description: &str) -> String {
         "        // TODO: Implement test\n        assert_eq!(1 + 1, 2);".to_string()
     }
 }

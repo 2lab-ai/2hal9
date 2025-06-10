@@ -196,7 +196,7 @@ impl MetaLearning {
         }
     }
     
-    pub async fn select_best_strategy(&self, data_characteristics: &DataCharacteristics) -> Option<&dyn LearningStrategy> {
+    pub async fn select_best_strategy(&self, _data_characteristics: &DataCharacteristics) -> Option<&dyn LearningStrategy> {
         // Select strategy based on past performance and data characteristics
         self.learning_strategies.iter()
             .max_by_key(|s| {

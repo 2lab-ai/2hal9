@@ -364,7 +364,7 @@ impl MessageTransport for ChannelTransport {
 /// TCP connection wrapper
 struct TcpConnection {
     stream: Arc<tokio::sync::Mutex<tokio::net::TcpStream>>,
-    rx: mpsc::UnboundedReceiver<Vec<u8>>,
+    _rx: mpsc::UnboundedReceiver<Vec<u8>>,
 }
 
 /// TCP receiver wrapper
@@ -454,7 +454,7 @@ impl TcpTransport {
         listeners: Arc<dashmap::DashMap<String, mpsc::UnboundedSender<Vec<u8>>>>,
         metrics: Arc<MetricsTracker>,
     ) -> Result<()> {
-        let (rx_half, tx_half) = stream.split();
+        let (rx_half, _tx_half) = stream.split();
         let mut reader = tokio::io::BufReader::new(rx_half);
         
         loop {
@@ -549,11 +549,11 @@ impl MessageTransport for TcpTransport {
         let stream = tokio::net::TcpStream::connect(endpoint).await
             .map_err(|e| Error::Transport(format!("Failed to connect: {}", e)))?;
         
-        let (tx, rx) = mpsc::unbounded_channel();
+        let (_tx, rx) = mpsc::unbounded_channel();
         
         let conn = TcpConnection {
             stream: Arc::new(tokio::sync::Mutex::new(stream)),
-            rx,
+            _rx: rx,
         };
         
         self.connections.insert(endpoint.to_string(), conn);
@@ -573,7 +573,7 @@ impl MessageTransport for TcpTransport {
 /// gRPC transport for cloud deployment
 pub struct GrpcTransport {
     // Would use tonic or similar
-    metrics: std::sync::Arc<parking_lot::Mutex<TransportMetrics>>,
+    _metrics: std::sync::Arc<parking_lot::Mutex<TransportMetrics>>,
 }
 
 impl Default for GrpcTransport {
@@ -585,7 +585,7 @@ impl Default for GrpcTransport {
 impl GrpcTransport {
     pub fn new() -> Self {
         Self {
-            metrics: std::sync::Arc::new(parking_lot::Mutex::new(TransportMetrics::default())),
+            _metrics: std::sync::Arc::new(parking_lot::Mutex::new(TransportMetrics::default())),
         }
     }
 }

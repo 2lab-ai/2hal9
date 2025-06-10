@@ -196,7 +196,7 @@ impl LocalResources {
         let allocations = Arc::clone(&self.allocations);
         let monitors = Arc::clone(&self.monitors);
         let system_tracker = Arc::clone(&self.system_tracker);
-        let neuron_usage = Arc::clone(&self.neuron_usage);
+        let _neuron_usage = Arc::clone(&self.neuron_usage);
         
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(1));
@@ -615,14 +615,14 @@ impl ComputeResource for ClusterResources {
 
 /// Kubernetes resource manager
 pub struct K8sResources {
-    namespace: String,
+    _namespace: String,
     // Would integrate with K8s API
 }
 
 impl K8sResources {
     pub fn new(namespace: &str) -> Self {
         Self {
-            namespace: namespace.to_string(),
+            _namespace: namespace.to_string(),
         }
     }
 }

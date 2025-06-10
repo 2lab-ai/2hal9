@@ -9,7 +9,7 @@ use std::time::Duration;
 pub struct CodegenClient {
     client: Client,
     base_url: String,
-    api_key: Option<String>,
+    _api_key: Option<String>,
 }
 
 impl CodegenClient {
@@ -36,7 +36,7 @@ impl CodegenClient {
         Ok(Self {
             client,
             base_url: base_url.trim_end_matches('/').to_string(),
-            api_key,
+            _api_key: api_key,
         })
     }
     
@@ -280,14 +280,14 @@ struct CodeCompletionRequest {
 
 #[derive(Debug, Deserialize)]
 pub struct CodeCompletionResponse {
-    pub suggestions: Vec<CodeSuggestion>,
+    pub _suggestions: Vec<CodeSuggestion>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct CodeSuggestion {
     pub text: String,
     pub description: String,
-    pub confidence: f32,
+    pub _confidence: f32,
 }
 
 #[derive(Debug, Serialize)]
@@ -310,7 +310,7 @@ enum ReviewFocus {
 #[derive(Debug, Deserialize)]
 pub struct CodeReviewResponse {
     pub issues: Vec<CodeIssue>,
-    pub suggestions: Vec<CodeSuggestion>,
+    pub _suggestions: Vec<CodeSuggestion>,
     pub overall_score: f32,
 }
 
@@ -364,5 +364,5 @@ pub struct CodeChange {
 
 #[derive(Debug, Deserialize)]
 pub struct TemplatesResponse {
-    pub templates: serde_json::Value,
+    pub _templates: serde_json::Value,
 }
