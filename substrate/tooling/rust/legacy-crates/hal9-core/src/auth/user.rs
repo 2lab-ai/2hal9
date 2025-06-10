@@ -63,6 +63,31 @@ impl UserRole {
             ]),
         }
     }
+    
+    /// Check if role has a specific permission
+    pub fn has_permission(&self, permission: Permission) -> bool {
+        self.default_permissions().has(&permission)
+    }
+}
+
+impl PartialOrd for UserRole {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for UserRole {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (UserRole::Admin, UserRole::Admin) => std::cmp::Ordering::Equal,
+            (UserRole::Admin, _) => std::cmp::Ordering::Greater,
+            (_, UserRole::Admin) => std::cmp::Ordering::Less,
+            (UserRole::User, UserRole::User) => std::cmp::Ordering::Equal,
+            (UserRole::User, UserRole::Guest) => std::cmp::Ordering::Greater,
+            (UserRole::Guest, UserRole::User) => std::cmp::Ordering::Less,
+            (UserRole::Guest, UserRole::Guest) => std::cmp::Ordering::Equal,
+        }
+    }
 }
 
 /// User model
