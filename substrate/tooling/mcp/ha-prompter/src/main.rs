@@ -3,13 +3,14 @@ use ha_prompter::{HAPrompter, HARequest, HALevel};
 use serde_json::json;
 use std::io::{self, BufRead, Write};
 use tracing::{info, debug};
-use tracing_subscriber;
+use tracing_subscriber::{fmt, EnvFilter};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize logging
-    tracing_subscriber::fmt()
-        .with_env_filter("ha_prompter=debug")
+    fmt()
+        .with_env_filter(EnvFilter::from_default_env()
+            .add_directive("ha_prompter=debug".parse().unwrap()))
         .init();
 
     info!("HA Prompter MCP Server starting...");

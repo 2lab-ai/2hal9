@@ -11,11 +11,11 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 async-trait = "0.1"
 
-# MCP SDK (hypothetical - adjust based on actual MCP SDK)
-mcp-sdk = { version = "0.1", optional = true }
+# MCP SDK for Model Context Protocol
+mcp-sdk = { version = "0.0.3", optional = true }
 
 [features]
 default = ["standalone"]
