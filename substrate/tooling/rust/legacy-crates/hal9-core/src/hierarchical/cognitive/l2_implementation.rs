@@ -507,12 +507,15 @@ mod tests {
 
 /// Safe code executor with sandboxing
 pub struct CodeExecutor {
+    #[allow(dead_code)]
     sandbox_config: SandboxConfig,
 }
 
 #[derive(Clone)]
 struct SandboxConfig {
+    #[allow(dead_code)]
     timeout: std::time::Duration,
+    #[allow(dead_code)]
     memory_limit: usize,
 }
 

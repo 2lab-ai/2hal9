@@ -20,6 +20,7 @@ pub trait ProcessingPattern: Send + Sync {
 
 /// Sequential processing pattern
 pub struct SequentialPattern {
+    #[allow(dead_code)]
     steps: Vec<Box<dyn ProcessingStep>>,
 }
 
@@ -30,7 +31,9 @@ pub trait ProcessingStep: Send + Sync {
 
 /// Parallel processing pattern
 pub struct ParallelPattern {
+    #[allow(dead_code)]
     branches: Vec<Box<dyn ProcessingBranch>>,
+    #[allow(dead_code)]
     aggregator: Box<dyn ResultAggregator>,
 }
 
@@ -53,8 +56,11 @@ pub struct BranchResult {
 
 /// Recursive processing pattern
 pub struct RecursivePattern {
+    #[allow(dead_code)]
     max_depth: usize,
+    #[allow(dead_code)]
     decomposer: Box<dyn TaskDecomposer>,
+    #[allow(dead_code)]
     composer: Box<dyn ResultComposer>,
 }
 
@@ -70,7 +76,9 @@ pub trait ResultComposer: Send + Sync {
 
 /// Emergent processing pattern
 pub struct EmergentPattern {
+    #[allow(dead_code)]
     activation_threshold: f32,
+    #[allow(dead_code)]
     interaction_rules: Vec<InteractionRule>,
 }
 
@@ -96,7 +104,9 @@ pub struct PartialResult {
 
 /// Quantum-inspired superposition processing
 pub struct QuantumPattern {
+    #[allow(dead_code)]
     superposition_states: Vec<SuperpositionState>,
+    #[allow(dead_code)]
     collapse_function: Box<dyn CollapseFunction>,
 }
 

@@ -109,6 +109,7 @@ pub struct ReinforcementLearning {
     q_table: HashMap<(State, Action), f32>,
     learning_rate: f32,
     discount_factor: f32,
+    #[allow(dead_code)]
     exploration_rate: f32,
 }
 
@@ -232,7 +233,9 @@ pub struct DataCharacteristics {
 
 /// Continual learning to avoid catastrophic forgetting
 pub struct ContinualLearning {
+    #[allow(dead_code)]
     memory_buffer: ExperienceReplay,
+    #[allow(dead_code)]
     regularization_strength: f32,
 }
 

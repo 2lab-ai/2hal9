@@ -102,6 +102,7 @@ impl L5StrategicNeuron {
     }
 
     /// Generate strategic directives for lower layers
+    #[allow(dead_code)]
     fn generate_directives(&self, goals: &[Goal]) -> Vec<CognitiveOutput> {
         goals
             .iter()
@@ -418,6 +419,7 @@ pub struct VisionModel {
 struct VisionComponent {
     aspect: String,
     description: String,
+    #[allow(dead_code)]
     importance: f32,
 }
 

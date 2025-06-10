@@ -272,6 +272,7 @@ pub struct SystemDesigner {
 
 #[derive(Clone)]
 struct DesignPattern {
+    #[allow(dead_code)]
     name: String,
     components: Vec<String>,
     applicable_to: Vec<String>,

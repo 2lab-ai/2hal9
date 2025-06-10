@@ -12,6 +12,7 @@ pub struct CreativeSystem {
     idea_generator: IdeaGenerator,
     concept_blender: ConceptBlender,
     novelty_evaluator: NoveltyEvaluator,
+    #[allow(dead_code)]
     solution_synthesizer: SolutionSynthesizer,
 }
 
@@ -25,8 +26,11 @@ struct IdeaGenerator {
 struct InspirationSource {
     id: Uuid,
     source_type: SourceType,
+    #[allow(dead_code)]
     content: serde_json::Value,
+    #[allow(dead_code)]
     relevance: f32,
+    #[allow(dead_code)]
     last_accessed: chrono::DateTime<chrono::Utc>,
 }
 
@@ -51,6 +55,7 @@ enum GenerationMethod {
 
 struct ConceptBlender {
     blending_strategies: Vec<BlendingStrategy>,
+    #[allow(dead_code)]
     compatibility_matrix: HashMap<(Uuid, Uuid), f32>,
 }
 
@@ -64,22 +69,31 @@ enum BlendingStrategy {
 }
 
 struct NoveltyEvaluator {
+    #[allow(dead_code)]
     knowledge_base: KnowledgeBase,
+    #[allow(dead_code)]
     similarity_threshold: f32,
     evaluation_criteria: Vec<NoveltyMetric>,
 }
 
 struct KnowledgeBase {
+    #[allow(dead_code)]
     existing_concepts: HashMap<Uuid, Concept>,
+    #[allow(dead_code)]
     relationships: Vec<ConceptRelationship>,
+    #[allow(dead_code)]
     domain_boundaries: HashMap<String, DomainBoundary>,
 }
 
 #[derive(Debug, Clone)]
 struct ConceptRelationship {
+    #[allow(dead_code)]
     from: Uuid,
+    #[allow(dead_code)]
     to: Uuid,
+    #[allow(dead_code)]
     relationship_type: RelationType,
+    #[allow(dead_code)]
     strength: f32,
 }
 
@@ -96,14 +110,19 @@ enum RelationType {
 }
 
 struct DomainBoundary {
+    #[allow(dead_code)]
     domain_name: String,
+    #[allow(dead_code)]
     core_concepts: Vec<Uuid>,
+    #[allow(dead_code)]
     constraints: Vec<DomainConstraint>,
 }
 
 #[derive(Debug, Clone)]
 struct DomainConstraint {
+    #[allow(dead_code)]
     constraint_type: String,
+    #[allow(dead_code)]
     parameters: HashMap<String, f32>,
 }
 
@@ -117,8 +136,11 @@ enum NoveltyMetric {
 }
 
 struct SolutionSynthesizer {
+    #[allow(dead_code)]
     synthesis_methods: Vec<SynthesisMethod>,
+    #[allow(dead_code)]
     evaluation_engine: EvaluationEngine,
+    #[allow(dead_code)]
     refinement_strategies: Vec<RefinementStrategy>,
 }
 
@@ -132,36 +154,51 @@ enum SynthesisMethod {
 }
 
 struct EvaluationEngine {
+    #[allow(dead_code)]
     feasibility_checker: FeasibilityChecker,
+    #[allow(dead_code)]
     impact_analyzer: ImpactAnalyzer,
+    #[allow(dead_code)]
     risk_assessor: RiskAssessor,
 }
 
 struct FeasibilityChecker {
+    #[allow(dead_code)]
     resource_constraints: ResourceConstraints,
+    #[allow(dead_code)]
     technical_requirements: Vec<TechnicalRequirement>,
 }
 
 struct ResourceConstraints {
+    #[allow(dead_code)]
     max_computation: f32,
+    #[allow(dead_code)]
     max_memory: f32,
+    #[allow(dead_code)]
     max_time: std::time::Duration,
 }
 
 struct TechnicalRequirement {
+    #[allow(dead_code)]
     requirement_type: String,
+    #[allow(dead_code)]
     minimum_capability: f32,
 }
 
 struct ImpactAnalyzer {
+    #[allow(dead_code)]
     impact_dimensions: Vec<ImpactDimension>,
-    weighting_scheme: HashMap<String, f32>,
+    #[allow(dead_code)]
+    weighting_scheme: HashMap<String, f32>
 }
 
 #[derive(Debug, Clone)]
 struct ImpactDimension {
+    #[allow(dead_code)]
     name: String,
+    #[allow(dead_code)]
     measurement_method: MeasurementMethod,
+    #[allow(dead_code)]
     baseline: f32,
 }
 
@@ -174,13 +211,18 @@ enum MeasurementMethod {
 }
 
 struct RiskAssessor {
+    #[allow(dead_code)]
     risk_categories: Vec<RiskCategory>,
+    #[allow(dead_code)]
     mitigation_strategies: HashMap<String, MitigationStrategy>,
 }
 
 struct RiskCategory {
+    #[allow(dead_code)]
     name: String,
+    #[allow(dead_code)]
     probability_model: ProbabilityModel,
+    #[allow(dead_code)]
     impact_model: ImpactModel,
 }
 
@@ -199,8 +241,11 @@ enum ImpactModel {
 }
 
 struct MitigationStrategy {
+    #[allow(dead_code)]
     strategy_type: String,
+    #[allow(dead_code)]
     effectiveness: f32,
+    #[allow(dead_code)]
     cost: f32,
 }
 
@@ -445,6 +490,7 @@ impl CreativeSystem {
 struct RawIdea {
     id: Uuid,
     components: Vec<Uuid>,
+    #[allow(dead_code)]
     generation_method: String,
     raw_content: String,
 }
@@ -460,8 +506,11 @@ struct BlendedConcept {
 
 #[derive(Debug, Clone)]
 struct EmergentProperty {
+    #[allow(dead_code)]
     name: String,
+    #[allow(dead_code)]
     description: String,
+    #[allow(dead_code)]
     strength: f32,
 }
 
@@ -572,46 +621,69 @@ impl CreativeSystem {
 
 /// Analogical reasoning for creative problem solving
 pub struct AnalogicalReasoner {
+    #[allow(dead_code)]
     analogy_database: AnalogyDatabase,
+    #[allow(dead_code)]
     mapping_engine: MappingEngine,
 }
 
 struct AnalogyDatabase {
+    #[allow(dead_code)]
     source_domains: HashMap<String, Domain>,
+    #[allow(dead_code)]
     target_domains: HashMap<String, Domain>,
+    #[allow(dead_code)]
     successful_mappings: Vec<AnalogicalMapping>,
 }
 
 struct Domain {
+    #[allow(dead_code)]
     name: String,
+    #[allow(dead_code)]
     objects: Vec<DomainObject>,
+    #[allow(dead_code)]
     relations: Vec<DomainRelation>,
+    #[allow(dead_code)]
     constraints: Vec<DomainConstraint>,
 }
 
 struct DomainObject {
+    #[allow(dead_code)]
     id: Uuid,
+    #[allow(dead_code)]
     object_type: String,
+    #[allow(dead_code)]
     properties: HashMap<String, f32>,
 }
 
 struct DomainRelation {
+    #[allow(dead_code)]
     relation_type: String,
+    #[allow(dead_code)]
     from_object: Uuid,
+    #[allow(dead_code)]
     to_object: Uuid,
+    #[allow(dead_code)]
     strength: f32,
 }
 
 struct AnalogicalMapping {
+    #[allow(dead_code)]
     source_domain: String,
+    #[allow(dead_code)]
     target_domain: String,
+    #[allow(dead_code)]
     object_mappings: HashMap<Uuid, Uuid>,
+    #[allow(dead_code)]
     relation_mappings: HashMap<String, String>,
+    #[allow(dead_code)]
     confidence: f32,
 }
 
 struct MappingEngine {
+    #[allow(dead_code)]
     similarity_metrics: Vec<SimilarityMetric>,
+    #[allow(dead_code)]
     mapping_constraints: Vec<MappingConstraint>,
 }
 
