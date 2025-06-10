@@ -5,6 +5,9 @@ pub mod jwt;
 pub mod types;
 pub mod user;
 
+#[cfg(test)]
+mod tests;
+
 pub use api_key::{ApiKey, ApiKeyInfo, ApiKeyManager, ApiKeyResponse, CreateApiKeyRequest};
 pub use jwt::{JwtClaims, JwtManager, TokenPair};
 pub use types::{AuthError, AuthResult, Permission, Permissions};
