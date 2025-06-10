@@ -8,6 +8,8 @@ members = [
     "substrate/tooling/rust/legacy-crates/hal9-browser",
     "substrate/tooling/rust/legacy-crates/hal9-codegen",
     "substrate/tooling/rust/legacy-crates/hal9-plugin-sdk",
+    # MCP tools
+    "substrate/tooling/mcp/ha-prompter",
 ]
 
 [workspace.package]

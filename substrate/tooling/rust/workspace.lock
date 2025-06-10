@@ -2730,6 +2730,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ha-prompter"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "mcp-sdk",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "hal9-browser"
 version = "0.1.0"
 dependencies = [
@@ -3854,6 +3868,21 @@ name = "maybe-owned"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4facc753ae494aeb6e3c22f839b158aebd4f9270f55cd3c79906c45476c47ab4"
+
+[[package]]
+name = "mcp-sdk"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95ec0bb3052aef37a76f074f185d50bb165662c1f5beccab6719bc0386a4fd29"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "url",
+]
 
 [[package]]
 name = "md-5"
@@ -6980,6 +7009,7 @@ dependencies = [
  "form_urlencoded",
  "idna",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]
