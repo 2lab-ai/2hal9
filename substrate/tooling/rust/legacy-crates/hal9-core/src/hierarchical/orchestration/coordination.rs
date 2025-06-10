@@ -117,7 +117,7 @@ impl DistributedLock {
     }
     
     /// Extend lock duration
-    pub async fn extend(&self, duration: std::time::Duration) -> Result<()> {
+    pub async fn extend(&self, _duration: std::time::Duration) -> Result<()> {
         // Implementation would extend the lock
         Ok(())
     }

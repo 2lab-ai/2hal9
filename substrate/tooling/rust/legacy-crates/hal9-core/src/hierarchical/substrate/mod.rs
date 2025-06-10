@@ -67,6 +67,7 @@ pub struct SubstrateCapabilities {
 }
 
 /// Local substrate implementation for single-machine deployment
+#[allow(dead_code)]
 pub struct LocalSubstrate {
     runtime: runtime::TokioRuntime,
     transport: transport::ChannelTransport,
@@ -75,6 +76,7 @@ pub struct LocalSubstrate {
 }
 
 /// Distributed substrate for multi-node deployment
+#[allow(dead_code)]
 pub struct DistributedSubstrate {
     runtime: runtime::TokioRuntime,
     transport: transport::TcpTransport,
@@ -83,6 +85,7 @@ pub struct DistributedSubstrate {
 }
 
 /// Cloud-native substrate for Kubernetes deployment
+#[allow(dead_code)]
 pub struct CloudSubstrate {
     runtime: runtime::TokioRuntime,
     transport: transport::GrpcTransport,

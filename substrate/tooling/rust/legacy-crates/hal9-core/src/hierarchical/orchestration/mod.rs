@@ -309,7 +309,7 @@ impl Orchestrator for DefaultOrchestrator {
         let state_snapshot = self.state_coordinator.snapshot().await?;
         
         let units: HashMap<Uuid, UnitDescriptor> = state_snapshot.units.into_iter()
-            .map(|(id, unit_state)| {
+            .map(|(id, _unit_state)| {
                 (id, UnitDescriptor {
                     id,
                     unit_type: UnitType::Neuron,

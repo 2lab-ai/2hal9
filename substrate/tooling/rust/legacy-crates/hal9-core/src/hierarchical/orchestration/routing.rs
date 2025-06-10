@@ -320,7 +320,7 @@ impl SignalRouter for DijkstraRouter {
                     neighbors.remove(&to);
                 }
                 // Clear cache entries using this link
-                self.cache.paths.retain(|(f, t), path| {
+                self.cache.paths.retain(|(_f, _t), path| {
                     !path.path.windows(2).any(|w| w[0] == from && w[1] == to)
                 });
             }
@@ -329,7 +329,7 @@ impl SignalRouter for DijkstraRouter {
                     neighbors.insert(to, properties);
                 }
                 // Clear cache entries using this link
-                self.cache.paths.retain(|(f, t), path| {
+                self.cache.paths.retain(|(_f, _t), path| {
                     !path.path.windows(2).any(|w| w[0] == from && w[1] == to)
                 });
             }

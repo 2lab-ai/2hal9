@@ -456,7 +456,7 @@ impl LegacyNeuronAdapter {
     
     /// Run the adapter as a bidirectional bridge
     pub async fn run_bridge(self) -> Result<()> {
-        let (signal_tx, mut signal_rx) = tokio::sync::mpsc::channel::<crate::NeuronSignal>(100);
+        let (_signal_tx, mut signal_rx) = tokio::sync::mpsc::channel::<crate::NeuronSignal>(100);
         let adapter = Arc::new(tokio::sync::Mutex::new(self));
         let adapter1 = adapter.clone();
         let adapter2 = adapter.clone();
@@ -466,7 +466,7 @@ impl LegacyNeuronAdapter {
             while let Some(signal) = signal_rx.recv().await {
                 let adapter = adapter1.lock().await;
                 match adapter.adapt_signal(&signal).await {
-                    Ok(message) => {
+                    Ok(_message) => {
                         // Send to hierarchical system
                         tracing::debug!("Adapted signal {} to message", signal.signal_id);
                     }

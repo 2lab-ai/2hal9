@@ -291,7 +291,7 @@ impl MetaLearner for MetaLearningSystem {
     
     async fn optimize_architecture(&mut self) -> Result<ArchitectureUpdate> {
         // Run architecture search
-        let best_architecture = self.architecture_optimizer.search()?;
+        let _best_architecture = self.architecture_optimizer.search()?;
         
         // Convert to architecture update
         let changes = vec![
@@ -308,7 +308,7 @@ impl MetaLearner for MetaLearningSystem {
         })
     }
     
-    async fn transfer_knowledge(&self, source_domain: &str, target_domain: &str) -> Result<Knowledge> {
+    async fn transfer_knowledge(&self, _source_domain: &str, _target_domain: &str) -> Result<Knowledge> {
         // Extract transferable knowledge from source domain
         let concepts = vec![
             Concept {
@@ -336,7 +336,7 @@ impl MetaLearner for MetaLearningSystem {
 }
 
 impl HyperparameterTuner {
-    fn optimize(&self, strategy: &str, meta_features: &MetaFeatures) -> Result<HashMap<String, f32>> {
+    fn optimize(&self, _strategy: &str, _meta_features: &MetaFeatures) -> Result<HashMap<String, f32>> {
         // Simplified Bayesian optimization
         let mut params = HashMap::new();
         params.insert("learning_rate".to_string(), 0.001);

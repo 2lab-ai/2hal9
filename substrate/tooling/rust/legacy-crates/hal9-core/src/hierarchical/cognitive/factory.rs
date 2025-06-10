@@ -43,7 +43,7 @@ impl CognitiveFactory for DefaultCognitiveFactory {
                 
                 // Set protocols if available
                 if let Some(manager) = &self.protocol_manager {
-                    if let Some(signal_proto) = manager.get_protocol("signal-protocol") {
+                    if let Some(_signal_proto) = manager.get_protocol("signal-protocol") {
                         // neuron.inner.set_signal_protocol(signal_proto);
                     }
                 }
@@ -58,7 +58,7 @@ impl CognitiveFactory for DefaultCognitiveFactory {
                 
                 // Set protocols if available
                 if let Some(manager) = &self.protocol_manager {
-                    if let Some(gradient_proto) = manager.get_protocol("gradient-protocol") {
+                    if let Some(_gradient_proto) = manager.get_protocol("gradient-protocol") {
                         // neuron.inner.set_gradient_protocol(gradient_proto);
                     }
                 }
@@ -85,7 +85,7 @@ impl CognitiveFactory for DefaultCognitiveFactory {
                 
                 // Set protocols if available
                 if let Some(manager) = &self.protocol_manager {
-                    if let Some(consensus_proto) = manager.get_protocol("consensus-protocol") {
+                    if let Some(_consensus_proto) = manager.get_protocol("consensus-protocol") {
                         // neuron.inner.set_consensus_protocol(consensus_proto);
                     }
                 }

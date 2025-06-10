@@ -430,10 +430,10 @@ impl SelfOrganizingSystem {
     
     fn prune_weak_connections(&mut self) -> Result<()> {
         // Remove connections below threshold
-        let threshold = 0.1;
+        let _threshold = 0.1;
         
         for unit in self.units.values_mut() {
-            unit.connections.retain(|&conn_id| {
+            unit.connections.retain(|&_conn_id| {
                 // Would calculate connection strength
                 true // Placeholder
             });
@@ -466,7 +466,7 @@ impl SelfOrganizer for SelfOrganizingSystem {
         // Check conditions and collect indices of rules to apply
         let rule_indices: Vec<_> = self.rules.iter()
             .enumerate()
-            .filter_map(|(i, rule)| {
+            .filter_map(|(i, _rule)| {
                 // TODO: This is a workaround - condition should not need &self
                 // For now, we'll skip the condition check
                 Some(i)
@@ -538,7 +538,7 @@ impl SelfOrganizingSystem {
         }
     }
     
-    fn calculate_energy_after_update(&self, update: &TopologyUpdate) -> f32 {
+    fn calculate_energy_after_update(&self, _update: &TopologyUpdate) -> f32 {
         // Simplified: just return current energy with small perturbation
         self.calculate_total_energy() + rand::random::<f32>() * 0.1 - 0.05
     }

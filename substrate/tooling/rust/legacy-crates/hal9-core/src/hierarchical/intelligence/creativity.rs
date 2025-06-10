@@ -273,7 +273,7 @@ impl CreativeSystem {
         }
     }
     
-    fn generate_raw_ideas(&self, constraints: &[Constraint]) -> Vec<RawIdea> {
+    fn generate_raw_ideas(&self, _constraints: &[Constraint]) -> Vec<RawIdea> {
         let mut ideas = Vec::new();
         let mut rng = thread_rng();
         
@@ -417,7 +417,7 @@ impl CreativeSystem {
         }
     }
     
-    fn generate_emergent_properties(&self, concepts: &[Concept]) -> Vec<EmergentProperty> {
+    fn generate_emergent_properties(&self, _concepts: &[Concept]) -> Vec<EmergentProperty> {
         vec![
             EmergentProperty {
                 name: "synergy".to_string(),
@@ -535,7 +535,7 @@ impl CreativityEngine for CreativeSystem {
 }
 
 impl CreativeSystem {
-    fn calculate_similarity_to_existing(&self, solution: &Solution) -> f32 {
+    fn calculate_similarity_to_existing(&self, _solution: &Solution) -> f32 {
         // Simplified similarity calculation
         0.3 // Placeholder
     }

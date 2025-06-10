@@ -257,7 +257,7 @@ impl TopologyManager for GraphTopology {
         
         if path.contains_key(to_idx) {
             // Reconstruct path
-            let current = *to_idx;
+            let _current = *to_idx;
             let path_nodes = vec![to];
             
             // This is simplified - proper path reconstruction would require parent tracking
