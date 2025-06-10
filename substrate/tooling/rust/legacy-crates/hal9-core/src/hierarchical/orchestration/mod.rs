@@ -218,6 +218,7 @@ impl Orchestrator for DefaultOrchestrator {
                 timestamp: chrono::Utc::now(),
                 ttl: None,
                 replication_factor: 3,
+                temporal_scale: None,
             },
         };
 

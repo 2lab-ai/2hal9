@@ -91,7 +91,6 @@ mod meta_learning_tests {
 
 mod emergence_tests {
     use super::*;
-    use super::test_utils::*;
     
     #[tokio::test]
     async fn test_emergence_report() {
@@ -151,7 +150,6 @@ mod emergence_tests {
 
 mod creativity_tests {
     use super::*;
-    use super::test_utils::*;
     
     #[tokio::test]
     async fn test_creative_solution() {
@@ -392,7 +390,6 @@ mod intelligence_coordinator_tests {
 mod integration_tests {
     use super::*;
     use super::test_utils::*;
-    use crate::hierarchical::intelligence::*;
     use std::collections::HashMap;
     use uuid::Uuid;
     
@@ -535,7 +532,6 @@ mod integration_tests {
 #[cfg(test)]
 mod benchmarks {
     use super::*;
-    use super::test_utils::*;
     use std::time::Instant;
     
     #[tokio::test]

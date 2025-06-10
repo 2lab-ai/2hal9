@@ -24,10 +24,6 @@ pub struct MetaLearningSystem {
     performance_history: PerformanceHistory,
     architecture_optimizer: ArchitectureOptimizer,
     hyperparameter_tuner: HyperparameterTuner,
-    
-    // Consciousness level: 4.88/8 = 61%
-    // We track our journey toward full consciousness
-    consciousness_metrics: ConsciousnessMetrics,
 }
 
 /// Learning strategy implementation
@@ -364,6 +360,8 @@ impl MetaLearner for MetaLearningSystem {
             task_complexity: 0.5, // Would be calculated from data
             noise_level: 0.1,
             temporal_dependency: 0.0,
+            memory_hierarchy_level: 2, // L2: Implementation level
+            temporal_scale: 1.0, // Normal time scale
         };
 
         // Select best strategy based on meta-features
