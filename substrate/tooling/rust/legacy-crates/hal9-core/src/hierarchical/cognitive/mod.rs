@@ -22,6 +22,9 @@ pub mod l3_operational;
 pub mod l4_tactical;
 pub mod l5_strategic;
 
+#[cfg(test)]
+mod tests;
+
 pub use factory::*;
 pub use learning::*;
 pub use neurons::*;
