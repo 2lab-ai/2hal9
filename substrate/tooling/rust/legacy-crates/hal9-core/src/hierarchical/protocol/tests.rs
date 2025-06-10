@@ -118,7 +118,7 @@ mod tests {
     async fn test_signal_protocol_e2e() {
         // Test encoding/decoding first
         let transport = Arc::new(ChannelTransport::new());
-        let protocol = SignalProtocol::new(transport.clone());
+        let _protocol = SignalProtocol::new(transport.clone());
 
         // Test encode/decode directly
         let test_signal = SignalMessage {

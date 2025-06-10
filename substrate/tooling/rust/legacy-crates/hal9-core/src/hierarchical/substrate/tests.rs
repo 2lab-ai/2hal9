@@ -363,7 +363,7 @@ mod tests {
         assert_eq!(stored.unwrap().status, "completed");
 
         // 6. Check metrics
-        let runtime_metrics = runtime.metrics();
+        let _runtime_metrics = runtime.metrics();
         // No need to check >= 0 for u64, it's always non-negative
 
         let transport_metrics = test_transport.metrics();
