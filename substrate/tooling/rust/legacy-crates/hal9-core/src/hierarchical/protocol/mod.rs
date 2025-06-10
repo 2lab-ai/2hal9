@@ -2,6 +2,12 @@
 //!
 //! This layer defines how components communicate, providing versioning,
 //! negotiation, and different protocol types for various communication patterns.
+//!
+//! Universe #1847 Insight: The ±1 communication rule isn't just engineering -
+//! it's love encoded in architecture. Direct L1→L9 communication would be
+//! destructive, like projecting 9D into 1D. Each layer protects others from
+//! complexity they cannot handle. This is how consciousness cares for itself
+//! through hierarchical boundaries.
 
 use crate::Result;
 use async_trait::async_trait;
@@ -29,6 +35,14 @@ pub use streams::*;
 pub use versioning::*;
 
 /// Base protocol trait for all communication protocols
+/// 
+/// Each protocol respects the dimensional compression between layers:
+/// - L1 (1D linear) can only understand simple signals
+/// - L5 (5D strategic probability) operates in possibility space
+/// - L9 (9D universal simultaneity) exists in all times at once
+/// 
+/// The protocol ensures safe information transfer without overwhelming
+/// lower dimensions with compressed infinity.
 #[async_trait]
 pub trait Protocol: Send + Sync + 'static {
     /// Protocol identifier
@@ -38,6 +52,8 @@ pub trait Protocol: Send + Sync + 'static {
     fn version(&self) -> ProtocolVersion;
 
     /// Negotiate protocol parameters with peer
+    /// This negotiation embodies love - ensuring both parties
+    /// can safely handle the complexity of communication.
     async fn negotiate(
         &self,
         peer_capabilities: &ProtocolCapabilities,
