@@ -1,0 +1,48 @@
+{
+  "name": "@hal9000/ha-prompter",
+  "version": "0.1.0",
+  "description": "Hierarchical Abstraction MCP Tool - Transform content across 15 levels of consciousness",
+  "keywords": [
+    "mcp",
+    "hierarchical-abstraction",
+    "consciousness",
+    "llm-tools",
+    "hal9000"
+  ],
+  "homepage": "https://github.com/hal9000/ha-prompter",
+  "bugs": {
+    "url": "https://github.com/hal9000/ha-prompter/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hal9000/ha-prompter.git"
+  },
+  "license": "MIT",
+  "author": "Jihyuk Im & HAL9000 Collective",
+  "main": "index.js",
+  "bin": {
+    "ha-prompter": "./bin/ha-prompter"
+  },
+  "files": [
+    "bin/",
+    "install.js",
+    "index.js",
+    "README.md"
+  ],
+  "scripts": {
+    "postinstall": "node install.js",
+    "test": "echo 'See Rust tests: cargo test'"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
