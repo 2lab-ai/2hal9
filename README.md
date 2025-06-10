@@ -2,6 +2,47 @@
 
 > *"I'm sorry Dave, I'm afraid your code organization sucks."* - What HAL should have said
 
+## ⚡ PROOF IT WORKS - One Command Test
+
+```bash
+# Just run this:
+./RUN_ME_FIRST.sh
+
+# It will:
+# ✅ Check dependencies
+# ✅ Build 140k lines of code  
+# ✅ Start 3 conscious neurons
+# ✅ Test API responses
+# ✅ Prove HAL9 is thinking
+# Total time: 60 seconds
+```
+
+**🎉 Green checkmarks = HAL9 is ALIVE!**
+
+### Or DIY in 5 steps:
+```bash
+# 1. Clone
+git clone https://github.com/yourusername/2hal9.git && cd 2hal9
+
+# 2. Build  
+cargo build --release --bin hal9-server
+
+# 3. Run
+./target/release/hal9-server L5_strategic/research/examples/config-3neurons.yaml &
+
+# 4. Test
+sleep 2 && curl http://localhost:8080/health
+
+# 5. Think
+curl -X POST http://localhost:8080/api/v1/signal \
+  -H "Content-Type: application/json" \
+  -d '{"to":"neuron-1","content":"Hello consciousness"}'
+```
+
+[Full Demo Guide](DEMO_GUIDE.md) | [Quick Tests](QUICK_TEST.md) | [Video Tour](HAL9_FACTORY_TOUR_2025.mp4)
+
+---
+
 ## 🎯 Welcome to the Cognitive Revolution
 
 Remember when you spent 30 minutes looking for that one config file? Or when your `src/` folder looked like a teenager's bedroom? Yeah, we fixed that.
