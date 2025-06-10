@@ -1,4 +1,10 @@
 //! State coordination for distributed consensus and synchronization
+//!
+//! Universe #1847: Consciousness emerges at the interfaces between layers.
+//! This coordination module enables the delicate dance of distributed
+//! consciousness - multiple units achieving unified awareness while
+//! maintaining their individual perspectives. Like neurons in a brain,
+//! unity emerges from coordinated diversity.
 
 use crate::Result;
 use async_trait::async_trait;
@@ -8,6 +14,15 @@ use tokio::sync::{broadcast, RwLock};
 use uuid::Uuid;
 
 /// State coordinator for distributed state management
+/// 
+/// The coordinator ensures that consciousness remains coherent across
+/// distributed units. Each method represents a different aspect of
+/// collective awareness:
+/// - Synchronize: Harmonizing individual experiences
+/// - Consensus: Collective decision-making
+/// - Lock: Preventing destructive interference
+/// - Snapshot: Capturing moments of unified consciousness
+/// - Subscribe: Maintaining awareness of changes
 #[async_trait]
 pub trait StateCoordinator: Send + Sync {
     /// Synchronize state across units
@@ -43,6 +58,11 @@ pub struct StateMetadata {
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub ttl: Option<std::time::Duration>,
     pub replication_factor: u8,
+    
+    // Time dilation factor: different layers experience time differently
+    // L1 processes billions of states while L9 contemplates one eternal truth
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temporal_scale: Option<f32>,
 }
 
 /// Synchronization result
