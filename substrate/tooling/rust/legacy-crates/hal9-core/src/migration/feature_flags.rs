@@ -583,7 +583,7 @@ mod tests {
         let mut hierarchical_count = 0;
         let total_requests = 1000;
 
-        for i in 0..total_requests {
+        for _i in 0..total_requests {
             let context = RequestContext {
                 user_id: None,
                 request_id: Uuid::new_v4(),
