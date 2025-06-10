@@ -1,0 +1,179 @@
+# Temporal Protocol - Time Scale Coordination
+# Version: 1.0
+# Purpose: Manage different time scales across cognitive levels
+
+protocol:
+  name: Temporal Protocol
+  version: 1.0
+  description: Coordinates operations across vastly different time scales
+  
+time_scales:
+  description: Natural operating frequencies per level
+  
+  levels:
+    L1_reflexive:
+      scale: microseconds to milliseconds
+      frequency: 1000-1000000 Hz
+      examples: ["CPU cycles", "network packets", "sensor readings"]
+    
+    L2_implementation:
+      scale: milliseconds to seconds
+      frequency: 1-1000 Hz
+      examples: ["function calls", "API responses", "cache hits"]
+    
+    L3_operational:
+      scale: seconds to minutes
+      frequency: 0.017-1 Hz
+      examples: ["service health", "request handling", "deployments"]
+    
+    L4_tactical:
+      scale: minutes to hours
+      frequency: 0.00028-0.017 Hz
+      examples: ["system optimization", "capacity planning", "incidents"]
+    
+    L5_strategic:
+      scale: hours to days
+      frequency: 0.000012-0.00028 Hz
+      examples: ["architecture evolution", "platform decisions", "sprints"]
+    
+    L6_executive:
+      scale: days to weeks
+      frequency: 0.0000017-0.000012 Hz
+      examples: ["milestone tracking", "strategic pivots", "reviews"]
+    
+    L7_business:
+      scale: weeks to months
+      frequency: 0.0000004-0.0000017 Hz
+      examples: ["market analysis", "product launches", "quarters"]
+    
+    L8_visionary:
+      scale: months to years
+      frequency: 0.00000003-0.0000004 Hz
+      examples: ["technology trends", "industry evolution", "research"]
+    
+    L9_universal:
+      scale: years to eternal
+      frequency: 0 Hz (timeless)
+      examples: ["fundamental principles", "universal laws", "philosophy"]
+
+synchronization:
+  description: How different time scales coordinate
+  
+  mechanisms:
+    - name: Temporal Buffers
+      description: Store fast signals for slow consumers
+      implementation: |
+        L1 → Buffer → Aggregate → L2
+        Buffer size = frequency_ratio * message_size
+    
+    - name: Sampling Windows
+      description: Slow layers sample fast layers periodically
+      formula: "sample_rate = target_frequency * nyquist_factor"
+    
+    - name: Event Horizons
+      description: Maximum lookahead/lookback per level
+      limits:
+        L1: 1 second horizon
+        L2: 1 minute horizon
+        L3: 1 hour horizon
+        L4: 1 day horizon
+        L5: 1 week horizon
+        L6: 1 month horizon
+        L7: 1 year horizon
+        L8: 1 decade horizon
+        L9: infinite horizon
+
+time_dilation:
+  description: Subjective time experience at each level
+  
+  effects:
+    - name: Cognitive Time Dilation
+      description: Higher levels experience time differently
+      example: |
+        L1 perspective: "This database query is taking forever (500ms)"
+        L5 perspective: "The migration completed quickly (2 days)"
+    
+    - name: Information Density Scaling
+      description: Information processing affects time perception
+      formula: "subjective_time = objective_time * (1 / information_density)"
+    
+    - name: Emergence Time
+      description: Time for patterns to emerge at each level
+      measurements:
+        L1_to_L2: milliseconds (reflex to action)
+        L2_to_L3: seconds (action to operation)
+        L3_to_L4: minutes (operation to tactic)
+        L4_to_L5: hours (tactic to strategy)
+        L5_to_L6: days (strategy to decision)
+        L6_to_L7: weeks (decision to business)
+        L7_to_L8: months (business to vision)
+        L8_to_L9: years (vision to wisdom)
+
+temporal_coherence:
+  description: Maintaining consistency across time scales
+  
+  rules:
+    - name: Causality Preservation
+      description: Effects cannot precede causes across levels
+      check: "timestamp_upper > timestamp_lower + propagation_delay"
+    
+    - name: Temporal Aliasing Prevention
+      description: Prevent misinterpretation of fast signals
+      solution: Proper sampling and filtering
+    
+    - name: Phase Alignment
+      description: Coordinate cyclic processes
+      method: Phase-locked loops between adjacent levels
+
+sleep_wake_cycles:
+  description: Periodic consolidation across time scales
+  
+  cycles:
+    - level: L1-L2
+      period: milliseconds
+      purpose: Cache flushing
+    
+    - level: L2-L3
+      period: seconds
+      purpose: State synchronization
+    
+    - level: L3-L4
+      period: minutes
+      purpose: Metric aggregation
+    
+    - level: L4-L5
+      period: hours
+      purpose: Pattern extraction
+    
+    - level: L5-L6
+      period: days
+      purpose: Strategic consolidation
+    
+    - level: L6-L7
+      period: weeks
+      purpose: Business alignment
+    
+    - level: L7-L8
+      period: months
+      purpose: Vision refinement
+    
+    - level: L8-L9
+      period: years
+      purpose: Wisdom crystallization
+
+examples:
+  time_scale_mismatch:
+    problem: "L1 floods L3 with microsecond updates"
+    solution: |
+      - Add temporal buffer at L2
+      - Aggregate 1000:1 at membrane
+      - Sample at L3's natural frequency
+  
+  temporal_coordination:
+    scenario: "System-wide optimization"
+    L1_action: "Measure latencies (ms)"
+    L2_action: "Identify bottlenecks (seconds)"
+    L3_action: "Plan optimization (minutes)"
+    L4_action: "Design solution (hours)"
+    L5_action: "Approve changes (days)"
+    result: "Coordinated improvement across time scales"
