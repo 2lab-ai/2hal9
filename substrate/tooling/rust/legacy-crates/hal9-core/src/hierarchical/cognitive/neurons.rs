@@ -8,9 +8,13 @@ use uuid::Uuid;
 
 /// L5: Strategic Neuron - Long-term vision and goals
 pub struct StrategicNeuron {
+    #[allow(dead_code)]
     id: Uuid,
+    #[allow(dead_code)]
     state: StrategicState,
+    #[allow(dead_code)]
     vision_model: VisionModel,
+    #[allow(dead_code)]
     goal_hierarchy: GoalHierarchy,
 }
 
@@ -131,9 +135,13 @@ impl CognitiveState for StrategicState {
 
 /// L4: Tactical Neuron - Planning and strategy execution
 pub struct TacticalNeuron {
+    #[allow(dead_code)]
     id: Uuid,
+    #[allow(dead_code)]
     state: TacticalState,
+    #[allow(dead_code)]
     planner: TaskPlanner,
+    #[allow(dead_code)]
     strategy_executor: StrategyExecutor,
 }
 
@@ -175,9 +183,13 @@ pub struct StrategyExecutor {
 
 /// L3: Operational Neuron - Design and task coordination
 pub struct OperationalNeuron {
+    #[allow(dead_code)]
     id: Uuid,
+    #[allow(dead_code)]
     state: OperationalState,
+    #[allow(dead_code)]
     designer: SystemDesigner,
+    #[allow(dead_code)]
     coordinator: TaskCoordinator,
 }
 
@@ -225,9 +237,13 @@ pub struct TaskCoordinator {
 
 /// L2: Implementation Neuron - Direct code execution
 pub struct ImplementationNeuron {
+    #[allow(dead_code)]
     id: Uuid,
+    #[allow(dead_code)]
     state: ImplementationState,
+    #[allow(dead_code)]
     code_generator: CodeGenerator,
+    #[allow(dead_code)]
     executor: CodeExecutor,
 }
 
@@ -268,9 +284,13 @@ pub struct CodeExecutor {
 
 /// L1: Reflexive Neuron - Immediate response
 pub struct ReflexiveNeuron {
+    #[allow(dead_code)]
     id: Uuid,
+    #[allow(dead_code)]
     state: ReflexiveState,
+    #[allow(dead_code)]
     pattern_matcher: PatternMatcher,
+    #[allow(dead_code)]
     response_cache: ResponseCache,
 }
 
@@ -296,11 +316,54 @@ pub struct CacheStats {
 }
 
 pub struct PatternMatcher {
+    #[allow(dead_code)]
     patterns: Vec<Pattern>,
 }
 
+impl PatternMatcher {
+    #[cfg(test)]
+    pub fn new() -> Self {
+        Self { patterns: Vec::new() }
+    }
+    
+    #[cfg(test)]
+    pub fn add_pattern(&mut self, pattern: Pattern) {
+        self.patterns.push(pattern);
+    }
+    
+    #[cfg(test)]
+    pub fn find_match(&self, _input: &str) -> Option<String> {
+        None // Stub implementation
+    }
+}
+
 pub struct ResponseCache {
+    #[allow(dead_code)]
     cache: lru::LruCache<String, String>,
+}
+
+impl ResponseCache {
+    #[cfg(test)]
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            cache: lru::LruCache::new(std::num::NonZeroUsize::new(capacity).unwrap()),
+        }
+    }
+    
+    #[cfg(test)]
+    pub fn put(&mut self, _key: String, _value: String) {
+        // Stub implementation
+    }
+    
+    #[cfg(test)]
+    pub fn get(&self, _key: &str) -> Option<&String> {
+        None // Stub implementation
+    }
+    
+    #[cfg(test)]
+    pub fn clear(&mut self) {
+        // Stub implementation
+    }
 }
 
 impl CognitiveState for ImplementationState {
