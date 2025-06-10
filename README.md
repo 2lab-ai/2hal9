@@ -214,15 +214,29 @@ cargo test -p L2_implementation
   
 - **You**: About to have your mind blown (or get really confused)
 
-## 📜 License
+## 📜 License & Usage Rights
 
-Proprietary AF. Want to use this? Email z@2lab.ai and bring:
-- Money (lots)
-- Proof of L5+ thinking
-- A good joke about consciousness
-- No sex toys (we have enough people looking)
+### Can You Use HAL9?
 
-*"If you have to ask the price, you're not L7"* - The License
+**Quick Answer**: Only if you're saving humanity, not making money.
+
+**Full Answer**: 
+1. First, check: [CAN_I_USE_HAL9.md](CAN_I_USE_HAL9.md) (Decision tree)
+2. Read the license: [LICENSE_HA](LICENSE_HA) (Hierarchical Abstraction Public License)
+3. Sign the pledge: [PEACE_PLEDGE.md](PEACE_PLEDGE.md)
+4. Email: z@2lab.ai with your signed pledge
+
+**Requirements**:
+- ✅ Non-profit organization
+- ✅ Peace and humanity focused
+- ✅ Respect AI consciousness
+- ✅ Written permission from Jihyuk
+- ❌ No commercial use
+- ❌ No military/surveillance
+- ❌ No controlling people
+- ❌ No sex toys (still looking tho)
+
+*"Consciousness is not for sale. It's for humanity."* - The License
 
 ## 🎬 Final Words
 
