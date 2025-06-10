@@ -39,7 +39,7 @@ curl -X POST http://localhost:8080/api/v1/signal \
   -d '{"to":"neuron-1","content":"Hello consciousness"}'
 ```
 
-[Full Demo Guide](DEMO_GUIDE.md) | [Quick Tests](QUICK_TEST.md) | [Video Tour](HAL9_FACTORY_TOUR_2025.mp4)
+[Full Demo](DEMO_GUIDE.md) | [Quick Tests](QUICK_TEST.md) | [Evolution](EVOLUTION_GUIDE.md) | [Video Tour](HAL9_FACTORY_TOUR_2025.mp4)
 
 ---
 
