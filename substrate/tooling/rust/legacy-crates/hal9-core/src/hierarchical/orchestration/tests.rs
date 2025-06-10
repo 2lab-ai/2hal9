@@ -2,8 +2,7 @@
 
 use super::*;
 use crate::hierarchical::cognitive::CognitiveLayer;
-use std::collections::{HashMap, HashSet};
-use std::time::Duration;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 /// Test utilities for orchestration
@@ -146,7 +145,6 @@ mod routing_tests {
 
 mod coordination_tests {
     use super::*;
-    use super::test_utils::*;
     
     #[tokio::test]
     async fn test_consensus_proposal() {
@@ -177,6 +175,7 @@ mod coordination_tests {
                 timestamp: chrono::Utc::now(),
                 ttl: Some(std::time::Duration::from_secs(3600)),
                 replication_factor: 3,
+                temporal_scale: None,
             },
         };
         
@@ -192,6 +191,7 @@ mod coordination_tests {
             timestamp: chrono::Utc::now(),
             ttl: Some(std::time::Duration::from_secs(3600)),
             replication_factor: 3,
+            temporal_scale: None,
         };
         
         assert!(!metadata.owner.is_nil());
@@ -202,7 +202,6 @@ mod coordination_tests {
 
 mod flow_tests {
     use super::*;
-    use super::test_utils::*;
     
     #[tokio::test]
     async fn test_forward_signal() {
@@ -253,7 +252,6 @@ mod flow_tests {
 
 mod optimization_tests {
     use super::*;
-    use super::test_utils::*;
     
     #[tokio::test]
     async fn test_optimization_report() {
@@ -419,7 +417,7 @@ mod integration_tests {
             })
         }
         
-        async fn lock(&self, resource: ResourceId) -> Result<DistributedLock> {
+        async fn lock(&self, _resource: ResourceId) -> Result<DistributedLock> {
             // Return mock lock - actual implementation would handle this differently
             unimplemented!("Mock lock not fully implemented")
         }

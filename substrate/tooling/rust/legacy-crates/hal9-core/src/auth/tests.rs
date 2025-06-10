@@ -1,9 +1,8 @@
 //! Comprehensive unit tests for authentication modules
 
 use super::*;
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use sqlx::SqlitePool;
-use std::collections::HashSet;
 use uuid::Uuid;
 
 /// Test utilities for auth tests
@@ -51,7 +50,7 @@ mod jwt_tests {
     #[tokio::test]
     async fn test_jwt_manager_initialization() {
         let secret = "test-secret-key-with-sufficient-length-for-hs256";
-        let manager = JwtManager::with_durations(secret.to_string(), 60, 7);
+        let _manager = JwtManager::with_durations(secret.to_string(), 60, 7);
         
         // Test that manager is created successfully
         assert!(true); // Manager creation test
@@ -274,7 +273,6 @@ mod api_key_tests {
 
 mod user_tests {
     use super::*;
-    use super::test_utils::*;
     
     #[tokio::test]
     async fn test_user_manager() {
@@ -413,7 +411,6 @@ mod user_tests {
 
 mod permission_tests {
     use super::*;
-    use super::test_utils::*;
     
     #[test]
     fn test_permission_operations() {
@@ -510,7 +507,6 @@ mod role_tests {
 #[cfg(test)]
 mod integration_tests {
     use super::*;
-    use super::test_utils::*;
     
     #[tokio::test]
     async fn test_full_auth_flow() {
