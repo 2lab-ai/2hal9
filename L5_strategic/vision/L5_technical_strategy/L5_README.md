@@ -65,9 +65,9 @@ This level contains technical vision, platform strategy, and long-term technolog
 
 ## Navigation
 
-- **Business Context**: [L7 Strategic Business](../L7_strategic_business/)
-- **Architecture Details**: [L4 Architecture](../L4_architecture/)
-- **Executive Summary**: [L6 Executive](../L6_executive/)
+- **Business Context**: [L7 Business](../../../../L7_business/)
+- **Architecture Details**: [L4 Tactical](../../../../L4_tactical/)
+- **Executive Summary**: [L6 Executive](../../../../L6_executive/)
 
 ## Technical Strategy Framework
 

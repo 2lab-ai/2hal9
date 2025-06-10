@@ -1,16 +1,4 @@
 #!/bin/bash
-#
-# run uenchmarks
-# Auto-fixed by L1 migration script
-#
-
-set -euo pipefail
-
-# Source common environment
-source "$(dirname "$0")/../../common-env.sh"
-
-# Original script content (modified for new paths)
-
 
 # HAL9 Performance Benchmarking Suite
 # Runs comprehensive benchmarks and generates reports

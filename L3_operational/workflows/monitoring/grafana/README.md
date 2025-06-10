@@ -181,4 +181,4 @@ When adding new dashboards:
 ---
 
 For more information about HAL9's monitoring architecture, see:
-- [L4_PROMETHEUS_METRICS_ARCHITECTURE.md](../../docs/L4_architecture/L4_PROMETHEUS_METRICS_ARCHITECTURE.md)
+- [L4_PROMETHEUS_METRICS_ARCHITECTURE.md](../../../../L4_tactical/strategies/architecture/L4_PROMETHEUS_METRICS_ARCHITECTURE.md)

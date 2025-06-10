@@ -1,16 +1,4 @@
 #!/bin/bash
-#
-# test performance
-# Auto-fixed by L1 migration script
-#
-
-set -euo pipefail
-
-# Source common environment
-source "$(dirname "$0")/../../common-env.sh"
-
-# Original script content (modified for new paths)
-
 
 # Test script for HAL9 Performance Optimizations
 
@@ -90,7 +78,7 @@ if [ "$POSTGRES_AVAILABLE" = true ]; then
     # Start server with PostgreSQL
     DATABASE_URL="postgresql://postgres:postgres@localhost/hal9_test" \
     DATABASE_TYPE="postgres" \
-    cargo run --release --bin hal9-server $HAL9_CONFIG_DIR/config-3neurons.yaml > postgres-server.log 2>&1 &
+    cargo run --release --bin hal9-server examples/config-3neurons.yaml > postgres-server.log 2>&1 &
     PG_SERVER_PID=$!
     
     sleep 10
@@ -108,7 +96,7 @@ fi
 # Test 3: SQLite baseline
 log_test "Testing SQLite performance (baseline)..."
 DATABASE_TYPE="sqlite" \
-cargo run --release --bin hal9-server $HAL9_CONFIG_DIR/config-3neurons.yaml > sqlite-server.log 2>&1 &
+cargo run --release --bin hal9-server examples/config-3neurons.yaml > sqlite-server.log 2>&1 &
 SQLITE_SERVER_PID=$!
 
 sleep 10
@@ -128,7 +116,7 @@ if [ "$REDIS_AVAILABLE" = true ]; then
     
     REDIS_URL="redis://localhost:6379" \
     CACHE_ENABLED="true" \
-    cargo run --release --bin hal9-server $HAL9_CONFIG_DIR/config-3neurons.yaml > redis-server.log 2>&1 &
+    cargo run --release --bin hal9-server examples/config-3neurons.yaml > redis-server.log 2>&1 &
     REDIS_SERVER_PID=$!
     
     sleep 10
@@ -136,7 +124,7 @@ if [ "$REDIS_AVAILABLE" = true ]; then
     # Warm up cache
     log_info "Warming up cache..."
     for i in {1..100}; do
-        curl -s -X POST "http://localhost:$HAL9_PORT_MAIN/api/v1/signal" \
+        curl -s -X POST "http://localhost:8080/api/v1/signal" \
             -H "Content-Type: application/json" \
             -d '{"content": "Cache warmup signal", "layer": "L4", "neuron_id": "test"}' > /dev/null
     done
@@ -151,7 +139,7 @@ if [ "$REDIS_AVAILABLE" = true ]; then
     log_success "Redis-cached p95 latency: ${REDIS_P95}ms"
     
     # Check cache hit rate
-    CACHE_STATS=$(curl -s "http://localhost:$HAL9_PORT_MAIN/api/v1/metrics" | jq '.data.cache_hit_rate // 0')
+    CACHE_STATS=$(curl -s "http://localhost:8080/api/v1/metrics" | jq '.data.cache_hit_rate // 0')
     log_info "Cache hit rate: ${CACHE_STATS}%"
 fi
 
@@ -165,10 +153,10 @@ if [ "$POSTGRES_AVAILABLE" = true ] && [ "$REDIS_AVAILABLE" = true ]; then
     DATABASE_TYPE="postgres" \
     REDIS_URL="redis://localhost:6379" \
     CACHE_ENABLED="true" \
-    cargo run --release --bin hal9-server $HAL9_CONFIG_DIR/config-3neurons.yaml > optimized-server.log 2>&1 &
+    cargo run --release --bin hal9-server examples/config-3neurons.yaml > optimized-server.log 2>&1 &
 else
     log_info "Using SQLite configuration"
-    cargo run --release --bin hal9-server $HAL9_CONFIG_DIR/config-3neurons.yaml > optimized-server.log 2>&1 &
+    cargo run --release --bin hal9-server examples/config-3neurons.yaml > optimized-server.log 2>&1 &
 fi
 
 SERVER_PID=$!

@@ -60,9 +60,9 @@ This level contains business strategy, market positioning, and competitive analy
 
 ## Navigation
 
-- **One Level Up**: [L8 Visionary](../L8_visionary/) - Long-term vision
-- **One Level Down**: [L6 Executive](../L6_executive/) - Executive summaries
-- **Technical Context**: [L5 Technical Strategy](../L5_technical_strategy/)
+- **One Level Up**: [L8 Visionary](../../../L8_visionary/) - Long-term vision
+- **One Level Down**: [L6 Executive](../../../L6_executive/) - Executive summaries
+- **Technical Context**: [L5 Strategic](../../../L5_strategic/)
 
 ## Business Strategy Pillars
 

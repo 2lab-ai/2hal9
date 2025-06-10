@@ -44,10 +44,10 @@ As requested, I have successfully reorganized HAL9's technical documentation int
 
 ### Split Documents
 **HIERARCHICAL_REFACTORING_PLAN.md** was split into:
-- **L5**: [REFACTORING_STRATEGIC_RATIONALE.md](./docs/technical/L5_strategic/REFACTORING_STRATEGIC_RATIONALE.md) - WHY we refactor
-- **L4**: [REFACTORING_ARCHITECTURE_PLAN.md](./docs/technical/L4_architectural/REFACTORING_ARCHITECTURE_PLAN.md) - WHAT we build  
-- **L3**: [REFACTORING_DESIGN_MILESTONES.md](./docs/technical/L3_design/REFACTORING_DESIGN_MILESTONES.md) - HOW we design
-- **L2**: [REFACTORING_STEP_BY_STEP.md](./docs/technical/L2_implementation/REFACTORING_STEP_BY_STEP.md) - DO THIS
+- **L5**: REFACTORING_STRATEGIC_RATIONALE.md *(in L5_strategic)* - WHY we refactor
+- **L4**: REFACTORING_ARCHITECTURE_PLAN.md *(in L4_tactical)* - WHAT we build  
+- **L3**: REFACTORING_DESIGN_MILESTONES.md *(in L3_operational)* - HOW we design
+- **L2**: REFACTORING_STEP_BY_STEP.md *(in L2_implementation)* - DO THIS
 
 ### New Navigation Documents
 Each level now has a README explaining:

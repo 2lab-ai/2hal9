@@ -60,8 +60,8 @@ This level contains the most abstract, universal principles that govern HAL9 and
 
 ## Navigation
 
-- **One Level Down**: [L8 Visionary](../L8_visionary/) - Long-term vision
-- **Two Levels Down**: [L7 Strategic Business](../L7_strategic_business/) - Business strategy
+- **One Level Down**: [L8 Visionary](../../../../../../L8_visionary/) - Long-term vision
+- **Two Levels Down**: [L7 Business](../../../../../../L7_business/) - Business strategy
 - **Skip to Implementation**: Not recommended from this height
 
 ## Philosophical Framework

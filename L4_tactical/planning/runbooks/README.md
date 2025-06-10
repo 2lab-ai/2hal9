@@ -15,15 +15,9 @@ This directory contains detailed operational runbooks for migrating HAL9 from fl
 
 ### Emergency Procedures
 - **[Rollback Procedures](./emergency/rollback-procedures.md)** - Emergency rollback steps
-- **[Incident Response](./emergency/incident-response.md)** - Handling migration incidents
-- **[Performance Degradation](./emergency/performance-degradation.md)** - Addressing performance issues
-- **[Data Recovery](./emergency/data-recovery.md)** - Recovering from data loss
 
 ### Operational Procedures
 - **[Health Check Procedures](./operations/health-checks.md)** - System health validation
-- **[Monitoring Setup](./operations/monitoring-setup.md)** - Configure monitoring
-- **[Log Analysis](./operations/log-analysis.md)** - Troubleshooting with logs
-- **[Capacity Planning](./operations/capacity-planning.md)** - Resource management
 
 ## Critical Information
 
@@ -107,4 +101,4 @@ Before executing migration:
 
 ---
 
-For architectural details, see [L4 Architecture Documentation](../docs/L4_architecture/)
+For architectural details, see [L4 Architecture Documentation](../../strategies/architecture/)

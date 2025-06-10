@@ -1,310 +1,257 @@
 #!/bin/bash
+#
+# HAL9 Health Check Script
+# Supports both local development and Kubernetes environments
+#
 
-# HAL9 Comprehensive Health Check Script
-# Performs deep health validation of the hierarchical architecture
+set -euo pipefail
 
-set -e
+# Source common environment
+source "$(dirname "$0")/../../common-env.sh"
 
-# Configuration
-NAMESPACE="hal9"
-COMPREHENSIVE=${1:-"--quick"}
-OUTPUT_FORMAT=${2:-"text"} # text or json
+# Default mode
+MODE="${1:-local}"
 
-# Colors
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+# Health check configuration
+HEALTH_TIMEOUT=5
+HEALTH_RETRIES=3
 
-# Health check results
-declare -A health_results
-overall_health="healthy"
+# Color codes for status
+STATUS_OK="${GREEN}✓${NC}"
+STATUS_WARN="${YELLOW}⚠${NC}"
+STATUS_FAIL="${RED}✗${NC}"
 
-# Function to record health result
-record_result() {
-    local component=$1
-    local status=$2
-    local message=$3
+# Function to check local service
+check_local_service() {
+    local name=$1
+    local url=$2
+    local expected=${3:-"healthy"}
     
-    health_results["$component"]="$status:$message"
+    log_info "Checking $name..."
     
-    if [ "$status" != "healthy" ]; then
-        overall_health="unhealthy"
-    fi
-}
-
-# Function to check layer health
-check_layer_health() {
-    local layer=$1
-    local layer_health="healthy"
-    local message=""
+    local retry=0
+    local status="unknown"
     
-    # Get all pods for this layer
-    local pods=$(kubectl get pods -n $NAMESPACE -l layer=$layer -o jsonpath='{.items[*].metadata.name}')
-    
-    if [ -z "$pods" ]; then
-        record_result "layer_$layer" "critical" "No pods found"
-        return
-    fi
-    
-    # Check each pod
-    local total_pods=0
-    local healthy_pods=0
-    
-    for pod in $pods; do
-        total_pods=$((total_pods + 1))
-        
-        # Check pod status
-        local status=$(kubectl get pod $pod -n $NAMESPACE -o jsonpath='{.status.phase}')
-        if [ "$status" == "Running" ]; then
-            # Check health endpoint
-            if kubectl exec -n $NAMESPACE $pod -- curl -s -f http://localhost:8080/health > /dev/null 2>&1; then
-                healthy_pods=$((healthy_pods + 1))
+    while [ $retry -lt $HEALTH_RETRIES ]; do
+        if response=$(curl -s --max-time $HEALTH_TIMEOUT "$url" 2>/dev/null); then
+            if [ -n "$response" ]; then
+                # Try to parse as JSON first
+                if echo "$response" | jq -e '.status' > /dev/null 2>&1; then
+                    status=$(echo "$response" | jq -r '.status')
+                else
+                    # Not JSON, check if it's a simple response
+                    status="ok"
+                fi
+                
+                if [ "$status" = "$expected" ] || [ "$status" = "ok" ]; then
+                    echo -e "$STATUS_OK $name is healthy"
+                    return 0
+                else
+                    echo -e "$STATUS_WARN $name returned status: $status"
+                fi
             fi
         fi
+        
+        ((retry++))
+        if [ $retry -lt $HEALTH_RETRIES ]; then
+            sleep 1
+        fi
     done
     
-    if [ $healthy_pods -eq $total_pods ]; then
-        message="All $total_pods pods healthy"
-    elif [ $healthy_pods -gt 0 ]; then
-        layer_health="degraded"
-        message="$healthy_pods/$total_pods pods healthy"
-    else
-        layer_health="critical"
-        message="No healthy pods"
-    fi
-    
-    record_result "layer_$layer" "$layer_health" "$message"
+    echo -e "$STATUS_FAIL $name is not responding"
+    return 1
 }
 
-# Function to check signal propagation
-check_signal_propagation() {
-    local orchestrator_pod=$(kubectl get pod -n $NAMESPACE -l component=orchestrator -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+# Function to check Kubernetes service
+check_k8s_service() {
+    local name=$1
+    local namespace=${2:-"default"}
+    local selector=$3
     
-    if [ -z "$orchestrator_pod" ]; then
-        record_result "signal_propagation" "critical" "Orchestrator not found"
-        return
+    log_info "Checking $name in namespace $namespace..."
+    
+    # Check if kubectl is available
+    if ! command -v kubectl &> /dev/null; then
+        log_error "kubectl not found - cannot check Kubernetes services"
+        return 1
     fi
     
-    # Send test signal and measure propagation time
-    local result=$(kubectl exec -n $NAMESPACE $orchestrator_pod -- hal9-cli test signal --measure-latency 2>/dev/null || echo "error")
+    # Check pod status
+    local ready_pods=$(kubectl get pods -n "$namespace" -l "$selector" -o json 2>/dev/null | \
+        jq '[.items[] | select(.status.phase == "Running" and .status.conditions[] | select(.type == "Ready" and .status == "True"))] | length')
     
-    if [[ "$result" == "error" ]]; then
-        record_result "signal_propagation" "critical" "Test failed"
-    else
-        local latency=$(echo "$result" | grep -oP 'latency: \K\d+')
-        if [ "$latency" -lt 10 ]; then
-            record_result "signal_propagation" "healthy" "Latency: ${latency}ms"
-        elif [ "$latency" -lt 50 ]; then
-            record_result "signal_propagation" "warning" "Latency: ${latency}ms (elevated)"
+    local total_pods=$(kubectl get pods -n "$namespace" -l "$selector" -o json 2>/dev/null | \
+        jq '.items | length')
+    
+    if [ "$ready_pods" -gt 0 ]; then
+        if [ "$ready_pods" -eq "$total_pods" ]; then
+            echo -e "$STATUS_OK $name: $ready_pods/$total_pods pods ready"
+            return 0
         else
-            record_result "signal_propagation" "critical" "Latency: ${latency}ms (high)"
+            echo -e "$STATUS_WARN $name: $ready_pods/$total_pods pods ready"
+            return 0
         fi
-    fi
-}
-
-# Function to check resource usage
-check_resource_usage() {
-    local high_cpu_pods=0
-    local high_memory_pods=0
-    
-    # Get resource usage for all pods
-    local pods=$(kubectl get pods -n $NAMESPACE -l app=hal9 -o jsonpath='{.items[*].metadata.name}')
-    
-    for pod in $pods; do
-        # Get CPU and memory usage
-        local usage=$(kubectl top pod $pod -n $NAMESPACE --no-headers 2>/dev/null || echo "0m 0Mi")
-        local cpu=$(echo $usage | awk '{print $2}' | sed 's/m//')
-        local memory=$(echo $usage | awk '{print $3}' | sed 's/Mi//')
-        
-        # Check thresholds (CPU > 80%, Memory > 80% of limits)
-        if [ "$cpu" -gt 800 ]; then
-            high_cpu_pods=$((high_cpu_pods + 1))
-        fi
-        
-        if [ "$memory" -gt 3276 ]; then  # Assuming 4Gi limit
-            high_memory_pods=$((high_memory_pods + 1))
-        fi
-    done
-    
-    if [ $high_cpu_pods -eq 0 ] && [ $high_memory_pods -eq 0 ]; then
-        record_result "resource_usage" "healthy" "All pods within limits"
-    elif [ $high_cpu_pods -lt 5 ] && [ $high_memory_pods -lt 5 ]; then
-        record_result "resource_usage" "warning" "CPU: $high_cpu_pods pods high, Memory: $high_memory_pods pods high"
     else
-        record_result "resource_usage" "critical" "CPU: $high_cpu_pods pods high, Memory: $high_memory_pods pods high"
+        echo -e "$STATUS_FAIL $name: 0/$total_pods pods ready"
+        return 1
     fi
 }
 
-# Function to check database health
-check_database_health() {
-    local db_pod=$(kubectl get pod -n $NAMESPACE -l component=database -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+# Function to check system resources
+check_system_resources() {
+    log_info "Checking system resources..."
     
-    if [ -z "$db_pod" ]; then
-        # Try using application pod to check database
-        db_pod=$(kubectl get pod -n $NAMESPACE -l layer=substrate -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-    fi
-    
-    if [ -z "$db_pod" ]; then
-        record_result "database" "critical" "Cannot access database"
-        return
-    fi
-    
-    # Check PostgreSQL
-    if kubectl exec -n $NAMESPACE $db_pod -- pg_isready -h postgres -p 5432 > /dev/null 2>&1; then
-        # Check replication lag
-        local lag=$(kubectl exec -n $NAMESPACE $db_pod -- psql -h postgres -U hal9 -d hal9 -t -c "SELECT EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp()))::int" 2>/dev/null || echo "999")
+    # Check memory
+    if command -v free &> /dev/null; then
+        local mem_info=$(free -m | awk 'NR==2')
+        local total_mem=$(echo "$mem_info" | awk '{print $2}')
+        local used_mem=$(echo "$mem_info" | awk '{print $3}')
+        local mem_percent=$((used_mem * 100 / total_mem))
         
-        if [ "$lag" -lt 5 ]; then
-            record_result "database" "healthy" "PostgreSQL OK, replication lag: ${lag}s"
+        if [ $mem_percent -lt 80 ]; then
+            echo -e "$STATUS_OK Memory: ${used_mem}MB/${total_mem}MB (${mem_percent}%)"
+        elif [ $mem_percent -lt 90 ]; then
+            echo -e "$STATUS_WARN Memory: ${used_mem}MB/${total_mem}MB (${mem_percent}%)"
         else
-            record_result "database" "warning" "PostgreSQL OK, replication lag: ${lag}s (high)"
+            echo -e "$STATUS_FAIL Memory: ${used_mem}MB/${total_mem}MB (${mem_percent}%)"
+        fi
+    elif command -v vm_stat &> /dev/null; then
+        # macOS
+        echo -e "$STATUS_OK Memory check (macOS)"
+    fi
+    
+    # Check disk space
+    local disk_info=$(df -h . | awk 'NR==2')
+    local disk_usage=$(echo "$disk_info" | awk '{print $5}' | sed 's/%//')
+    
+    if [ $disk_usage -lt 80 ]; then
+        echo -e "$STATUS_OK Disk: ${disk_usage}% used"
+    elif [ $disk_usage -lt 90 ]; then
+        echo -e "$STATUS_WARN Disk: ${disk_usage}% used"
+    else
+        echo -e "$STATUS_FAIL Disk: ${disk_usage}% used"
+    fi
+    
+    # Check CPU (if possible)
+    if command -v top &> /dev/null; then
+        # This is a rough check - actual implementation would vary by OS
+        echo -e "$STATUS_OK CPU check available"
+    fi
+}
+
+# Local health check
+health_check_local() {
+    echo "=== HAL9 Local Health Check ==="
+    echo "Time: $(date)"
+    echo
+    
+    # Check main server
+    check_local_service "HAL9 Server" "http://localhost:$HAL9_PORT_MAIN/health"
+    
+    # Check API endpoints
+    check_local_service "API Status" "http://localhost:$HAL9_PORT_MAIN/api/v1/status"
+    check_local_service "Neurons API" "http://localhost:$HAL9_PORT_MAIN/api/v1/neurons"
+    
+    # Check auth if configured
+    if [ "${HAL9_PORT_AUTH:-}" != "" ] && [ "$HAL9_PORT_AUTH" != "$HAL9_PORT_MAIN" ]; then
+        check_local_service "Auth Service" "http://localhost:$HAL9_PORT_AUTH/health" || true
+    fi
+    
+    # Check metrics if configured
+    if [ "${HAL9_PORT_METRICS:-}" != "" ]; then
+        check_local_service "Metrics" "http://localhost:$HAL9_PORT_METRICS/metrics" || true
+    fi
+    
+    # Check system resources
+    echo
+    check_system_resources
+    
+    # Check log files
+    echo
+    log_info "Checking log files..."
+    if [ -d "$HAL9_LOG_DIR" ]; then
+        local log_count=$(find "$HAL9_LOG_DIR" -name "*.log" -type f 2>/dev/null | wc -l)
+        local log_size=$(du -sh "$HAL9_LOG_DIR" 2>/dev/null | cut -f1)
+        echo -e "$STATUS_OK Logs: $log_count files, $log_size total"
+        
+        # Show recent errors
+        local recent_errors=$(find "$HAL9_LOG_DIR" -name "*.log" -type f -mmin -5 -exec grep -l "ERROR\|FATAL" {} \; 2>/dev/null | wc -l)
+        if [ $recent_errors -gt 0 ]; then
+            echo -e "$STATUS_WARN Recent errors found in $recent_errors log files"
         fi
     else
-        record_result "database" "critical" "PostgreSQL connection failed"
-    fi
-    
-    # Check Redis
-    if kubectl exec -n $NAMESPACE $db_pod -- redis-cli -h redis ping > /dev/null 2>&1; then
-        record_result "redis" "healthy" "Redis OK"
-    else
-        record_result "redis" "critical" "Redis connection failed"
+        echo -e "$STATUS_WARN Log directory not found: $HAL9_LOG_DIR"
     fi
 }
 
-# Function to check consensus mechanism
-check_consensus() {
-    local protocol_pod=$(kubectl get pod -n $NAMESPACE -l layer=protocol -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+# Kubernetes health check
+health_check_k8s() {
+    echo "=== HAL9 Kubernetes Health Check ==="
+    echo "Time: $(date)"
+    echo
     
-    if [ -z "$protocol_pod" ]; then
-        record_result "consensus" "critical" "Protocol layer not found"
-        return
+    # Check if kubectl is configured
+    if ! kubectl cluster-info &> /dev/null; then
+        log_error "kubectl not configured or cluster not accessible"
+        exit 1
     fi
     
-    # Check consensus status
-    local consensus_status=$(kubectl exec -n $NAMESPACE $protocol_pod -- hal9-cli consensus status 2>/dev/null || echo "error")
+    local NAMESPACE="${HAL9_K8S_NAMESPACE:-hal9}"
     
-    if [[ "$consensus_status" == *"active"* ]]; then
-        record_result "consensus" "healthy" "Consensus mechanism active"
-    elif [[ "$consensus_status" == *"degraded"* ]]; then
-        record_result "consensus" "warning" "Consensus degraded"
-    else
-        record_result "consensus" "critical" "Consensus inactive"
-    fi
+    echo "Namespace: $NAMESPACE"
+    echo
+    
+    # Check deployments
+    check_k8s_service "HAL9 Server" "$NAMESPACE" "app=hal9-server"
+    check_k8s_service "HAL9 Neurons" "$NAMESPACE" "component=neuron"
+    
+    # Check services
+    log_info "Checking services..."
+    kubectl get svc -n "$NAMESPACE" -o wide 2>/dev/null || echo -e "$STATUS_FAIL No services found"
+    
+    # Check ingress
+    log_info "Checking ingress..."
+    kubectl get ingress -n "$NAMESPACE" 2>/dev/null || echo -e "$STATUS_WARN No ingress found"
+    
+    # Check persistent volumes
+    log_info "Checking storage..."
+    kubectl get pvc -n "$NAMESPACE" 2>/dev/null || echo -e "$STATUS_WARN No persistent volumes found"
+    
+    # Check recent events
+    echo
+    log_info "Recent events..."
+    kubectl get events -n "$NAMESPACE" --sort-by='.lastTimestamp' | tail -5
 }
 
-# Function to check learning system
-check_learning_system() {
-    local cognitive_pod=$(kubectl get pod -n $NAMESPACE -l layer=cognitive -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+# Main execution
+main() {
+    case "$MODE" in
+        local|--local|-l)
+            health_check_local
+            ;;
+        k8s|kubernetes|--k8s|-k)
+            health_check_k8s
+            ;;
+        all|--all|-a)
+            health_check_local
+            echo
+            echo "========================================"
+            echo
+            health_check_k8s
+            ;;
+        *)
+            log_error "Unknown mode: $MODE"
+            echo "Usage: $0 [local|k8s|all]"
+            echo "  local  - Check local development environment (default)"
+            echo "  k8s    - Check Kubernetes deployment"
+            echo "  all    - Check both environments"
+            exit 1
+            ;;
+    esac
     
-    if [ -z "$cognitive_pod" ]; then
-        record_result "learning" "critical" "Cognitive layer not found"
-        return
-    fi
-    
-    # Check learning metrics
-    local learning_rate=$(kubectl exec -n $NAMESPACE $cognitive_pod -- hal9-cli learning metrics --format json | jq -r '.learning_rate' 2>/dev/null || echo "0")
-    
-    if (( $(echo "$learning_rate > 0" | bc -l) )); then
-        record_result "learning" "healthy" "Learning rate: $learning_rate"
-    else
-        record_result "learning" "warning" "Learning inactive"
-    fi
+    echo
+    echo "=== Health Check Complete ==="
 }
 
-# Main health check flow
-echo -e "${BLUE}HAL9 Health Check${NC}"
-echo -e "${BLUE}=================${NC}"
-echo "Mode: $COMPREHENSIVE"
-echo
-
-# Quick health checks (always run)
-echo "Running basic health checks..."
-
-# Check all layers
-LAYERS=("substrate" "protocol" "l1-reflexive" "l2-implementation" 
-        "l3-operational" "l4-tactical" "l5-strategic" "orchestration" "intelligence")
-
-for layer in "${LAYERS[@]}"; do
-    check_layer_health $layer
-done
-
-# Check core functionality
-check_signal_propagation
-check_resource_usage
-check_database_health
-
-# Comprehensive checks
-if [ "$COMPREHENSIVE" == "--comprehensive" ]; then
-    echo
-    echo "Running comprehensive health checks..."
-    
-    check_consensus
-    check_learning_system
-    
-    # Additional comprehensive checks
-    # Check metrics collection
-    local metrics_up=$(curl -s http://prometheus:9090/api/v1/query?query=up | jq -r '.data.result | length' 2>/dev/null || echo "0")
-    if [ "$metrics_up" -gt 0 ]; then
-        record_result "metrics" "healthy" "$metrics_up targets up"
-    else
-        record_result "metrics" "critical" "No metrics targets"
-    fi
-    
-    # Check log aggregation
-    local logs_count=$(curl -s http://elasticsearch:9200/_cat/count/hal9-* | awk '{print $3}' 2>/dev/null || echo "0")
-    if [ "$logs_count" -gt 0 ]; then
-        record_result "logging" "healthy" "$logs_count log entries"
-    else
-        record_result "logging" "warning" "No recent logs"
-    fi
-fi
-
-# Output results
-echo
-echo -e "${BLUE}Health Check Results${NC}"
-echo -e "${BLUE}===================${NC}"
-
-if [ "$OUTPUT_FORMAT" == "json" ]; then
-    # JSON output
-    echo "{"
-    echo "  \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\","
-    echo "  \"overall_health\": \"$overall_health\","
-    echo "  \"components\": {"
-    
-    first=true
-    for component in "${!health_results[@]}"; do
-        IFS=':' read -r status message <<< "${health_results[$component]}"
-        if [ "$first" != true ]; then echo ","; fi
-        echo -n "    \"$component\": {\"status\": \"$status\", \"message\": \"$message\"}"
-        first=false
-    done
-    
-    echo
-    echo "  }"
-    echo "}"
-else
-    # Text output
-    for component in "${!health_results[@]}"; do
-        IFS=':' read -r status message <<< "${health_results[$component]}"
-        
-        case $status in
-            "healthy")
-                echo -e "${GREEN}✓${NC} $component: $message"
-                ;;
-            "warning")
-                echo -e "${YELLOW}⚠${NC} $component: $message"
-                ;;
-            "critical")
-                echo -e "${RED}✗${NC} $component: $message"
-                ;;
-        esac
-    done
-    
-    echo
-    echo -e "Overall Health: $([ "$overall_health" == "healthy" ] && echo -e "${GREEN}HEALTHY${NC}" || echo -e "${RED}UNHEALTHY${NC}")"
-fi
-
-# Exit with appropriate code
-[ "$overall_health" == "healthy" ] && exit 0 || exit 1
+# Run main function
+main "$@"

@@ -268,6 +268,6 @@ When adding new benchmarks:
 
 ## Related Documentation
 
-- [Performance Optimization Guide](../docs/L4_architecture/L4_PERFORMANCE_OPTIMIZATION_ARCHITECTURE.md)
-- [System Architecture](../docs/L4_architecture/L4_SYSTEM_ARCHITECTURE.md)
-- [Monitoring Guide](../docs/L1_operational/L1_MONITORING_GUIDE.md)
+- [Performance Optimization Architecture](/Users/icedac/2lab.ai/2hal9/L4_tactical/strategies/architecture/L4_PERFORMANCE_OPTIMIZATION_ARCHITECTURE.md)
+- [System Architecture](/Users/icedac/2lab.ai/2hal9/L4_tactical/strategies/architecture/L4_L4_SYSTEM_ARCHITECTURE.md)
+- [Monitoring](/Users/icedac/2lab.ai/2hal9/L1_reflexive/status/monitoring.md)

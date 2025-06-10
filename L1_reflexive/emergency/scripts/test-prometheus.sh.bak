@@ -1,16 +1,4 @@
 #!/bin/bash
-#
-# test prometheus
-# Auto-fixed by L1 migration script
-#
-
-set -euo pipefail
-
-# Source common environment
-source "$(dirname "$0")/../../common-env.sh"
-
-# Original script content (modified for new paths)
-
 
 # Test script for HAL9 Prometheus metrics
 
@@ -52,7 +40,7 @@ log_test "Starting HAL9 server..."
 pkill -f hal9-server || true
 sleep 2
 
-HTTP_PORT=9737 $HAL9_SERVER_CMD $HAL9_CONFIG_DIR/config-3neurons.yaml > prometheus-server.log 2>&1 &
+HTTP_PORT=9737 cargo run --bin hal9-server examples/config-3neurons.yaml > prometheus-server.log 2>&1 &
 SERVER_PID=$!
 echo "Server PID: $SERVER_PID"
 

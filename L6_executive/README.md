@@ -22,9 +22,9 @@ This is your strategic command center. Everything here is abstracted to the righ
 ### Quick Status
 
 Get system status in executive terms:
-- [System Health Overview](overview/system-health.md) - Is the system healthy?
-- [Business Metrics Dashboard](metrics/dashboard.md) - Are we meeting goals?
-- [Progress Summary](overview/progress-summary.md) - What's been accomplished?
+- System Health Overview *(coming soon)* - Is the system healthy?
+- Business Metrics Dashboard *(coming soon)* - Are we meeting goals?
+- Progress Summary *(coming soon)* - What's been accomplished?
 
 ### Key Documents
 
@@ -33,7 +33,7 @@ Get system status in executive terms:
   - Strategic advantages
   - Competitive differentiation
 
-- **[Migration Executive Brief](communication/migration-brief.md)**
+- **[Hierarchy Overview](communication/hierarchy-overview.md)**
   - Business case for hierarchical architecture
   - Risk assessment
   - Timeline and milestones

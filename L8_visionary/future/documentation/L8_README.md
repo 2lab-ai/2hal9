@@ -62,9 +62,9 @@ This level contains long-term visions for HAL9's evolution toward artificial con
 
 ## Navigation
 
-- **One Level Up**: [L9 Universal](../L9_universal/) - Universal principles
-- **One Level Down**: [L7 Strategic Business](../L7_strategic_business/) - Business strategy
-- **Skip to Present**: [L4 Architecture](../L4_architecture/) - Current system
+- **One Level Up**: [L9 Universal](../../../L9_universal/) - Universal principles
+- **One Level Down**: [L7 Business](../../../L7_business/) - Business strategy
+- **Skip to Present**: [L4 Tactical](../../../L4_tactical/) - Current system
 
 ## Visionary Framework
 

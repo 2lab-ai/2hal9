@@ -15,26 +15,26 @@ This folder contains documentation for:
 
 ### Core Documents
 
-1. **[HIERARCHICAL_ABSTRACT_ARCHITECTURE.md](./HIERARCHICAL_ABSTRACT_ARCHITECTURE.md)**
+1. **[L4_HIERARCHICAL_ABSTRACT_ARCHITECTURE.md](./L4_HIERARCHICAL_ABSTRACT_ARCHITECTURE.md)**
    - Detailed 5-layer architecture specification
    - Component abstractions and interfaces
    - Recursive patterns and principles
 
-2. **[SYSTEM_DESIGN_PATTERNS.md](./SYSTEM_DESIGN_PATTERNS.md)**
+2. **[L4_SYSTEM_DESIGN_PATTERNS.md](./L4_SYSTEM_DESIGN_PATTERNS.md)**
    - Architectural patterns used in HAL9
    - When and how to apply each pattern
    - Anti-patterns to avoid
 
-3. **[ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md)**
+3. **[L4_ARCHITECTURE_DECISIONS.md](./L4_ARCHITECTURE_DECISIONS.md)**
    - ADRs (Architecture Decision Records)
    - Rationale behind key decisions
    - Trade-offs and consequences
 
 4. **Component Architecture Docs**
-   - [ENTERPRISE_AUTH_ARCHITECTURE.md](./ENTERPRISE_AUTH_ARCHITECTURE.md)
-   - [PERFORMANCE_OPTIMIZATION_ARCHITECTURE.md](./PERFORMANCE_OPTIMIZATION_ARCHITECTURE.md)
-   - [CODE_GENERATION_ARCHITECTURE.md](./CODE_GENERATION_ARCHITECTURE.md)
-   - [BROWSER_AUTOMATION_ARCHITECTURE.md](./BROWSER_AUTOMATION_ARCHITECTURE.md)
+   - [L4_ENTERPRISE_AUTH_ARCHITECTURE.md](./L4_ENTERPRISE_AUTH_ARCHITECTURE.md)
+   - [L4_PERFORMANCE_OPTIMIZATION_ARCHITECTURE.md](./L4_PERFORMANCE_OPTIMIZATION_ARCHITECTURE.md)
+   - [L4_CODE_GENERATION_ARCHITECTURE.md](./L4_CODE_GENERATION_ARCHITECTURE.md)
+   - [L4_BROWSER_AUTOMATION_ARCHITECTURE.md](./L4_BROWSER_AUTOMATION_ARCHITECTURE.md)
 
 ## Key Concepts at This Level
 
@@ -55,16 +55,16 @@ This level does NOT contain:
 
 ## Navigation
 
-- **Vision Context**: See [L5 Strategic](../L5_strategic/) for why these choices
-- **Implementation**: See [L3 Design](../L3_design/) for component details
-- **Code Examples**: See [L2 Implementation](../L2_implementation/) for how-to
+- **Vision Context**: See [L5 Strategic](../../../L5_strategic/) for why these choices
+- **Implementation**: See [L3 Operational](../../../L3_operational/) for component details
+- **Code Examples**: See [L2 Implementation](../../../L2_implementation/) for how-to
 
 ## Reading Order
 
 1. **For New Architects**:
-   - Start with [System Design Patterns](./SYSTEM_DESIGN_PATTERNS.md)
-   - Then read [Hierarchical Architecture](./HIERARCHICAL_ABSTRACT_ARCHITECTURE.md)
-   - Review [Architecture Decisions](./ARCHITECTURE_DECISIONS.md)
+   - Start with [System Design Patterns](./L4_SYSTEM_DESIGN_PATTERNS.md)
+   - Then read [Hierarchical Architecture](./L4_HIERARCHICAL_ABSTRACT_ARCHITECTURE.md)
+   - Review [Architecture Decisions](./L4_ARCHITECTURE_DECISIONS.md)
 
 2. **For Specific Components**:
    - Jump directly to component architecture docs

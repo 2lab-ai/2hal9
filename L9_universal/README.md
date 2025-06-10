@@ -21,12 +21,12 @@ This is the realm of pure thought, where implementation is irrelevant and only t
 
 ### Core Documents
 
-- **[Hierarchical Abstraction Principles](principles/hierarchical-abstraction.md)**
+- **[Hierarchical Abstraction Principles](principles/hierarchical-abstraction-fundamental.md)**
   - Why hierarchy emerges naturally
   - The cognitive load distribution law
   - Emergence through layers
 
-- **[Universal Patterns](patterns/)**
+- **[Universal Patterns](patterns/)** *(directory currently empty)*
   - Patterns that appear at every level
   - Self-similarity across scales
   - The recursive nature of understanding

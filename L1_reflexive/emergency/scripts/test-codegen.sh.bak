@@ -1,16 +1,4 @@
 #!/bin/bash
-#
-# test codegen
-# Auto-fixed by L1 migration script
-#
-
-set -euo pipefail
-
-# Source common environment
-source "$(dirname "$0")/../../common-env.sh"
-
-# Original script content (modified for new paths)
-
 
 # Test script for HAL9 Code Generation System
 
@@ -48,7 +36,7 @@ log_test "Starting HAL9 server with code generation neurons..."
 pkill -f hal9-server || true
 sleep 2
 
-HTTP_PORT=8080 $HAL9_SERVER_CMD $HAL9_CONFIG_DIR/codegen-neurons.yaml > codegen-server.log 2>&1 &
+HTTP_PORT=8080 cargo run --bin hal9-server examples/codegen-neurons.yaml > codegen-server.log 2>&1 &
 SERVER_PID=$!
 echo "Server PID: $SERVER_PID"
 
@@ -65,7 +53,7 @@ log_success "Server started successfully"
 
 # Test 1: Check code generation health endpoint
 log_test "Checking code generation health..."
-HEALTH_RESPONSE=$(curl -s "http://localhost:$HAL9_PORT_MAIN/api/v1/codegen/health")
+HEALTH_RESPONSE=$(curl -s "http://localhost:8080/api/v1/codegen/health")
 if echo "$HEALTH_RESPONSE" | grep -q "healthy"; then
     log_success "Code generation service is healthy"
     echo "$HEALTH_RESPONSE" | jq .
@@ -76,7 +64,7 @@ fi
 
 # Test 2: List available templates
 log_test "Listing available project templates..."
-TEMPLATES_RESPONSE=$(curl -s "http://localhost:$HAL9_PORT_MAIN/api/v1/codegen/templates")
+TEMPLATES_RESPONSE=$(curl -s "http://localhost:8080/api/v1/codegen/templates")
 if echo "$TEMPLATES_RESPONSE" | grep -q "web-app"; then
     log_success "Templates retrieved successfully"
     echo "$TEMPLATES_RESPONSE" | jq .
@@ -86,7 +74,7 @@ fi
 
 # Test 3: Generate a project via API
 log_test "Generating a web application project..."
-PROJECT_RESPONSE=$(curl -s -X POST "http://localhost:$HAL9_PORT_MAIN/api/v1/codegen/project" \
+PROJECT_RESPONSE=$(curl -s -X POST "http://localhost:8080/api/v1/codegen/project" \
     -H "Content-Type: application/json" \
     -d '{
         "description": "E-commerce web application",
@@ -112,7 +100,7 @@ fi
 
 # Test 4: Code review
 log_test "Testing code review..."
-REVIEW_RESPONSE=$(curl -s -X POST "http://localhost:$HAL9_PORT_MAIN/api/v1/codegen/review" \
+REVIEW_RESPONSE=$(curl -s -X POST "http://localhost:8080/api/v1/codegen/review" \
     -H "Content-Type: application/json" \
     -d '{
         "file_path": "test.py",
@@ -129,7 +117,7 @@ fi
 
 # Test 5: Code completion
 log_test "Testing code completion..."
-COMPLETION_RESPONSE=$(curl -s -X POST "http://localhost:$HAL9_PORT_MAIN/api/v1/codegen/complete" \
+COMPLETION_RESPONSE=$(curl -s -X POST "http://localhost:8080/api/v1/codegen/complete" \
     -H "Content-Type: application/json" \
     -d '{
         "file_path": "main.rs",
@@ -147,7 +135,7 @@ fi
 
 # Test 6: CLI tool help
 log_test "Testing CLI tool..."
-if $HAL9_CODEGEN_CMD -- --help > /dev/null 2>&1; then
+if cargo run --bin hal9-codegen -- --help > /dev/null 2>&1; then
     log_success "CLI tool built and runs successfully"
 else
     log_error "CLI tool failed to run"
@@ -155,7 +143,7 @@ fi
 
 # Test 7: CLI list templates
 log_test "Testing CLI template listing..."
-$HAL9_CODEGEN_CMD -- new --yes > cli-output.txt 2>&1 || true
+cargo run --bin hal9-codegen -- new --yes > cli-output.txt 2>&1 || true
 if grep -q "Project type required" cli-output.txt; then
     log_success "CLI properly validates required inputs"
 else

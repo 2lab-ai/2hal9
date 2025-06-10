@@ -517,9 +517,9 @@ assert_eq!(actual, expected, "Custom message: {:?}", context);
 ## 📚 Resources
 
 ### Internal
-- [MVP Testing Guide](../mvp/TESTING_GUIDE.md)
-- [Performance Testing](../deployment/PERFORMANCE_TUNING.md)
-- [CI/CD Setup](../deployment/CI_CD_GUIDE.md)
+- [MVP Testing Guide](/Users/icedac/2lab.ai/2hal9/L9_universal/wisdom/legacy-docs/L2_implementation/L2_MVP_TESTING_GUIDE.md)
+- [Performance Optimization Architecture](/Users/icedac/2lab.ai/2hal9/L4_tactical/strategies/architecture/L4_PERFORMANCE_OPTIMIZATION_ARCHITECTURE.md)
+- [Performance Tuning](/Users/icedac/2lab.ai/2hal9/L4_tactical/strategies/architecture/L4_PERFORMANCE_TUNING.md)
 
 ### External
 - [Rust Testing Book](https://doc.rust-lang.org/book/ch11-00-testing.html)
