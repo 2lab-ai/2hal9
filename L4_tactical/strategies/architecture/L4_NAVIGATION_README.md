@@ -62,9 +62,9 @@ Substrate Layer
 
 ## Navigation
 
-- **Technical Strategy**: [L5 Technical Strategy](../L5_technical_strategy/)
-- **Detailed Design**: [L3 Design](../L3_design/)
-- **Implementation**: [L2 Implementation](../L2_implementation/)
+- **Technical Strategy**: [L5 Technical Strategy](../../../L5_strategic/vision/L5_technical_strategy/)
+- **Detailed Design**: [L3 Operational](../../../L3_operational/)
+- **Implementation**: [L2 Implementation](../../../L2_implementation/)
 
 ## Architectural Views
 

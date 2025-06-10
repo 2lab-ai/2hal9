@@ -66,8 +66,8 @@ This level contains executive summaries, strategic decisions, and high-level pro
 
 ## Navigation
 
-- **Strategic Context**: [L7 Strategic Business](../L7_strategic_business/)
-- **Technical Details**: [L5 Technical Strategy](../L5_technical_strategy/)
+- **Strategic Context**: [L7 Business](../../../../L7_business/)
+- **Technical Details**: [L5 Strategic](../../../../L5_strategic/)
 - **Quick Decisions**: Stay at L6
 
 ## Executive Communication Style

@@ -1,16 +1,4 @@
 #!/bin/bash
-#
-# test discovery
-# Auto-fixed by L1 migration script
-#
-
-set -euo pipefail
-
-# Source common environment
-source "$(dirname "$0")/../../common-env.sh"
-
-# Original script content (modified for new paths)
-
 
 # Kill any existing servers
 pkill -f "hal9-server" || true
@@ -21,8 +9,8 @@ mkdir -p logs
 
 # Start server 1 with debug logging
 echo "Starting server 1..."
-RUST_LOG=debug,hyper=info,tower=info HTTP_PORT=8081 $HAL9_SERVER_BIN \
-    ./$HAL9_CONFIG_DIR/config-server1.yaml \
+RUST_LOG=debug,hyper=info,tower=info HTTP_PORT=8081 ./target/release/hal9-server \
+    ./examples/config-server1.yaml \
     > logs/server1-debug.log 2>&1 &
 
 SERVER1_PID=$!
@@ -32,8 +20,8 @@ sleep 2
 
 # Start server 2 with debug logging
 echo "Starting server 2..."
-RUST_LOG=debug,hyper=info,tower=info HTTP_PORT=8082 $HAL9_SERVER_BIN \
-    ./$HAL9_CONFIG_DIR/config-server2.yaml \
+RUST_LOG=debug,hyper=info,tower=info HTTP_PORT=8082 ./target/release/hal9-server \
+    ./examples/config-server2.yaml \
     > logs/server2-debug.log 2>&1 &
 
 SERVER2_PID=$!

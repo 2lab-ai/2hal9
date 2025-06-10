@@ -1,21 +1,33 @@
 #!/bin/bash
+#
+# run 3neuron demo
+# Auto-fixed by L1 migration script
+#
+
+set -euo pipefail
+
+# Source common environment
+source "$(dirname "$0")/../../common-env.sh"
+
+# Original script content (modified for new paths)
+
 
 # Check if a specific config is requested
-CONFIG=${1:-"examples/config-demo-scenarios.yaml"}
+CONFIG=${1:-"$HAL9_CONFIG_DIR/config-demo-scenarios.yaml"}
 
 echo "🚀 Starting HAL9 3-Neuron Demo Server..."
 echo "=================================="
 echo ""
 echo "Configuration: $CONFIG"
-echo "HTTP API: http://localhost:8080"
+echo "HTTP API: http://localhost:$HAL9_PORT_MAIN"
 echo ""
 echo "Available configurations:"
-echo "  - examples/config-3neurons.yaml (basic)"
-echo "  - examples/config-3neurons-enhanced.yaml (enhanced)"
-echo "  - examples/config-demo-scenarios.yaml (full demo)"
+echo "  - $HAL9_CONFIG_DIR/config-3neurons.yaml (basic)"
+echo "  - $HAL9_CONFIG_DIR/config-3neurons-enhanced.yaml (enhanced)"
+echo "  - $HAL9_CONFIG_DIR/config-demo-scenarios.yaml (full demo)"
 echo ""
 echo "Press Ctrl+C to stop the server"
 echo ""
 
 # Run the server with specified configuration
-cargo run --bin hal9-server "$CONFIG"
+$HAL9_SERVER_CMD "$CONFIG"

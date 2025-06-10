@@ -448,9 +448,9 @@ CMD ["hal9-server"]
 ## 📚 Resources
 
 ### Internal
-- [Architecture Guide](../overview/ARCHITECTURE.md)
-- [API Reference](../technical/api/)
-- [Performance Guide](../deployment/PERFORMANCE_TUNING.md)
+- [Architecture Summary](/Users/icedac/2lab.ai/2hal9/L6_executive/overview/architecture-summary.md)
+- [System Architecture](/Users/icedac/2lab.ai/2hal9/L4_tactical/strategies/architecture/L4_L4_SYSTEM_ARCHITECTURE.md)
+- [Performance Optimization Architecture](/Users/icedac/2lab.ai/2hal9/L4_tactical/strategies/architecture/L4_PERFORMANCE_OPTIMIZATION_ARCHITECTURE.md)
 
 ### External
 - [Rust Book](https://doc.rust-lang.org/book/)

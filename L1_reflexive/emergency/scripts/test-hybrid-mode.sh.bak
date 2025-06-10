@@ -1,16 +1,4 @@
 #!/bin/bash
-#
-# test hyurid mode
-# Auto-fixed by L1 migration script
-#
-
-set -euo pipefail
-
-# Source common environment
-source "$(dirname "$0")/../../common-env.sh"
-
-# Original script content (modified for new paths)
-
 
 # Test script for HAL9 Hybrid Mode
 # Demonstrates automatic switching between mock and real Claude API
@@ -50,14 +38,14 @@ test_mode() {
     fi
     
     # Build if needed
-    if [ ! -f "$HAL9_SERVER_BIN" ]; then
+    if [ ! -f "./target/debug/hal9-server" ]; then
         echo "Building HAL9..."
         cargo build --bin hal9-server --bin hal9
     fi
     
     # Start server in background
     echo "Starting server..."
-    $HAL9_SERVER_BIN "$config_file" > "test-$mode.log" 2>&1 &
+    ./target/debug/hal9-server "$config_file" > "test-$mode.log" 2>&1 &
     SERVER_PID=$!
     
     # Wait for server to start
@@ -71,16 +59,16 @@ test_mode() {
     
     # Send test signal
     echo "Sending test signal..."
-    $HAL9_CLI_BIN signal \
+    ./target/debug/hal9 signal \
         --from user \
         --to neuron-1 \
         --content "Create a simple REST API for user management" \
-        --server localhost:$HAL9_PORT_MAIN
+        --server localhost:8080
     
     # Check status
     echo ""
     echo "Checking status..."
-    $HAL9_CLI_BIN status --server localhost:$HAL9_PORT_MAIN
+    ./target/debug/hal9 status --server localhost:8080
     
     # Wait a bit to see if it processes
     sleep 2
@@ -103,16 +91,16 @@ test_mode() {
 }
 
 # Test 1: Mock mode (always uses mock)
-test_mode "mock" "development" "$HAL9_CONFIG_DIR/config-3neurons.yaml"
+test_mode "mock" "development" "examples/config-3neurons.yaml"
 
 # Test 2: Auto mode in development (should use mock)
-test_mode "auto-dev" "development" "$HAL9_CONFIG_DIR/config-auto-mode.yaml"
+test_mode "auto-dev" "development" "examples/config-auto-mode.yaml"
 
 # Test 3: Auto mode in production (should try API, fallback to mock if no key)
-test_mode "auto-prod" "production" "$HAL9_CONFIG_DIR/config-auto-mode.yaml"
+test_mode "auto-prod" "production" "examples/config-auto-mode.yaml"
 
 # Test 4: Hybrid mode (uses API if available and under limits)
-test_mode "hybrid" "production" "$HAL9_CONFIG_DIR/config-hybrid-mode.yaml"
+test_mode "hybrid" "production" "examples/config-hybrid-mode.yaml"
 
 echo -e "${GREEN}=== All tests complete ===${NC}"
 echo ""
