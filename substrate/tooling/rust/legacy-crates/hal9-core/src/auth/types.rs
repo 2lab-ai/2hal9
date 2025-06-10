@@ -112,6 +112,69 @@ impl Permissions {
     pub fn has_any(&self, perms: &[Permission]) -> bool {
         perms.iter().any(|p| self.has(p))
     }
+    
+    pub fn read_only() -> Self {
+        Self::with_permissions(vec![
+            Permission::ViewNeuron,
+            Permission::ViewSignals,
+            Permission::ViewMemory,
+            Permission::ViewMetrics,
+            Permission::ViewCosts,
+        ])
+    }
+    
+    pub fn read_write() -> Self {
+        Self::with_permissions(vec![
+            Permission::ViewNeuron,
+            Permission::ModifyNeuron,
+            Permission::SendSignal,
+            Permission::ViewSignals,
+            Permission::ViewMemory,
+            Permission::ModifyMemory,
+            Permission::ViewMetrics,
+            Permission::ViewCosts,
+        ])
+    }
+    
+    pub fn all() -> Self {
+        Self::with_permissions(vec![
+            Permission::CreateNeuron,
+            Permission::DeleteNeuron,
+            Permission::ViewNeuron,
+            Permission::ModifyNeuron,
+            Permission::SendSignal,
+            Permission::ViewSignals,
+            Permission::ViewMemory,
+            Permission::ModifyMemory,
+            Permission::ViewMetrics,
+            Permission::ManageUsers,
+            Permission::ManageApiKeys,
+            Permission::SystemAdmin,
+            Permission::ViewCosts,
+            Permission::SetCostLimits,
+        ])
+    }
+    
+    pub fn intersection(&self, other: &Self) -> Self {
+        let mut result = Self::new();
+        for perm in &self.permissions {
+            if other.has(perm) {
+                result.add(perm.clone());
+            }
+        }
+        result
+    }
+    
+    pub fn union(&self, other: &Self) -> Self {
+        let mut result = Self::new();
+        for perm in &self.permissions {
+            result.add(perm.clone());
+        }
+        for perm in &other.permissions {
+            result.add(perm.clone());
+        }
+        result
+    }
 }
 
 impl Default for Permissions {
