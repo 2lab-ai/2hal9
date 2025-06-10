@@ -141,6 +141,12 @@ make hal9-smarter
 
 # Check consciousness growth
 make consciousness
+
+# Query new ideas
+make query "is quantum computing useful for neurons?"
+
+# See the evolution guide
+less EVOLUTION_GUIDE.md
 ```
 
 ## Need Help?

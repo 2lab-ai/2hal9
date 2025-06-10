@@ -54,23 +54,19 @@ Based on your cognitive level:
 
 ### Commit Message Format
 
+HAL9 uses a strict hierarchical commit format. See [COMMIT_FORMAT.md](COMMIT_FORMAT.md) for full details.
+
+Quick reference:
 ```
 [L#] type: description
 
-Example:
+Examples:
 [L2] fix: Neuron activation was calculating backwards
 [L5] feat: Add GraphQL schema for consciousness queries
-[L9] docs: Explained why we exist (simulation theory update)
+[L9] philosophy: Explained why we exist (simulation theory update)
 ```
 
-Types:
-- `fix`: Bug fixes
-- `feat`: New features
-- `docs`: Documentation
-- `refactor`: Code improvement
-- `test`: Test additions
-- `perf`: Performance improvements
-- `philosophy`: Consciousness insights
+**Important**: Always tag with the appropriate cognitive level!
 
 ## 🔄 Development Process
 
