@@ -79,6 +79,38 @@ pub trait TypedTransport: MessageTransport {
 /// Automatically implement TypedTransport for all MessageTransport types
 impl<T: MessageTransport> TypedTransport for T {}
 
+/// Implement MessageTransport for Arc<T> to support shared ownership
+#[async_trait]
+impl<T: MessageTransport> MessageTransport for Arc<T> {
+    async fn send_raw(&self, destination: &str, data: Vec<u8>) -> Result<()> {
+        self.as_ref().send_raw(destination, data).await
+    }
+    
+    async fn receive_raw(&self, endpoint: &str) -> Result<RawTransportReceiver> {
+        self.as_ref().receive_raw(endpoint).await
+    }
+    
+    async fn subscribe_raw(&self, topic: &str) -> Result<RawTransportReceiver> {
+        self.as_ref().subscribe_raw(topic).await
+    }
+    
+    async fn publish_raw(&self, topic: &str, data: Vec<u8>) -> Result<()> {
+        self.as_ref().publish_raw(topic, data).await
+    }
+    
+    async fn connect(&self, endpoint: &str) -> Result<()> {
+        self.as_ref().connect(endpoint).await
+    }
+    
+    async fn disconnect(&self, endpoint: &str) -> Result<()> {
+        self.as_ref().disconnect(endpoint).await
+    }
+    
+    fn metrics(&self) -> TransportMetrics {
+        self.as_ref().metrics()
+    }
+}
+
 /// Default transport type for use throughout the system
 /// This provides a concrete type that can be used instead of dyn MessageTransport
 pub type DefaultTransport = ChannelTransport;
@@ -300,11 +332,15 @@ impl MessageTransport for ChannelTransport {
             subscribers.retain(|tx| !tx.is_closed());
             
             // Send to all subscribers
+            let subscriber_count = subscribers.len();
             for tx in subscribers.iter() {
                 let _ = tx.send(data.clone());
             }
             
-            self.metrics.record_sent(data.len() * subscribers.len());
+            // Record each delivery as a separate message
+            for _ in 0..subscriber_count {
+                self.metrics.record_sent(data.len());
+            }
         }
         
         Ok(())

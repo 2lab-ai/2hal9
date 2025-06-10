@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::collections::HashMap;
 use uuid::Uuid;
 use crate::{Result, Error};
-use crate::hierarchical::substrate::transport::{DefaultTransport, TypedTransport};
+use crate::hierarchical::substrate::transport::{DefaultTransport, MessageTransport};
 use super::{Protocol, ProtocolVersion, ProtocolCapabilities, NegotiatedProtocol, CompressionType, EncryptionType};
 
 /// Gradient message for backward propagation
@@ -130,14 +130,14 @@ impl GradientAccumulator {
             }
             
             // Average the accumulated gradient
-            if accumulated.accumulated_steps > 0 {
-                let factor = 1.0 / accumulated.accumulated_steps as f32;
-                accumulated.error *= factor;
-                for val in &mut accumulated.direction {
-                    *val *= factor;
-                }
-                accumulated.magnitude *= factor;
+            // The total number of gradients is accumulated_steps + 1 (the original)
+            let total_gradients = accumulated.accumulated_steps + 1;
+            let factor = 1.0 / total_gradients as f32;
+            accumulated.error *= factor;
+            for val in &mut accumulated.direction {
+                *val *= factor;
             }
+            accumulated.magnitude = accumulated.direction.iter().map(|x| x * x).sum::<f32>().sqrt();
             
             accumulated
         })
@@ -191,7 +191,7 @@ impl GradientProtocol {
         let encoded = self.encode_internal(&gradient)?;
         let destination = format!("neuron:{}:gradient", gradient.target_neuron);
         
-        self.transport.send(&destination, encoded).await?;
+        self.transport.send_raw(&destination, encoded).await?;
         
         // Update metrics
         self.metrics.gradients_sent.fetch_add(1, Ordering::Relaxed);
@@ -262,7 +262,7 @@ impl GradientProtocol {
     /// Receive gradients for a neuron
     pub async fn receive_gradients(&self, neuron_id: Uuid) -> Result<GradientReceiver> {
         let endpoint = format!("neuron:{}:gradient", neuron_id);
-        let receiver = self.transport.receive::<Vec<u8>>(&endpoint).await?;
+        let receiver = self.transport.receive_raw(&endpoint).await?;
         
         Ok(GradientReceiver {
             receiver,
@@ -373,7 +373,7 @@ impl GradientProtocol {
 
 /// Receiver for gradient messages
 pub struct GradientReceiver<'a> {
-    receiver: crate::hierarchical::substrate::TransportReceiver<Vec<u8>>,
+    receiver: crate::hierarchical::substrate::transport::RawTransportReceiver,
     protocol: &'a GradientProtocol,
 }
 

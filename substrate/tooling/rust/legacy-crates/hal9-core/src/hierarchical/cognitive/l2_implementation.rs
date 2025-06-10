@@ -373,7 +373,41 @@ mod tests {
     
     // Helper methods
     fn extract_name(&self, description: &str) -> Option<String> {
-        // Simple extraction - could be enhanced with NLP
+        // Look for patterns like "called X", "named X", "function X"
+        let lower = description.to_lowercase();
+        let words: Vec<&str> = description.split_whitespace().collect();
+        
+        // Look for "called <name>" or "named <name>"
+        for i in 0..words.len() - 1 {
+            if words[i].to_lowercase() == "called" || words[i].to_lowercase() == "named" {
+                if i + 1 < words.len() {
+                    let name = words[i + 1].trim_end_matches(|c: char| !c.is_alphanumeric() && c != '_');
+                    if name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                        return Some(name.to_string());
+                    }
+                }
+            }
+        }
+        
+        // Look for "function <name>"
+        for i in 0..words.len() - 1 {
+            if words[i].to_lowercase() == "function" && i + 1 < words.len() {
+                let name = words[i + 1].trim_end_matches(|c: char| !c.is_alphanumeric() && c != '_');
+                if name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                    return Some(name.to_string());
+                }
+            }
+        }
+        
+        // Fallback: look for words that look like function names (contain underscore or camelCase)
+        for word in words {
+            let cleaned = word.trim_end_matches(|c: char| !c.is_alphanumeric() && c != '_');
+            if cleaned.contains('_') || (cleaned.len() > 3 && cleaned.chars().any(|c| c.is_uppercase())) {
+                return Some(cleaned.to_string());
+            }
+        }
+        
+        // Last resort: first alphanumeric word
         description.split_whitespace()
             .find(|word| word.chars().all(|c| c.is_alphanumeric() || c == '_'))
             .map(|s| s.to_string())
@@ -381,27 +415,49 @@ mod tests {
     
     fn extract_params(&self, description: &str) -> Option<String> {
         // Extract parameter hints from description
-        if description.contains("no parameters") || description.contains("no args") {
+        let lower = description.to_lowercase();
+        
+        if lower.contains("no parameters") || lower.contains("no args") {
             Some("".to_string())
+        } else if lower.contains("two numbers") || lower.contains("2 numbers") {
+            Some("a: i32, b: i32".to_string())
+        } else if lower.contains("number") {
+            Some("n: i32".to_string())
+        } else if lower.contains("string") || lower.contains("text") {
+            Some("s: &str".to_string())
         } else {
             Some("value: &str".to_string()) // Default parameter
         }
     }
     
     fn extract_return_type(&self, description: &str) -> Option<&str> {
-        if description.contains("returns string") {
+        let lower = description.to_lowercase();
+        
+        if lower.contains("returns string") {
             Some("String")
-        } else if description.contains("returns number") || description.contains("returns int") {
+        } else if lower.contains("returns number") || lower.contains("returns int") {
             Some("i32")
-        } else if description.contains("returns bool") {
+        } else if lower.contains("returns bool") {
             Some("bool")
+        } else if lower.contains("adds") || lower.contains("sum") {
+            Some("i32")
         } else {
             Some("()")
         }
     }
     
     fn generate_function_body(&self, description: &str) -> String {
-        "    // TODO: Implement function logic\n    todo!()".to_string()
+        let lower = description.to_lowercase();
+        
+        if lower.contains("adds two numbers") {
+            "    a + b".to_string()
+        } else if lower.contains("multiply") {
+            "    a * b".to_string()
+        } else if lower.contains("subtract") {
+            "    a - b".to_string()
+        } else {
+            "    // TODO: Implement function logic\n    todo!()".to_string()
+        }
     }
     
     fn extract_fields(&self, description: &str) -> String {

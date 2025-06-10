@@ -375,12 +375,12 @@ impl PersistentStorage for SqliteStorage {
             .map_err(|e| Error::Storage(format!("Failed to begin transaction: {}", e)))?;
         
         // Get current value
+        // Note: SQLite doesn't support FOR UPDATE, it uses automatic locking
         let current = sqlx::query(
             r#"
             SELECT value FROM kv_storage
             WHERE key = ?1
-            AND (expires_at IS NULL OR expires_at > strftime('%s', 'now'))
-            FOR UPDATE;
+            AND (expires_at IS NULL OR expires_at > strftime('%s', 'now'));
             "#
         )
         .bind(key)
