@@ -130,6 +130,7 @@ pub struct PathPerformance {
 pub struct AdaptiveFlowController {
     routing_table: Arc<RwLock<RoutingTable>>,
     load_tracker: Arc<RwLock<LoadTracker>>,
+    #[allow(dead_code)]
     performance_history: Arc<RwLock<PerformanceHistory>>,
     config: FlowConfig,
 }
@@ -148,6 +149,7 @@ struct Route {
 
 struct LoadTracker {
     unit_loads: HashMap<Uuid, LoadInfo>,
+    #[allow(dead_code)]
     update_interval: std::time::Duration,
 }
 
@@ -155,9 +157,11 @@ struct LoadInfo {
     current_load: f32,
     capacity: f32,
     queue_depth: usize,
+    #[allow(dead_code)]
     last_update: std::time::Instant,
 }
 
+#[allow(dead_code)]
 struct PerformanceHistory {
     window_size: usize,
     unit_history: HashMap<Uuid, Vec<UnitPerformance>>,

@@ -55,6 +55,7 @@ pub struct ProtocolManager {
 
 /// Connection state tracking
 #[derive(Clone)]
+#[allow(dead_code)]
 struct ConnectionState {
     peer_id: String,
     negotiated_protocols: HashMap<String, NegotiatedProtocol>,

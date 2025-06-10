@@ -398,6 +398,7 @@ struct ClusterScheduler {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 enum SchedulingStrategy {
     BestFit,
     FirstFit,

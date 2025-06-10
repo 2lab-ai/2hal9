@@ -171,6 +171,7 @@ impl DataStream for ChannelStream {
 pub struct StreamMultiplexer {
     streams: dashmap::DashMap<Uuid, Box<dyn DataStream>>,
     incoming: mpsc::Receiver<(Uuid, Vec<u8>)>,
+    #[allow(dead_code)]
     outgoing: mpsc::Sender<(Uuid, Vec<u8>)>,
 }
 

@@ -143,6 +143,7 @@ impl TokioRuntime {
         }
     }
 
+    #[allow(dead_code)]
     fn track_task_completion(&self, duration: Duration) {
         self.stats.total_completed.fetch_add(1, Ordering::Relaxed);
 

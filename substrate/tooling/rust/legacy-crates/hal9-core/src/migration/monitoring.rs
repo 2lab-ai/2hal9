@@ -396,6 +396,7 @@ struct HealthStatus {
 
 /// Alert for monitoring
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct Alert {
     level: AlertLevel,
     message: String,
@@ -404,6 +405,7 @@ struct Alert {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 enum AlertLevel {
     Info,
     Warning,
