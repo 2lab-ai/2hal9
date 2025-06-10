@@ -420,6 +420,7 @@ impl PartialOrd for OrderedFloat {
 /// Hierarchical router for multi-level routing
 pub struct HierarchicalRouter {
     level_routers: HashMap<u8, Box<dyn SignalRouter>>,
+    #[allow(dead_code)]
     inter_level_links: HashMap<(u8, u8), Vec<(Uuid, Uuid)>>,
 }
 

@@ -225,6 +225,7 @@ impl MetricsTracker {
         self.errors.fetch_add(1, Ordering::Relaxed);
     }
 
+    #[allow(dead_code)]
     fn record_latency(&self, ms: u64) {
         self.latency_sum.fetch_add(ms, Ordering::Relaxed);
         self.latency_count.fetch_add(1, Ordering::Relaxed);
