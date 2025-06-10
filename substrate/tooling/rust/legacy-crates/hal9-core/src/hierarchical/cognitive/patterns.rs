@@ -91,7 +91,9 @@ impl PatternFormation {
 
 /// Emergent behavior detection
 pub struct EmergentBehaviorDetector {
+    #[allow(dead_code)]
     behaviors: Vec<EmergentBehavior>,
+    #[allow(dead_code)]
     detection_window: std::time::Duration,
 }
 

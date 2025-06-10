@@ -57,21 +57,30 @@ struct PerformanceHistory {
 struct StrategyPerformance {
     pub task_id: Uuid,
     pub outcome: LearningOutcome,
+    #[allow(dead_code)]
     pub hyperparameters: HashMap<String, f32>,
+    #[allow(dead_code)]
     pub timestamp: chrono::DateTime<chrono::Utc>,
 }
 
 /// Architecture optimizer for neural architecture search
 struct ArchitectureOptimizer {
+    #[allow(dead_code)]
     search_space: ArchitectureSearchSpace,
+    #[allow(dead_code)]
     evaluator: ArchitectureEvaluator,
+    #[allow(dead_code)]
     optimizer: EvolutionaryOptimizer,
 }
 
 struct ArchitectureSearchSpace {
+    #[allow(dead_code)]
     layer_types: Vec<LayerType>,
+    #[allow(dead_code)]
     connection_patterns: Vec<ConnectionPattern>,
+    #[allow(dead_code)]
     activation_functions: Vec<ActivationFunction>,
+    #[allow(dead_code)]
     max_depth: usize,
 }
 
@@ -123,21 +132,30 @@ enum ActivationFunction {
 }
 
 struct ArchitectureEvaluator {
+    #[allow(dead_code)]
     evaluation_budget: usize,
+    #[allow(dead_code)]
     early_stopping: bool,
 }
 
 struct EvolutionaryOptimizer {
+    #[allow(dead_code)]
     population_size: usize,
+    #[allow(dead_code)]
     mutation_rate: f32,
+    #[allow(dead_code)]
     crossover_rate: f32,
+    #[allow(dead_code)]
     selection_pressure: f32,
 }
 
 /// Hyperparameter tuner using Bayesian optimization
 struct HyperparameterTuner {
+    #[allow(dead_code)]
     search_space: HashMap<String, ParameterRange>,
+    #[allow(dead_code)]
     gaussian_process: GaussianProcess,
+    #[allow(dead_code)]
     acquisition_function: AcquisitionFunction,
 }
 
@@ -158,7 +176,9 @@ enum Scale {
 }
 
 struct GaussianProcess {
+    #[allow(dead_code)]
     kernel: Kernel,
+    #[allow(dead_code)]
     observations: Vec<(Vec<f32>, f32)>,
 }
 
@@ -406,37 +426,52 @@ impl ArchitectureOptimizer {
 }
 
 struct Architecture {
+    #[allow(dead_code)]
     layers: Vec<LayerType>,
+    #[allow(dead_code)]
     connections: ConnectionPattern,
+    #[allow(dead_code)]
     activation: ActivationFunction,
 }
 
 /// Continual learning strategy to avoid catastrophic forgetting
 pub struct ContinualLearningStrategy {
+    #[allow(dead_code)]
     memory_buffer: ExperienceReplayBuffer,
+    #[allow(dead_code)]
     regularization: ElasticWeightConsolidation,
 }
 
 struct ExperienceReplayBuffer {
+    #[allow(dead_code)]
     capacity: usize,
+    #[allow(dead_code)]
     importance_sampling: bool,
+    #[allow(dead_code)]
     experiences: Vec<(Experience, f32)>, // (experience, importance)
 }
 
 struct ElasticWeightConsolidation {
+    #[allow(dead_code)]
     fisher_information: HashMap<String, f32>,
+    #[allow(dead_code)]
     importance_weight: f32,
+    #[allow(dead_code)]
     reference_params: HashMap<String, f32>,
 }
 
 /// Few-shot learning for rapid adaptation
 pub struct FewShotLearner {
+    #[allow(dead_code)]
     prototype_network: PrototypeNetwork,
+    #[allow(dead_code)]
     metric_learning: MetricLearning,
 }
 
 struct PrototypeNetwork {
+    #[allow(dead_code)]
     embedding_dim: usize,
+    #[allow(dead_code)]
     distance_metric: DistanceMetric,
 }
 
@@ -448,6 +483,8 @@ enum DistanceMetric {
 }
 
 struct MetricLearning {
+    #[allow(dead_code)]
     margin: f32,
+    #[allow(dead_code)]
     embedding_network: String,
 }

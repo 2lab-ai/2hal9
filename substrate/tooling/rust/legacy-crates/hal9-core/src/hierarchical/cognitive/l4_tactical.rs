@@ -64,6 +64,7 @@ impl L4TacticalNeuron {
     }
 
     /// Decompose plan into operational tasks
+    #[allow(dead_code)]
     fn decompose_plan(&self, plan: &Plan) -> Vec<CognitiveOutput> {
         plan.steps
             .iter()
@@ -337,6 +338,7 @@ pub struct TaskPlanner {
 
 #[derive(Clone)]
 struct PlanTemplate {
+    #[allow(dead_code)]
     name: String,
     typical_steps: Vec<String>,
     applicable_to: Vec<String>,

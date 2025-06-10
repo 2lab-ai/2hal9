@@ -17,18 +17,25 @@ pub struct SelfOrganizingSystem {
 
 #[derive(Debug, Clone)]
 struct OrganizationalUnit {
+    #[allow(dead_code)]
     id: Uuid,
     position: Vec<f32>, // N-dimensional position in feature space
+    #[allow(dead_code)]
     features: HashMap<String, f32>,
     connections: HashSet<Uuid>,
+    #[allow(dead_code)]
     layer_affinity: HashMap<u8, f32>,
 }
 
 /// Organization rule that governs structure formation
 struct OrganizationRule {
+    #[allow(dead_code)]
     name: String,
+    #[allow(dead_code)]
     condition: Box<dyn Fn(&SelfOrganizingSystem) -> bool + Send + Sync>,
+    #[allow(dead_code)]
     action: Box<dyn Fn(&mut SelfOrganizingSystem) -> Result<()> + Send + Sync>,
+    #[allow(dead_code)]
     priority: f32,
 }
 
@@ -38,6 +45,7 @@ struct EnergyFunction {
 }
 
 struct EnergyComponent {
+    #[allow(dead_code)]
     name: String,
     weight: f32,
     calculate: Box<dyn Fn(&SelfOrganizingSystem) -> f32 + Send + Sync>,
