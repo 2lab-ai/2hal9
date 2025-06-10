@@ -104,8 +104,11 @@ pub enum VoteType {
 
 /// Distributed lock
 pub struct DistributedLock {
+    #[allow(dead_code)]
     resource_id: ResourceId,
+    #[allow(dead_code)]
     lock_id: Uuid,
+    #[allow(dead_code)]
     coordinator: Arc<dyn StateCoordinator>,
 }
 
@@ -196,26 +199,36 @@ pub struct RaftCoordinator {
     node_id: Uuid,
     nodes: Arc<RwLock<HashMap<Uuid, NodeInfo>>>,
     state: Arc<RwLock<HashMap<String, DistributedState>>>,
+    #[allow(dead_code)]
     term: Arc<RwLock<u64>>,
+    #[allow(dead_code)]
     voted_for: Arc<RwLock<Option<Uuid>>>,
+    #[allow(dead_code)]
     log: Arc<RwLock<Vec<LogEntry>>>,
     event_sender: broadcast::Sender<StateEvent>,
 }
 
 struct NodeInfo {
+    #[allow(dead_code)]
     id: Uuid,
+    #[allow(dead_code)]
     endpoint: String,
+    #[allow(dead_code)]
     last_heartbeat: std::time::Instant,
 }
 
 #[derive(Debug, Clone)]
 struct LogEntry {
+    #[allow(dead_code)]
     term: u64,
+    #[allow(dead_code)]
     index: u64,
+    #[allow(dead_code)]
     command: StateCommand,
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum StateCommand {
     Set {
         key: String,
