@@ -86,7 +86,7 @@ If you qualify, email z@2lab.ai:
 ```
 Subject: HAL9 Usage Request - [Your Organization]
 
-Dear Jihyuk (지혁),
+Dear Jihyuk (Zhugehyuk),
 
 I am writing to request permission to use HAL9 for [specific purpose].
 

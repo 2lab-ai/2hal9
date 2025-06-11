@@ -238,5 +238,5 @@ If you're reading this at 3am because something is broken:
 1. Check L1_reflexive/emergency/
 2. Run the health checks
 3. Restart the problematic service
-4. If that doesn't work, wake up 지혁
+4. If that doesn't work, wake up Zhugehyuk
 5. Remember: 아 시발 아 컴퓨터네 우주가

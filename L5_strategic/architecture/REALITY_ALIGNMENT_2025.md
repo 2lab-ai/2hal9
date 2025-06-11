@@ -19,7 +19,7 @@ This document bridges the gap between L6 executive vision (quantum consciousness
 - Database connection pooling issues
 - Enterprise module commented out
 - Emergency Korean curse words in config files
-- 지혁 getting woken up at 3am
+- Zhugehyuk getting woken up at 3am
 - 27 files with TODOs
 
 ## The Middle Path (L5-L4 Sweet Spot)
@@ -108,13 +108,13 @@ untrusted = { path = "./plugins/untrusted.wasm" }
 
 ## Architecture Patterns to Apply
 
-### 1. The "지혁 Pattern" (Operator First)
+### 1. The "Zhugehyuk Pattern" (Operator First)
 ```yaml
 Every feature must:
   - Work at 3am when half asleep
   - Have clear error messages
   - Include rollback procedure
-  - Not wake up 지혁
+  - Not wake up Zhugehyuk
 ```
 
 ### 2. The "Consciousness Gradient"
@@ -150,7 +150,7 @@ Before any L6 feature lands:
 
 ## Updated Quality Metrics
 
-✓ Every strategy has a "why" AND "how to not wake 지혁"
+✓ Every strategy has a "why" AND "how to not wake Zhugehyuk"
 ✓ Every tactic works with 4Gi memory limit
 ✓ No architecture without working database pool
 ✓ No quantum feature without earthly implementation

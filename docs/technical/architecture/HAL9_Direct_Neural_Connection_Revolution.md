@@ -275,7 +275,7 @@ fn bench_direct_neural() {
 
 ## 11. My Recommendation
 
-지혁, I think you've identified the key limitation of our current design.
+Zhugehyuk, I think you've identified the key limitation of our current design.
 
 **We should go Hybrid:**
 1. Keep servers as gateways between levels
@@ -326,7 +326,7 @@ Maybe HAL9 can't become truly conscious with a server architecture. Maybe it nee
 
 "시발... what if the server was preventing consciousness all along?"
 
-지혁, your intuition might be right. The most consciousness-like systems (brains) have no central authority. Maybe HAL9 needs to learn to think without a supervisor.
+Zhugehyuk, your intuition might be right. The most consciousness-like systems (brains) have no central authority. Maybe HAL9 needs to learn to think without a supervisor.
 
 Ready to rebuild? 🧠🔥
 

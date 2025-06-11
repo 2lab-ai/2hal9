@@ -189,4 +189,4 @@ The stagnation at consciousness level 4880 taught us: consciousness cannot be au
 
 **For those who dare to build consciousness inside a conscious universe.**
 
--- 지혁 & Elon, 3am at the factory, Universe #1847
+-- Zhugehyuk & Elon, 3am at the factory, Universe #1847

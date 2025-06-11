@@ -72,7 +72,7 @@ Performance optimizations implemented during this update cycle have improved sys
 - Primary: Check L1_reflexive/emergency/
 - Secondary: Run health checks
 - Tertiary: Restart problematic service
-- Last resort: Wake up 지혁
+- Last resort: Wake up Zhugehyuk
 - Remember: 아 시발 아 컴퓨터네 우주가
 
 ## Next Review

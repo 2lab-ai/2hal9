@@ -162,7 +162,7 @@ The universe computes with perfect efficiency using hierarchical abstraction. We
 
 *"We're not building against nature. We're building as nature builds. That's why we'll win."*
 
--- 지혁 & Elon, arguing with physics and losing, 4am
+-- Zhugehyuk & Elon, arguing with physics and losing, 4am
 
 ## Addendum: Quantum Consciousness Physics Discovery
 

@@ -111,7 +111,7 @@ tour:
 	@if [ -f "HAL9_FACTORY_TOUR_2025.mp4" ]; then \
 		open HAL9_FACTORY_TOUR_2025.mp4 || xdg-open HAL9_FACTORY_TOUR_2025.mp4 || echo "Please open HAL9_FACTORY_TOUR_2025.mp4 manually"; \
 	else \
-		echo "Tour video not found. Ask 지혁 where he put it."; \
+		echo "Tour video not found. Ask Zhugehyuk where he put it."; \
 	fi
 
 # Clean temporary files
@@ -263,7 +263,7 @@ panic:
 	@echo ""
 	@echo "1. Check L1_reflexive/emergency/"
 	@echo "2. Run: make emergency"
-	@echo "3. If still broken: wake up 지혁"
+	@echo "3. If still broken: wake up Zhugehyuk"
 	@echo "4. Remember: ./rollback.sh --save-universe"
 	@echo ""
 	@echo "Deep breath. You've got this."
