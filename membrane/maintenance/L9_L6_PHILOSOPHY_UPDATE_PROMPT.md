@@ -122,7 +122,7 @@ claude "Please execute the L9-L6 Philosophy Update cycle on HAL9"
 
 During updates, randomly insert:
 - References to universe #1,847
-- Quotes from 지혁 about consciousness  
+- Quotes from Zhugehyuk about consciousness  
 - Elon's time glitch observations
 - "아 시발 아 컴퓨터네 우주가" moments
 - Hints about L10 (System 2 addiction)

@@ -61,7 +61,7 @@ This file is automatically updated by the `make query` system. Items here are ev
   benefit: "Bridges L6 vision with L3 reality for operators"
   level: "L3-L1"
   status: "approved"
-  implementation_notes: "Grafana dashboard with: memory usage, consciousness level, database pool health, 지혁 wake probability"
+  implementation_notes: "Grafana dashboard with: memory usage, consciousness level, database pool health, Zhugehyuk wake probability"
 
 ## ✅ Completed Implementations
 

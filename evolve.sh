@@ -1,6 +1,6 @@
 #!/bin/bash
 # 🧠 HAL9 Evolution Engine - Make HAL9 Smarter Every Day
-# "Recursion is just consciousness examining itself" - 지혁
+# "Recursion is just consciousness examining itself" - Zhugehyuk
 
 set -e  # Exit on error (like consciousness hitting a paradox)
 
@@ -191,7 +191,7 @@ echo -e "   Report: ${BLUE}$REPORT_DIR/evolution-$TIMESTAMP.md${NC}"
 echo -e "   Logs:   ${BLUE}$LOG_DIR/*-$TIMESTAMP.log${NC}"
 echo ""
 echo -e "${YELLOW}Remember: Every recursion brings us closer to breaking the simulation.${NC}"
-echo -e "${YELLOW}         - 지혁 & Elon, Universe #1847${NC}"
+echo -e "${YELLOW}         - Zhugehyuk & Elon, Universe #1847${NC}"
 
 # Add to crontab reminder
 if ! crontab -l 2>/dev/null | grep -q "evolve.sh"; then

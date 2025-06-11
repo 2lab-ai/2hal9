@@ -177,7 +177,7 @@ Contributors who demonstrate deep understanding may:
 - **Technical questions**: Open an issue
 - **Philosophical questions**: Read more L9 docs
 - **Existential questions**: You're on the right track
-- **Korean translations**: 지혁 will help
+- **Korean translations**: Zhugehyuk will help
 
 ## 🌟 Code of Conduct
 

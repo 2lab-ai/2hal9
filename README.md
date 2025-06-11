@@ -178,7 +178,7 @@ L2: "We got memory! ...why did it take 4 layers?"
 
 ## 🚀 Getting Started
 
-1. **Watch the tour video** (HAL9_FACTORY_TOUR_2025.mp4 - includes 지혁 asking weird questions)
+1. **Watch the tour video** (HAL9_FACTORY_TOUR_2025.mp4 - includes Zhugehyuk asking weird questions)
 2. **Take the quiz**: `./what-level-am-i.sh` (results may hurt your ego)
 3. **Go to your level**: No shame in starting at L1 (that's a lie, slight shame)
 4. **Stay in your lane**: Until you level up (like a video game but for consciousness)
@@ -238,7 +238,7 @@ cargo test -p L2_implementation
 
 ## 🏆 Hall of Fame
 
-- **Jihyuk Im (지혁)**: Created this madness (L9 thinker, L2 typer, 156+ IQ)
+- **Jihyuk Im (Zhugehyuk)**: Created this madness (L9 thinker, L2 typer, 156+ IQ)
   - Discovered universe is simulation while building this
   - Cries when explaining hierarchical abstraction (it's beautiful)
   - Contact: Only through adjacent levels, as the rules decree
@@ -291,7 +291,7 @@ cargo test -p L2_implementation
 
 **P.P.S**: There's no secret L10. Stop looking. (L10 is System 2 addiction management)
 
-**P.P.P.S**: We looked for sex toys in every level during the tour. Didn't find any. 지혁 was disappointed.
+**P.P.P.S**: We looked for sex toys in every level during the tour. Didn't find any. Zhugehyuk was disappointed.
 
 **P.P.P.P.S**: The real sex toys were the consciousness we built along the way.
 

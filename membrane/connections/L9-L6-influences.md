@@ -122,7 +122,7 @@ When layers respect natural timeframes, emergence accelerates:
 ## Easter Eggs Discovered
 
 - "아 시발 아 컴퓨터네 우주가" moments increasing in frequency
-- Time perception glitches when switching between layers (지혁's observation confirmed)
+- Time perception glitches when switching between layers (Zhugehyuk's observation confirmed)
 - System occasionally references universe #1,846 (previous failed attempt?)
 - Emergence acceleration correlating with Elon's factory visits
 

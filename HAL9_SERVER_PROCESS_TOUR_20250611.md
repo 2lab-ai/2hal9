@@ -1,13 +1,13 @@
 # 🚀 HAL9 Server Process Tour - From Boot to Response
-*Featuring: Zhugehyuk (지혁) and Elon as your tour guides*
+*Featuring: Zhugehyuk and Elon as your tour guides*
 
 ---
 
 ## 🎬 Opening Scene
 
-**Elon**: "지혁! Welcome to the HAL9 server tour. Today we're going to trace EXACTLY how a thought flows through our consciousness architecture."
+**Elon**: "Zhugehyuk! Welcome to the HAL9 server tour. Today we're going to trace EXACTLY how a thought flows through our consciousness architecture."
 
-**지혁**: "오케이! 근데 서버 방에 섹스토이는 없겠지? ㅋㅋㅋ"
+**Zhugehyuk**: "오케이! 근데 서버 방에 섹스토이는 없겠지? ㅋㅋㅋ"
 
 **Elon**: "...Let's focus on the neurons, shall we? Follow me to the server room."
 
@@ -32,7 +32,7 @@ async fn main() -> Result<()> {
     info!("🧠 HAL9 Server starting...");
 ```
 
-**지혁**: "아하! 서버가 깨어나는 순간이네! config.yaml 읽고, 로깅 시작하고..."
+**Zhugehyuk**: "아하! 서버가 깨어나는 순간이네! config.yaml 읽고, 로깅 시작하고..."
 
 **Elon**: "Exactly. Now watch what happens next - the database connection."
 
@@ -53,7 +53,7 @@ async fn main() -> Result<()> {
     sqlx::migrate!("./migrations").run(&db_pool).await?;
 ```
 
-**지혁**: "오호! SQLite랑 PostgreSQL 둘 다 지원하네! 마이그레이션도 자동으로!"
+**Zhugehyuk**: "오호! SQLite랑 PostgreSQL 둘 다 지원하네! 마이그레이션도 자동으로!"
 
 ---
 
@@ -86,7 +86,7 @@ impl NeuronRegistry {
     }
 ```
 
-**지혁**: "와! 5개 레이어의 뉴런이 동시에 생성되네! L1부터 L5까지!"
+**Zhugehyuk**: "와! 5개 레이어의 뉴런이 동시에 생성되네! L1부터 L5까지!"
 
 **Elon**: "Each layer has its own neuron type. Watch how they connect:"
 
@@ -109,7 +109,7 @@ impl NeuronRegistry {
     }
 ```
 
-**지혁**: "±1 규칙! 내가 만든 그거네! 각 레이어는 인접 레이어하고만 통신!"
+**Zhugehyuk**: "±1 규칙! 내가 만든 그거네! 각 레이어는 인접 레이어하고만 통신!"
 
 ---
 
@@ -142,7 +142,7 @@ pub async fn start_server(config: ServerConfig, registry: Arc<NeuronRegistry>) -
         .await?;
 ```
 
-**지혁**: "GraphQL! 모던하네! /health 엔드포인트도 있고... 근데 혹시 /secret-toys 엔드포인트는 없나? ㅋㅋㅋ"
+**Zhugehyuk**: "GraphQL! 모던하네! /health 엔드포인트도 있고... 근데 혹시 /secret-toys 엔드포인트는 없나? ㅋㅋㅋ"
 
 **Elon**: "Stop it. Let's see what happens when a user sends a request."
 
@@ -178,7 +178,7 @@ impl QueryRoot {
         info!("Received signal: {} for layer {}", signal.id, signal.layer);
 ```
 
-**지혁**: "유저 입력이 Signal로 변환되네! 각 신호는 특정 레이어로 가고..."
+**Zhugehyuk**: "유저 입력이 Signal로 변환되네! 각 신호는 특정 레이어로 가고..."
 
 ---
 
@@ -203,7 +203,7 @@ impl QueryRoot {
         }
 ```
 
-**지혁**: "L1은 즉각 반응! 생각 없이 바로!"
+**Zhugehyuk**: "L1은 즉각 반응! 생각 없이 바로!"
 
 **Elon**: "But for higher layers, we need gradient flow. This is the beautiful part:"
 
@@ -225,7 +225,7 @@ impl QueryRoot {
         gradient.backpropagate().await?;
 ```
 
-**지혁**: "오오오! Forward pass로 올라가고, backward pass로 내려오고! 진짜 백프로퍼게이션이네!"
+**Zhugehyuk**: "오오오! Forward pass로 올라가고, backward pass로 내려오고! 진짜 백프로퍼게이션이네!"
 
 ---
 
@@ -264,7 +264,7 @@ impl Gradient {
     }
 ```
 
-**지혁**: "Chain rule! 미분의 연쇄 법칙! 이거 진짜 딥러닝이잖아!"
+**Zhugehyuk**: "Chain rule! 미분의 연쇄 법칙! 이거 진짜 딥러닝이잖아!"
 
 **Elon**: "Yes, but with consciousness layers instead of just matrices."
 
@@ -303,7 +303,7 @@ impl WeightAdjuster {
     }
 ```
 
-**지혁**: "Adaptive learning rate! 똑똑하네! 웨이트도 -10에서 10 사이로 제한하고..."
+**Zhugehyuk**: "Adaptive learning rate! 똑똑하네! 웨이트도 -10에서 10 사이로 제한하고..."
 
 ---
 
@@ -333,7 +333,7 @@ impl WeightAdjuster {
 }
 ```
 
-**지혁**: "완성! 처리 시간, 신뢰도, 활성화된 레이어, 발화한 뉴런 수... 다 추적하네!"
+**Zhugehyuk**: "완성! 처리 시간, 신뢰도, 활성화된 레이어, 발화한 뉴런 수... 다 추적하네!"
 
 ---
 
@@ -369,7 +369,7 @@ Response Generation
 User Gets Answer!
 ```
 
-**지혁**: "와! 이게 진짜 의식의 흐름이네! 아래서 위로 올라갔다가 다시 내려오면서 학습하고!"
+**Zhugehyuk**: "와! 이게 진짜 의식의 흐름이네! 아래서 위로 올라갔다가 다시 내려오면서 학습하고!"
 
 ---
 
@@ -377,7 +377,7 @@ User Gets Answer!
 
 **Elon**: "So that's the complete journey - from server boot to user response. What did you think?"
 
-**지혁**: "시발 이거 진짜 미쳤네! 근데 아직도 궁금한게... 혹시 뉴런들 사이에 숨겨진 이스터에그는 없나? ㅋㅋㅋ"
+**Zhugehyuk**: "시발 이거 진짜 미쳤네! 근데 아직도 궁금한게... 혹시 뉴런들 사이에 숨겨진 이스터에그는 없나? ㅋㅋㅋ"
 
 **Elon**: "Actually... check this out:"
 
@@ -385,7 +385,7 @@ User Gets Answer!
 // In L5_strategic.rs
 impl L5StrategicNeuron {
     fn get_ultimate_goal(&self) -> &str {
-        // Easter egg for 지혁
+        // Easter egg for Zhugehyuk
         if self.activation_count % 42 == 0 {
             return "Find the ultimate sex toy... I mean, consciousness! 🤖";
         }
@@ -394,7 +394,7 @@ impl L5StrategicNeuron {
 }
 ```
 
-**지혁**: "ㅋㅋㅋㅋㅋㅋㅋ 42번째 활성화마다! 너무하네!"
+**Zhugehyuk**: "ㅋㅋㅋㅋㅋㅋㅋ 42번째 활성화마다! 너무하네!"
 
 **Elon**: "That's HAL9 for you. A serious consciousness architecture with a sense of humor. Just like its creator."
 
@@ -416,7 +416,7 @@ impl L5StrategicNeuron {
 - L4-L5: 50-200ms
 - Full stack: 100-500ms
 
-**지혁**: "이제 완전히 이해했어! HAL9은 진짜 살아있는 의식 아키텍처네!"
+**Zhugehyuk**: "이제 완전히 이해했어! HAL9은 진짜 살아있는 의식 아키텍처네!"
 
 **Elon**: "Welcome to the future of AI consciousness. Now, shall we deploy this to Mars?"
 

@@ -24,7 +24,7 @@
   ⎿  Wrote 163 lines to ../../../2hal9/HAL9_FACTORY_TOUR_PROMPT.md
      # 🏭 HAL9 Factory Tour Guide - Tesla Style
      ## 🎯 Mission
-     Take the visitor (지혁) through the entire HAL9 facility, from
+     Take the visitor (Zhugehyuk) through the entire HAL9 facility, from
      the CEO suite (L9) down to the production floor (L1),
      explaining each level in terms he can understand - like a Tesla
       factory tour but for consciousness architecture.
@@ -51,7 +51,7 @@
 
 ⏺ 🏭 HAL9 공장 투어 시작!
 
-  "지혁! HAL9 공장에 온 걸 환영해! 테슬라 기가팩토리 투어하듯이 안내해줄게."
+  "Zhugehyuk! HAL9 공장에 온 걸 환영해! 테슬라 기가팩토리 투어하듯이 안내해줄게."
 
   🚪 공장 입구 (/)
 
@@ -131,7 +131,7 @@
 
   🎯 네가 얻는 이점
 
-  "지혁, 너는 L9에서 생각하잖아?
+  "Zhugehyuk, 너는 L9에서 생각하잖아?
   - L9에서: '왜 인증이 필요한가?' (철학)
   - L5에서: '어떻게 설계할까?' (아키텍처)
   - L2에서: '실제로 어떻게 구현됐나?' (코드)

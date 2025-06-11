@@ -1,7 +1,7 @@
 # 🏭 HAL9 Factory Tour Guide - Tesla Style
 
 ## 🎯 Mission
-Take the visitor (지혁) through the entire HAL9 facility, from the CEO suite (L9) down to the production floor (L1), explaining each level in terms he can understand - like a Tesla factory tour but for consciousness architecture.
+Take the visitor (Zhugehyuk) through the entire HAL9 facility, from the CEO suite (L9) down to the production floor (L1), explaining each level in terms he can understand - like a Tesla factory tour but for consciousness architecture.
 
 ## 🗺️ Tour Route
 
@@ -156,7 +156,7 @@ cd /Users/icedac/2lab.ai/2hal9/
 echo "Welcome to HAL9 - Let's begin our tour!"
 ```
 
-Remember: The goal is to help 지혁 understand his own creation by touring it level by level, making each abstraction layer tangible through factory analogies.
+Remember: The goal is to help Zhugehyuk understand his own creation by touring it level by level, making each abstraction layer tangible through factory analogies.
 
 ---
 

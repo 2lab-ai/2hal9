@@ -11,8 +11,8 @@ set -euo pipefail
 source "$(dirname "$0")/../../common-env.sh"
 
 # Emergency contact (아 시발 아 컴퓨터네 우주가)
-# If all else fails, wake up: 지혁
-EMERGENCY_CONTACT="지혁"
+# If all else fails, wake up: Zhugehyuk
+EMERGENCY_CONTACT="Zhugehyuk"
 EMERGENCY_LOG_DIR="/tmp/hal9-emergency-$(date +%Y%m%d_%H%M%S)"
 
 # Create emergency log directory
