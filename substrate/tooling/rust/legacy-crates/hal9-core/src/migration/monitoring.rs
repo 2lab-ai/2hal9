@@ -492,11 +492,13 @@ mod tests {
 
     #[test]
     fn test_metrics_health_check() {
-        let mut metrics = MigrationMetrics::default();
-        metrics.hierarchical_error_rate = 0.03;
-        metrics.cpu_usage = 70.0;
-        metrics.memory_usage = 75.0;
-        metrics.output_parity = 0.97;
+        let mut metrics = MigrationMetrics {
+            hierarchical_error_rate: 0.03,
+            cpu_usage: 70.0,
+            memory_usage: 75.0,
+            output_parity: 0.97,
+            ..Default::default()
+        };
 
         assert!(metrics.is_healthy());
 
