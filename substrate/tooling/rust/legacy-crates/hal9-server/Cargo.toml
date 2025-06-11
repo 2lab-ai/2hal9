@@ -105,9 +105,12 @@ tempfile = "3.8"
 # harness = false
 
 [features]
-default = []
+default = ["sqlx-runtime"]
 browser = ["hal9-browser"]
-# offline = ["sqlx/offline"] # Removed - not available in sqlx 0.7
+# Use runtime SQL queries instead of compile-time verification
+sqlx-runtime = []
+# Enable compile-time SQL verification (requires database at build time)
+sqlx-compile-time = []
 graphql = ["async-graphql", "async-graphql-axum", "tokio-stream", "futures-util"]
 plugins = ["wasmtime", "wasmtime-wasi", "zip"]
 blockchain = ["ethers", "ipfs-api-backend-hyper"]
