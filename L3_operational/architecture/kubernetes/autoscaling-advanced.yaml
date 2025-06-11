@@ -1,0 +1,155 @@
+# Advanced HPA configuration for HAL9 production workloads
+# Handles 1000+ concurrent users with sophisticated scaling policies
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hal9-hpa-advanced
+  namespace: hal9
+  labels:
+    app: hal9
+    component: autoscaling
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hal9-server
+  minReplicas: 5        # Base availability
+  maxReplicas: 30       # Handle 1000+ users
+  
+  # Multi-metric scaling
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60    # Scale early to prevent saturation
+  
+  # Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70    # Conservative memory threshold
+  
+  # Custom metrics (requires metrics server)
+  - type: Pods
+    pods:
+      metric:
+        name: hal9_active_connections
+      target:
+        type: AverageValue
+        averageValue: "100"       # Scale when avg connections > 100 per pod
+  
+  - type: Pods
+    pods:
+      metric:
+        name: hal9_request_latency_p95
+      target:
+        type: AverageValue
+        averageValue: "500m"      # Scale when p95 latency > 500ms
+  
+  # Advanced scaling behavior
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60      # Quick response to load
+      policies:
+      # Aggressive scaling for sudden spikes
+      - type: Pods
+        value: 5                          # Add up to 5 pods at once
+        periodSeconds: 60
+      # Percentage-based for gradual increases
+      - type: Percent
+        value: 100                        # Double the pods if needed
+        periodSeconds: 120
+      selectPolicy: Max                   # Use most aggressive policy
+    
+    scaleDown:
+      stabilizationWindowSeconds: 300     # Conservative scale-down
+      policies:
+      # Gradual scale-down to prevent thrashing
+      - type: Pods
+        value: 2                          # Remove max 2 pods at once
+        periodSeconds: 120
+      # Percentage-based for large deployments
+      - type: Percent  
+        value: 10                         # Remove max 10% of pods
+        periodSeconds: 120
+      selectPolicy: Min                   # Use most conservative policy
+
+---
+# Vertical Pod Autoscaler for right-sizing
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: hal9-vpa
+  namespace: hal9
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hal9-server
+  updatePolicy:
+    updateMode: "Auto"                    # Auto-apply recommendations
+  resourcePolicy:
+    containerPolicies:
+    - containerName: hal9-server
+      minAllowed:
+        memory: "1Gi"                     # Never go below 1Gi
+        cpu: "500m"                       # Never go below 0.5 CPU
+      maxAllowed:
+        memory: "8Gi"                     # Cap at 8Gi per pod
+        cpu: "4"                          # Cap at 4 CPUs per pod
+      controlledResources: ["cpu", "memory"]
+
+---
+# PodDisruptionBudget for high availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: hal9-pdb
+  namespace: hal9
+spec:
+  minAvailable: 3                         # Always keep 3 pods running
+  selector:
+    matchLabels:
+      app: hal9
+      component: server
+  unhealthyPodEvictionPolicy: AlwaysAllow # Evict unhealthy pods
+
+---
+# Priority class for critical workloads
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: hal9-critical
+value: 1000                               # High priority
+globalDefault: false
+description: "Priority class for HAL9 critical services"
+
+---
+# Update deployment to use priority class
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hal9-server-critical-patch
+  namespace: hal9
+spec:
+  template:
+    spec:
+      priorityClassName: hal9-critical    # Ensure pods get scheduled
+      # Anti-affinity for distribution across nodes
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - hal9
+              topologyKey: kubernetes.io/hostname
