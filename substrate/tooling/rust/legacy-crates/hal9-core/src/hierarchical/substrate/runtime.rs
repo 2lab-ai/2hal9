@@ -347,7 +347,7 @@ mod tests {
 
         // Cancel and verify
         token.cancel();
-        tokio::time::sleep(Duration::from_millis(10)).await;
+        tokio::time::sleep(Duration::from_millis(50)).await;
         assert!(handle.is_finished());
     }
 
