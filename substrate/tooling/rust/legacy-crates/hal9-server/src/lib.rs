@@ -1,5 +1,8 @@
 //! HAL9 Server implementation
 
+#[macro_use]
+pub mod sql_query_macros;
+
 pub mod api;
 pub mod api_auth;
 pub mod api_codegen;
