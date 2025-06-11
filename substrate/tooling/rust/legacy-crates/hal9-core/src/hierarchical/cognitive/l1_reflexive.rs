@@ -273,9 +273,9 @@ impl PatternMatcher {
 
         // Calculate similarity based on pattern coverage
         // If all pattern words are found in input, it's a good match
-        if pattern_words.len() > 0 && intersection == pattern_words.len() {
+        if !pattern_words.is_empty() && intersection == pattern_words.len() {
             0.8
-        } else if pattern_words.len() > 0 {
+        } else if !pattern_words.is_empty() {
             intersection as f32 / pattern_words.len() as f32
         } else {
             0.0

@@ -23,10 +23,8 @@ pub struct L5StrategicNeuron {
 
 impl L5StrategicNeuron {
     pub fn new(config: CognitiveConfig) -> Self {
-        let mut initial_goals = Vec::new();
-
         // Create foundational goals
-        initial_goals.push(Goal {
+        let initial_goals = vec![Goal {
             id: Uuid::new_v4(),
             description: "Achieve artificial general intelligence through hierarchical abstraction"
                 .to_string(),
@@ -48,7 +46,7 @@ impl L5StrategicNeuron {
                     sub_goals: vec![],
                 },
             ],
-        });
+        }];
 
         Self {
             id: config.id,
