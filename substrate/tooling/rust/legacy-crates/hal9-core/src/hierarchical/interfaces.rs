@@ -877,6 +877,7 @@ mod tests {
     async fn test_legacy_adapter_signal_conversion() {
         // Create a mock neuron
         struct MockNeuron {
+            #[allow(dead_code)]
             id: Uuid,
         }
 
@@ -952,6 +953,7 @@ mod tests {
     #[tokio::test]
     async fn test_migration_coordinator() {
         struct MockNeuron {
+            #[allow(dead_code)]
             id: Uuid,
             layer: String,
         }

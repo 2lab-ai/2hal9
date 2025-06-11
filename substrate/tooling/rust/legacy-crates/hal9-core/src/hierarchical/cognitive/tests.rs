@@ -397,7 +397,7 @@ mod l5_strategic_tests {
         
         let initial_state = neuron.introspect().await;
         // Strategic neuron starts with foundational goals
-        assert!(initial_state.active_goals.len() > 0);
+        assert!(!initial_state.active_goals.is_empty());
         
         // Process goal-setting request
         let input = create_test_input("establish organizational objectives");

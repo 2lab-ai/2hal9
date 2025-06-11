@@ -2,7 +2,6 @@
 /// 
 /// Provides prompts for compressing and expanding content across L1-L9 cognitive levels
 /// Based on the HA principles from HAL9
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

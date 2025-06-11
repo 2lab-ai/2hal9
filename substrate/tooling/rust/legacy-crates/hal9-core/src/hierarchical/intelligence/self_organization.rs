@@ -6,6 +6,10 @@ use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
+// Type aliases to simplify complex types
+type ConditionFn = Box<dyn Fn(&SelfOrganizingSystem) -> bool + Send + Sync>;
+type ActionFn = Box<dyn Fn(&mut SelfOrganizingSystem) -> Result<()> + Send + Sync>;
+
 /// Self-organizing system that forms structures autonomously
 pub struct SelfOrganizingSystem {
     units: HashMap<Uuid, OrganizationalUnit>,
@@ -32,9 +36,9 @@ struct OrganizationRule {
     #[allow(dead_code)]
     name: String,
     #[allow(dead_code)]
-    condition: Box<dyn Fn(&SelfOrganizingSystem) -> bool + Send + Sync>,
+    condition: ConditionFn,
     #[allow(dead_code)]
-    action: Box<dyn Fn(&mut SelfOrganizingSystem) -> Result<()> + Send + Sync>,
+    action: ActionFn,
     #[allow(dead_code)]
     priority: f32,
 }
@@ -503,10 +507,10 @@ impl SelfOrganizer for SelfOrganizingSystem {
             .rules
             .iter()
             .enumerate()
-            .filter_map(|(i, _rule)| {
+            .map(|(i, _rule)| {
                 // TODO: This is a workaround - condition should not need &self
                 // For now, we'll skip the condition check
-                Some(i)
+                i
             })
             .collect();
 
