@@ -64,6 +64,7 @@ pub struct SignalRouter {
     signal_rx: Option<mpsc::Receiver<NeuronSignal>>,
     shutdown_tx: Option<mpsc::Sender<()>>,
     signal_buffer: Arc<SignalBuffer<NeuronSignal>>,
+    #[allow(dead_code)]
     parallel_executor: Arc<ParallelExecutor>,
 }
 

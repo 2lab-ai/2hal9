@@ -11,6 +11,7 @@ use tracing::debug;
 pub struct ConnectionPool<T: Clone + Send + Sync + 'static> {
     pool: Vec<T>,
     available: Arc<Semaphore>,
+    #[allow(dead_code)]
     max_size: usize,
 }
 
@@ -131,7 +132,9 @@ pub struct CacheStats {
 
 /// Batch processor for aggregating multiple signals
 pub struct BatchProcessor<T> {
+    #[allow(dead_code)]
     batch_size: usize,
+    #[allow(dead_code)]
     batch_timeout: Duration,
     sender: mpsc::Sender<Vec<T>>,
 }
@@ -173,6 +176,7 @@ impl<T: Send + 'static> BatchProcessor<T> {
 
 /// Parallel executor for concurrent processing
 pub struct ParallelExecutor {
+    #[allow(dead_code)]
     max_concurrency: usize,
     semaphore: Arc<Semaphore>,
 }
@@ -344,6 +348,11 @@ impl<T: Send + Sync + 'static> SignalBuffer<T> {
     /// Get current buffer size
     pub fn len(&self) -> usize {
         self.buffer.read().len()
+    }
+
+    /// Check if buffer is empty
+    pub fn is_empty(&self) -> bool {
+        self.buffer.read().is_empty()
     }
 }
 
