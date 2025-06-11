@@ -33,6 +33,7 @@ chrono = { workspace = true }
 dashmap = { workspace = true }
 once_cell = { workspace = true }
 parking_lot = "0.12"
+md5 = "0.7"
 
 # Logging
 tracing = { workspace = true }

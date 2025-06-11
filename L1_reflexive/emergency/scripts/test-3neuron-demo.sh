@@ -42,8 +42,17 @@ send_signal() {
 # Function to start server if not running
 ensure_server_running() {
     if curl -s "http://localhost:$HAL9_PORT_MAIN/health" > /dev/null 2>&1; then
-        log_info "Server is already running"
-        return 0
+        # Verify it's actually HAL9 and not something else
+        local server_info=$(curl -s "http://localhost:$HAL9_PORT_MAIN/api/v1/status" 2>/dev/null | jq -r '.server' 2>/dev/null || echo "unknown")
+        if [[ "$server_info" == *"HAL9"* ]] || [[ "$server_info" == "unknown" ]]; then
+            log_info "HAL9 server is already running"
+            return 0
+        else
+            log_warning "Port $HAL9_PORT_MAIN is in use but not by HAL9 (server: $server_info)"
+            log_info "Checking what's using the port..."
+            lsof -i :$HAL9_PORT_MAIN | head -5 || true
+            exit 1
+        fi
     fi
     
     log_info "Starting HAL9 server with 3-neuron configuration..."
@@ -65,6 +74,9 @@ ensure_server_running() {
     # Check if port is available
     if ! check_port $HAL9_PORT_MAIN; then
         log_error "Port $HAL9_PORT_MAIN is already in use"
+        log_info "Checking what's using the port..."
+        lsof -i :$HAL9_PORT_MAIN | head -5 || true
+        log_info "Try: sudo kill -9 $(lsof -ti :$HAL9_PORT_MAIN) to free the port"
         exit 1
     fi
     

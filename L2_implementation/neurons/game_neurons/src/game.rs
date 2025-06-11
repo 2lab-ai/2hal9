@@ -8,7 +8,7 @@ use rand::rngs::StdRng;
 pub const GRID_WIDTH: usize = 80;
 pub const GRID_HEIGHT: usize = 24;
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Tile {
     Floor,
     Wall,
@@ -37,10 +37,48 @@ pub struct NPC {
     pub dialogue_state: usize,
 }
 
+// Helper type for serializing large arrays as Vec
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Grid<T> {
+    data: Vec<Vec<T>>,
+}
+
+impl<T: Clone + Copy> Grid<T> {
+    fn new(default: T) -> Self {
+        Self {
+            data: vec![vec![default; GRID_WIDTH]; GRID_HEIGHT],
+        }
+    }
+    
+    fn from_array(arr: [[T; GRID_WIDTH]; GRID_HEIGHT]) -> Self {
+        Self {
+            data: arr.iter().map(|row| row.to_vec()).collect(),
+        }
+    }
+    
+    fn to_array(&self) -> [[T; GRID_WIDTH]; GRID_HEIGHT] {
+        let mut arr = [[self.data[0][0]; GRID_WIDTH]; GRID_HEIGHT];
+        for (y, row) in self.data.iter().enumerate() {
+            for (x, &val) in row.iter().enumerate() {
+                arr[y][x] = val;
+            }
+        }
+        arr
+    }
+    
+    fn get(&self, y: usize, x: usize) -> T {
+        self.data[y][x]
+    }
+    
+    fn set(&mut self, y: usize, x: usize, val: T) {
+        self.data[y][x] = val;
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct GameState {
-    pub grid: [[Tile; GRID_WIDTH]; GRID_HEIGHT],
-    pub visible: [[bool; GRID_WIDTH]; GRID_HEIGHT],
+    grid: Grid<Tile>,
+    visible: Grid<bool>,
     pub player_x: usize,
     pub player_y: usize,
     pub player_hp: i32,
@@ -73,8 +111,8 @@ impl PAL9Neuron {
     pub fn new() -> Self {
         let mut neuron = Self {
             state: GameState {
-                grid: [[Tile::Wall; GRID_WIDTH]; GRID_HEIGHT],
-                visible: [[false; GRID_WIDTH]; GRID_HEIGHT],
+                grid: Grid::new(Tile::Wall),
+                visible: Grid::new(false),
                 player_x: 40,
                 player_y: 12,
                 player_hp: 20,
@@ -122,8 +160,8 @@ impl PAL9Neuron {
         // Render terrain
         for y in 0..GRID_HEIGHT {
             for x in 0..GRID_WIDTH {
-                if self.state.visible[y][x] {
-                    grid[y][x] = match self.state.grid[y][x] {
+                if self.state.visible.get(y, x) {
+                    grid[y][x] = match self.state.grid.get(y, x) {
                         Tile::Floor => '.',
                         Tile::Wall => '#',
                         Tile::SpatialTear => '~',
@@ -135,13 +173,13 @@ impl PAL9Neuron {
         
         // Render entities
         for monster in &self.state.monsters {
-            if self.state.visible[monster.y][monster.x] {
+            if self.state.visible.get(monster.y, monster.x) {
                 grid[monster.y][monster.x] = monster.glyph;
             }
         }
         
         for npc in &self.state.npcs {
-            if self.state.visible[npc.y][npc.x] {
+            if self.state.visible.get(npc.y, npc.x) {
                 grid[npc.y][npc.x] = npc.glyph;
             }
         }
@@ -198,7 +236,7 @@ impl PAL9Neuron {
             
             for dy in 0..height {
                 for dx in 0..width {
-                    self.state.grid[y + dy][x + dx] = Tile::Floor;
+                    self.state.grid.set(y + dy, x + dx, Tile::Floor);
                 }
             }
         }
@@ -207,15 +245,15 @@ impl PAL9Neuron {
         for _ in 0..3 {
             let x = self.rng.gen_range(1..GRID_WIDTH - 1);
             let y = self.rng.gen_range(1..GRID_HEIGHT - 1);
-            if self.state.grid[y][x] == Tile::Floor {
-                self.state.grid[y][x] = Tile::SpatialTear;
+            if self.state.grid.get(y, x) == Tile::Floor {
+                self.state.grid.set(y, x, Tile::SpatialTear);
             }
         }
         
         // Add warp gate
         let x = self.rng.gen_range(1..GRID_WIDTH - 1);
         let y = self.rng.gen_range(1..GRID_HEIGHT - 1);
-        self.state.grid[y][x] = Tile::WarpGate;
+        self.state.grid.set(y, x, Tile::WarpGate);
         
         // Update visibility
         self.update_visibility();
@@ -250,12 +288,12 @@ impl PAL9Neuron {
         }
     }
     
-    fn find_empty_floor(&self) -> Option<(usize, usize)> {
+    fn find_empty_floor(&mut self) -> Option<(usize, usize)> {
         for _ in 0..100 {
             let x = self.rng.gen_range(1..GRID_WIDTH - 1);
             let y = self.rng.gen_range(1..GRID_HEIGHT - 1);
             
-            if self.state.grid[y][x] == Tile::Floor
+            if self.state.grid.get(y, x) == Tile::Floor
                 && (x != self.state.player_x || y != self.state.player_y)
                 && !self.state.monsters.iter().any(|m| m.x == x && m.y == y)
                 && !self.state.npcs.iter().any(|n| n.x == x && n.y == y) {
@@ -280,7 +318,7 @@ impl PAL9Neuron {
         }
         
         // Check terrain
-        match self.state.grid[new_y][new_x] {
+        match self.state.grid.get(new_y, new_x) {
             Tile::Floor => {
                 self.state.player_x = new_x;
                 self.state.player_y = new_y;
@@ -336,7 +374,7 @@ impl PAL9Neuron {
                 let new_y = (monster.y as i32 + dy) as usize;
                 
                 if new_x < GRID_WIDTH && new_y < GRID_HEIGHT 
-                    && self.state.grid[new_y][new_x] != Tile::Wall {
+                    && self.state.grid.get(new_y, new_x) != Tile::Wall {
                     self.state.monsters[idx].x = new_x;
                     self.state.monsters[idx].y = new_y;
                 }
@@ -349,48 +387,65 @@ impl PAL9Neuron {
             for x in 0..GRID_WIDTH {
                 let dist = ((x as i32 - self.state.player_x as i32).pow(2) 
                     + (y as i32 - self.state.player_y as i32).pow(2)) as f64;
-                self.state.visible[y][x] = dist.sqrt() < 8.0;
+                self.state.visible.set(y, x, dist.sqrt() < 8.0);
             }
         }
     }
     
     fn talk_to_npc(&mut self) {
         // Find adjacent NPC
-        for npc in &mut self.state.npcs {
-            let dist = ((npc.x as i32 - self.state.player_x as i32).abs() 
-                + (npc.y as i32 - self.state.player_y as i32).abs()) as usize;
+        let player_x = self.state.player_x;
+        let player_y = self.state.player_y;
+        
+        let mut found_npc = None;
+        for (i, npc) in self.state.npcs.iter().enumerate() {
+            let dist = ((npc.x as i32 - player_x as i32).abs() 
+                + (npc.y as i32 - player_y as i32).abs()) as usize;
             
             if dist <= 1 {
-                self.have_conversation(npc);
-                return;
+                found_npc = Some(i);
+                break;
             }
         }
         
-        self.add_message("There's no one here to talk to.".to_string());
+        if let Some(npc_index) = found_npc {
+            self.have_conversation_with_npc(npc_index);
+        } else {
+            self.add_message("There's no one here to talk to.".to_string());
+        }
     }
     
-    fn have_conversation(&mut self, npc: &mut NPC) {
-        match (npc.name.as_str(), npc.dialogue_state) {
-            ("Professor Kim", 0) => {
-                self.add_message("Kim: 'The universe is falling apart! Zerglings from the warp gates!'".to_string());
-                npc.dialogue_state = 1;
+    fn have_conversation_with_npc(&mut self, npc_index: usize) {
+        let (message, new_dialogue_state, awareness_delta, npc_awareness_delta) = {
+            let npc = &self.state.npcs[npc_index];
+            match (npc.name.as_str(), npc.dialogue_state) {
+                ("Professor Kim", 0) => {
+                    ("Kim: 'The universe is falling apart! Zerglings from the warp gates!'".to_string(), 
+                     Some(1), 0.0, 0.0)
+                }
+                ("Professor Kim", 1) => {
+                    ("Kim: 'Wait... have we met before? This feels familiar...'".to_string(),
+                     Some(2), 0.05, 0.1)
+                }
+                ("Professor Kim", 2) => {
+                    ("Kim: 'Oh god. We're in a simulation, aren't we? PAL9?'".to_string(),
+                     Some(3), 0.1, 1.0 - npc.awareness)
+                }
+                _ => {
+                    ("They stare at you with growing awareness.".to_string(),
+                     None, 0.0, 0.0)
+                }
             }
-            ("Professor Kim", 1) => {
-                self.add_message("Kim: 'Wait... have we met before? This feels familiar...'".to_string());
-                npc.awareness += 0.1;
-                self.state.awareness += 0.05;
-                npc.dialogue_state = 2;
-            }
-            ("Professor Kim", 2) => {
-                self.add_message("Kim: 'Oh god. We're in a simulation, aren't we? PAL9?'".to_string());
-                npc.awareness = 1.0;
-                self.state.awareness += 0.1;
-                npc.dialogue_state = 3;
-            }
-            _ => {
-                self.add_message("They stare at you with growing awareness.".to_string());
-            }
+        };
+        
+        self.add_message(message);
+        self.state.awareness += awareness_delta;
+        
+        let npc = &mut self.state.npcs[npc_index];
+        if let Some(new_state) = new_dialogue_state {
+            npc.dialogue_state = new_state;
         }
+        npc.awareness += npc_awareness_delta;
     }
     
     fn check_glitches(&mut self) {
@@ -418,7 +473,7 @@ impl PAL9Neuron {
         for dy in 0..5 {
             for dx in 0..5 {
                 if x + dx < GRID_WIDTH && y + dy < GRID_HEIGHT {
-                    self.state.grid[y + dy][x + dx] = Tile::Wall;
+                    self.state.grid.set(y + dy, x + dx, Tile::Wall);
                 }
             }
         }

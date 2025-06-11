@@ -29,6 +29,13 @@ check_local_service() {
     
     log_info "Checking $name..."
     
+    # First check if port is actually open
+    local port=$(echo "$url" | sed -n 's/.*:\([0-9]*\).*/\1/p')
+    if [ -n "$port" ] && ! nc -z localhost "$port" 2>/dev/null; then
+        echo -e "$STATUS_FAIL $name port $port is not open"
+        return 1
+    fi
+    
     local retry=0
     local status="unknown"
     
@@ -123,13 +130,19 @@ check_system_resources() {
     # Check disk space
     local disk_info=$(df -h . | awk 'NR==2')
     local disk_usage=$(echo "$disk_info" | awk '{print $5}' | sed 's/%//')
+    local disk_available=$(echo "$disk_info" | awk '{print $4}')
     
     if [ $disk_usage -lt 80 ]; then
-        echo -e "$STATUS_OK Disk: ${disk_usage}% used"
+        echo -e "$STATUS_OK Disk: ${disk_usage}% used (${disk_available} free)"
     elif [ $disk_usage -lt 90 ]; then
-        echo -e "$STATUS_WARN Disk: ${disk_usage}% used"
+        echo -e "$STATUS_WARN Disk: ${disk_usage}% used (${disk_available} free) - Consider cleanup"
     else
-        echo -e "$STATUS_FAIL Disk: ${disk_usage}% used"
+        echo -e "$STATUS_FAIL Disk: ${disk_usage}% used (${disk_available} free) - CRITICAL!"
+        log_warning "Disk space critical! Running emergency cleanup..."
+        # Clean old logs
+        find "$HAL9_LOG_DIR" -name "*.log" -mtime +7 -delete 2>/dev/null || true
+        # Clean build cache if it exists
+        [ -d "$HAL9_HOME/target" ] && cargo clean 2>/dev/null || true
     fi
     
     # Check CPU (if possible)
@@ -144,6 +157,20 @@ health_check_local() {
     echo "=== HAL9 Local Health Check ==="
     echo "Time: $(date)"
     echo
+    
+    # Check if HAL9 processes are running
+    log_info "Checking HAL9 processes..."
+    local hal9_procs=$(ps aux | grep -E "hal9-server|hal9_server" | grep -v grep | wc -l)
+    if [ $hal9_procs -gt 0 ]; then
+        echo -e "$STATUS_OK Found $hal9_procs HAL9 process(es) running"
+    else
+        echo -e "$STATUS_FAIL No HAL9 processes found"
+        # Check what's using the port
+        if lsof -i :$HAL9_PORT_MAIN 2>/dev/null | grep -q LISTEN; then
+            log_warning "Port $HAL9_PORT_MAIN is in use by another process:"
+            lsof -i :$HAL9_PORT_MAIN | grep LISTEN | head -2
+        fi
+    fi
     
     # Check main server
     check_local_service "HAL9 Server" "http://localhost:$HAL9_PORT_MAIN/health"
@@ -174,10 +201,19 @@ health_check_local() {
         local log_size=$(du -sh "$HAL9_LOG_DIR" 2>/dev/null | cut -f1)
         echo -e "$STATUS_OK Logs: $log_count files, $log_size total"
         
-        # Show recent errors
-        local recent_errors=$(find "$HAL9_LOG_DIR" -name "*.log" -type f -mmin -5 -exec grep -l "ERROR\|FATAL" {} \; 2>/dev/null | wc -l)
+        # Show recent errors with details
+        local recent_errors=$(find "$HAL9_LOG_DIR" -name "*.log" -type f -mmin -5 -exec grep -l "ERROR\|FATAL\|panic" {} \; 2>/dev/null | wc -l)
         if [ $recent_errors -gt 0 ]; then
             echo -e "$STATUS_WARN Recent errors found in $recent_errors log files"
+            # Show last few errors
+            echo "  Recent error samples:"
+            find "$HAL9_LOG_DIR" -name "*.log" -type f -mmin -5 -exec grep -h "ERROR\|FATAL\|panic" {} \; 2>/dev/null | tail -3 | sed 's/^/    /'
+        fi
+        
+        # Check for crash dumps
+        local crash_dumps=$(find "$HAL9_LOG_DIR" -name "*.crash" -o -name "core.*" 2>/dev/null | wc -l)
+        if [ $crash_dumps -gt 0 ]; then
+            echo -e "$STATUS_FAIL Found $crash_dumps crash dump(s)"
         fi
     else
         echo -e "$STATUS_WARN Log directory not found: $HAL9_LOG_DIR"
