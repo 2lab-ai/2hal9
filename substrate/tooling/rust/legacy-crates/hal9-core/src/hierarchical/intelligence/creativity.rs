@@ -352,8 +352,8 @@ impl CreativeSystem {
                             generation_method: "combination".to_string(),
                             raw_content: format!(
                                 "Combine {} with {}",
-                                source1.source_type.to_string(),
-                                source2.source_type.to_string()
+                                source1.source_type.as_str(),
+                                source2.source_type.as_str()
                             ),
                         });
                     }
@@ -365,7 +365,7 @@ impl CreativeSystem {
                             id: Uuid::new_v4(),
                             components: vec![source.id],
                             generation_method: "mutation".to_string(),
-                            raw_content: format!("Mutate {}", source.source_type.to_string()),
+                            raw_content: format!("Mutate {}", source.source_type.as_str()),
                         });
                     }
                 }
@@ -515,7 +515,7 @@ struct EmergentProperty {
 }
 
 impl SourceType {
-    fn to_string(&self) -> String {
+    fn as_str(&self) -> &'static str {
         match self {
             Self::Memory => "memory",
             Self::Pattern => "pattern",
@@ -523,7 +523,6 @@ impl SourceType {
             Self::Random => "random",
             Self::CrossDomain => "cross_domain",
         }
-        .to_string()
     }
 }
 
