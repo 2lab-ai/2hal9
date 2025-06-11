@@ -8,7 +8,7 @@ use tokio_stream::StreamExt;
 use uuid::Uuid;
 
 use super::schema::*;
-use crate::{auth::User, error::HAL9Error};
+use crate::{auth::User, error::ServerError};
 
 // ============ Event Types ============
 
@@ -85,7 +85,7 @@ impl SubscriptionRoot {
         signal_id: Option<ID>,
     ) -> impl Stream<Item = SignalUpdate> {
         let event_bus = ctx.data::<Arc<EventBus>>().unwrap();
-        let user = ctx.data::<Arc<User>>().unwrap();
+        let _user = ctx.data::<Arc<User>>().unwrap();
         let filter_id = signal_id.and_then(|id| Uuid::parse_str(&id.0).ok());
 
         BroadcastStream::new(event_bus.subscribe()).filter_map(move |event| {
@@ -115,7 +115,7 @@ impl SubscriptionRoot {
         &self,
         ctx: &Context<'_>,
         neuron_id: Option<ID>,
-        layer: Option<String>,
+        _layer: Option<String>,
     ) -> impl Stream<Item = NeuronStateChange> {
         let event_bus = ctx.data::<Arc<EventBus>>().unwrap();
         let filter_id = neuron_id.and_then(|id| Uuid::parse_str(&id.0).ok());
@@ -177,7 +177,7 @@ impl SubscriptionRoot {
     pub async fn resolve_learning_events(
         &self,
         ctx: &Context<'_>,
-        layer: Option<String>,
+        _layer: Option<String>,
     ) -> impl Stream<Item = LearningEvent> {
         let event_bus = ctx.data::<Arc<EventBus>>().unwrap();
 

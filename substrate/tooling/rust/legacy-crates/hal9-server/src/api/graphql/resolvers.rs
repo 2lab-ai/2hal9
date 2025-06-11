@@ -8,10 +8,10 @@ use uuid::Uuid;
 use crate::{
     auth::{AuthService, User},
     enterprise::{Organization, OrganizationService, Team, TeamService},
-    error::HAL9Error,
+    error::ServerError,
     memory_manager::MemoryManager,
     metrics::Metrics,
-    neuron::{NeuronManager, NeuronState},
+    neuron::NeuronRegistry,
     router::Router,
     signal::Signal,
 };
@@ -25,7 +25,7 @@ pub struct GraphQLContext {
     pub auth_service: Arc<AuthService>,
     pub org_service: Arc<OrganizationService>,
     pub team_service: Arc<TeamService>,
-    pub neuron_manager: Arc<RwLock<NeuronManager>>,
+    pub neuron_registry: Arc<RwLock<NeuronRegistry>>,
     pub router: Arc<Router>,
     pub memory_manager: Arc<MemoryManager>,
     pub metrics: Arc<Metrics>,
@@ -127,14 +127,14 @@ impl QueryRoot {
             .min(100);
         let offset = pagination.as_ref().and_then(|p| p.offset).unwrap_or(0);
 
-        let neuron_manager = context.neuron_manager.read().await;
-        let neurons = neuron_manager.list_neurons();
+        let neuron_registry = context.neuron_registry.read().await;
+        let server_neurons = neuron_registry.list_all().await;
 
         // Filter neurons
-        let filtered: Vec<_> = neurons
+        let filtered: Vec<_> = server_neurons
             .into_iter()
             .filter(|n| layer.as_ref().map_or(true, |l| &n.layer == l))
-            .filter(|n| state.as_ref().map_or(true, |s| n.state.to_string() == *s))
+            .filter(|n| state.as_ref().map_or(true, |s| &n.state == s))
             .skip(offset as usize)
             .take(limit as usize)
             .collect();
@@ -145,30 +145,28 @@ impl QueryRoot {
         let edges: Vec<NeuronEdge> = filtered
             .into_iter()
             .enumerate()
-            .map(|(idx, neuron)| {
-                let metrics = neuron_manager
-                    .get_neuron_metrics(&neuron.id)
-                    .unwrap_or_default();
-
+            .map(|(idx, server_neuron)| {
+                // Create GraphQL NeuronInfo from server NeuronInfo
+                // Using dummy values for fields not available in server struct
                 NeuronEdge {
                     cursor: base64::encode(format!("neuron:{}", offset + idx as i32)),
                     node: NeuronInfo {
-                        id: ID(neuron.id.to_string()),
-                        neuron_id: neuron.id,
-                        name: neuron.name.clone(),
-                        neuron_type: neuron.neuron_type.clone(),
-                        layer: neuron.layer.clone(),
-                        state: neuron.state.to_string(),
-                        config: neuron.config.clone(),
+                        id: ID(server_neuron.id.clone()),
+                        neuron_id: Uuid::parse_str(&server_neuron.id).unwrap_or(Uuid::new_v4()),
+                        name: server_neuron.id.clone(), // Use ID as name for now
+                        neuron_type: "standard".to_string(), // Default type
+                        layer: server_neuron.layer.clone(),
+                        state: server_neuron.state.clone(),
+                        config: serde_json::json!({}), // Empty config
                         metrics: NeuronMetrics {
-                            processed_count: metrics.processed_count,
-                            error_count: metrics.error_count,
-                            average_latency_ms: metrics.average_latency_ms,
-                            success_rate: metrics.success_rate,
-                            last_activity: metrics.last_activity,
+                            processed_count: 0,
+                            error_count: 0,
+                            average_latency_ms: 0.0,
+                            success_rate: if server_neuron.is_healthy { 1.0 } else { 0.0 },
+                            last_activity: None,
                         },
-                        created_at: neuron.created_at,
-                        updated_at: neuron.updated_at,
+                        created_at: Utc::now(), // Dummy timestamp
+                        updated_at: Utc::now(), // Dummy timestamp
                     },
                 }
             })
@@ -244,14 +242,12 @@ impl MutationRoot {
             return Err("Insufficient permissions".into());
         }
 
-        let mut neuron_manager = context.neuron_manager.write().await;
-        let neuron = neuron_manager
-            .create_neuron(input.name, input.neuron_type, input.layer, input.config)
-            .await?;
+        let mut neuron_registry = context.neuron_registry.write().await;
+        // TODO: Implement create_neuron for NeuronRegistry
+        return Err("Creating neurons not yet implemented".into());
 
-        let metrics = neuron_manager
-            .get_neuron_metrics(&neuron.id)
-            .unwrap_or_default();
+        // TODO: Get metrics from neuron
+        let metrics = NeuronMetricsData::default();
 
         Ok(NeuronInfo {
             id: ID(neuron.id.to_string()),
@@ -287,15 +283,13 @@ impl MutationRoot {
         }
 
         let neuron_id = Uuid::parse_str(&input.id.0)?;
-        let mut neuron_manager = context.neuron_manager.write().await;
+        let mut neuron_registry = context.neuron_registry.write().await;
 
-        let neuron = neuron_manager
-            .update_neuron(neuron_id, input.name, input.config, input.enabled)
-            .await?;
+        // TODO: Implement update_neuron for NeuronRegistry
+        return Err("Updating neurons not yet implemented".into());
 
-        let metrics = neuron_manager
-            .get_neuron_metrics(&neuron.id)
-            .unwrap_or_default();
+        // TODO: Get metrics from neuron
+        let metrics = NeuronMetricsData::default();
 
         Ok(NeuronInfo {
             id: ID(neuron.id.to_string()),
@@ -330,13 +324,8 @@ impl MutationRoot {
             return Err("Insufficient permissions".into());
         }
 
-        // Trigger learning cycle
-        context
-            .neuron_manager
-            .write()
-            .await
-            .trigger_learning(layer)
-            .await?;
+        // TODO: Implement trigger_learning for NeuronRegistry
+        return Err("Triggering learning not yet implemented".into());
 
         Ok(true)
     }

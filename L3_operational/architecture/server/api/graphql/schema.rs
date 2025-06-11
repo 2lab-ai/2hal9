@@ -259,7 +259,7 @@ impl QueryRoot {
     /// Send a signal to the HAL9 system
     async fn send_signal(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         input: SignalInput,
     ) -> FieldResult<SignalResponse> {
         // Implementation would send signal through the system
@@ -269,7 +269,7 @@ impl QueryRoot {
     /// Get signal by ID
     async fn signal(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         id: ID,
     ) -> FieldResult<Option<SignalResponse>> {
         todo!("Implement signal resolver")
@@ -278,7 +278,7 @@ impl QueryRoot {
     /// List signals with pagination and filtering
     async fn signals(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         pagination: Option<PaginationInput>,
         filter: Option<Vec<FilterInput>>,
         sort: Option<Vec<SortInput>>,
@@ -289,7 +289,7 @@ impl QueryRoot {
     /// Get neuron by ID
     async fn neuron(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         id: ID,
     ) -> FieldResult<Option<NeuronInfo>> {
         todo!("Implement neuron resolver")
@@ -298,7 +298,7 @@ impl QueryRoot {
     /// List all neurons with pagination
     async fn neurons(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         layer: Option<String>,
         state: Option<String>,
         pagination: Option<PaginationInput>,
@@ -319,7 +319,7 @@ impl QueryRoot {
     /// Search memory entries
     async fn search_memory(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         query: String,
         limit: Option<i32>,
     ) -> FieldResult<Vec<MemoryEntry>> {
@@ -329,7 +329,7 @@ impl QueryRoot {
     /// Get discovered learning patterns
     async fn learning_patterns(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         layer: Option<String>,
         min_confidence: Option<f64>,
     ) -> FieldResult<Vec<LearningPattern>> {
@@ -339,7 +339,7 @@ impl QueryRoot {
     /// Get organization by ID
     async fn organization(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         id: ID,
     ) -> FieldResult<Option<Organization>> {
         todo!("Implement organization resolver")
@@ -348,7 +348,7 @@ impl QueryRoot {
     /// Get team by ID
     async fn team(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         id: ID,
     ) -> FieldResult<Option<Team>> {
         todo!("Implement team resolver")
@@ -364,7 +364,7 @@ impl MutationRoot {
     /// Create a new neuron
     async fn create_neuron(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         input: CreateNeuronInput,
     ) -> FieldResult<NeuronInfo> {
         todo!("Implement create_neuron mutation")
@@ -373,7 +373,7 @@ impl MutationRoot {
     /// Update neuron configuration
     async fn update_neuron(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         input: UpdateNeuronInput,
     ) -> FieldResult<NeuronInfo> {
         todo!("Implement update_neuron mutation")
@@ -382,7 +382,7 @@ impl MutationRoot {
     /// Delete a neuron
     async fn delete_neuron(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         id: ID,
     ) -> FieldResult<bool> {
         todo!("Implement delete_neuron mutation")
@@ -391,7 +391,7 @@ impl MutationRoot {
     /// Trigger learning cycle
     async fn trigger_learning(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         layer: Option<String>,
     ) -> FieldResult<bool> {
         todo!("Implement trigger_learning mutation")
@@ -400,7 +400,7 @@ impl MutationRoot {
     /// Clear memory cache
     async fn clear_memory(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         pattern: Option<String>,
     ) -> FieldResult<i32> {
         todo!("Implement clear_memory mutation")
@@ -409,7 +409,7 @@ impl MutationRoot {
     /// Create organization
     async fn create_organization(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         input: CreateOrganizationInput,
     ) -> FieldResult<Organization> {
         todo!("Implement create_organization mutation")
@@ -418,7 +418,7 @@ impl MutationRoot {
     /// Create team
     async fn create_team(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         input: CreateTeamInput,
     ) -> FieldResult<Team> {
         todo!("Implement create_team mutation")
@@ -427,7 +427,7 @@ impl MutationRoot {
     /// Assign role to user
     async fn assign_role(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         input: AssignRoleInput,
     ) -> FieldResult<bool> {
         todo!("Implement assign_role mutation")

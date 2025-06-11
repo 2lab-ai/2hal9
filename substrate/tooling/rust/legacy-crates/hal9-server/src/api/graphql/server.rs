@@ -18,10 +18,10 @@ use tower_http::cors::{Any, CorsLayer};
 use crate::{
     auth::{AuthService, User},
     enterprise::{OrganizationService, TeamService},
-    error::HAL9Error,
+    error::ServerError,
     memory_manager::MemoryManager,
     metrics::Metrics,
-    neuron::NeuronManager,
+    neuron::NeuronRegistry,
     router::Router as SignalRouter,
 };
 
@@ -83,7 +83,7 @@ pub fn create_graphql_schema(
     auth_service: Arc<AuthService>,
     org_service: Arc<OrganizationService>,
     team_service: Arc<TeamService>,
-    neuron_manager: Arc<RwLock<NeuronManager>>,
+    neuron_registry: Arc<RwLock<NeuronRegistry>>,
     router: Arc<SignalRouter>,
     memory_manager: Arc<MemoryManager>,
     metrics: Arc<Metrics>,
@@ -94,7 +94,7 @@ pub fn create_graphql_schema(
         auth_service,
         org_service,
         team_service,
-        neuron_manager,
+        neuron_registry,
         router,
         memory_manager,
         metrics,
