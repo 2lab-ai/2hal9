@@ -54,7 +54,7 @@ pub enum DatabaseType {
 
 impl DatabaseType {
     /// Parse from string
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "sqlite" => Some(Self::Sqlite),
             "postgres" | "postgresql" => Some(Self::Postgres),
@@ -350,16 +350,16 @@ mod tests {
 
     #[test]
     fn test_database_type_parsing() {
-        assert_eq!(DatabaseType::from_str("sqlite"), Some(DatabaseType::Sqlite));
+        assert_eq!(DatabaseType::parse("sqlite"), Some(DatabaseType::Sqlite));
         assert_eq!(
-            DatabaseType::from_str("postgres"),
+            DatabaseType::parse("postgres"),
             Some(DatabaseType::Postgres)
         );
         assert_eq!(
-            DatabaseType::from_str("postgresql"),
+            DatabaseType::parse("postgresql"),
             Some(DatabaseType::Postgres)
         );
-        assert_eq!(DatabaseType::from_str("mysql"), None);
+        assert_eq!(DatabaseType::parse("mysql"), None);
     }
 
     #[tokio::test]
