@@ -16,8 +16,8 @@ pub enum Layer {
 }
 
 impl Layer {
-    /// Parse layer from string
-    pub fn from_str(s: &str) -> Option<Self> {
+    /// Parse layer from string (renamed to avoid confusion with FromStr trait)
+    pub fn parse(s: &str) -> Option<Self> {
         match s {
             "L4" => Some(Layer::L4),
             "L3" => Some(Layer::L3),
