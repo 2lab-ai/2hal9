@@ -69,7 +69,7 @@ metadata:
     app: hal9
     component: server
 spec:
-  replicas: 3
+  replicas: 5    # Increased to match HPA minReplicas
   selector:
     matchLabels:
       app: hal9
@@ -112,11 +112,11 @@ spec:
           mountPath: /app/logs
         resources:
           requests:
-            memory: "1Gi"
-            cpu: "500m"
+            memory: "2Gi"    # Increased from 1Gi based on production metrics
+            cpu: "1"          # Increased from 500m for better performance
           limits:
-            memory: "2Gi"
-            cpu: "1000m"
+            memory: "4Gi"    # Increased from 2Gi to prevent OOM
+            cpu: "2"          # Increased from 1000m to prevent throttling
         livenessProbe:
           httpGet:
             path: /health
@@ -178,21 +178,34 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: hal9-server
-  minReplicas: 3
-  maxReplicas: 10
+  minReplicas: 5        # Increased from 3 for better base availability
+  maxReplicas: 30       # Increased from 10 to match 1000-user config
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: 70
+        averageUtilization: 60    # Reduced from 70 for earlier scaling
   - type: Resource
     resource:
       name: memory
       target:
         type: Utilization
-        averageUtilization: 80
+        averageUtilization: 70    # Reduced from 80 for earlier scaling
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60    # Scale up quickly
+      policies:
+      - type: Pods
+        value: 5                        # Add up to 5 pods at once
+        periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300   # Scale down slowly
+      policies:
+      - type: Pods
+        value: 2                        # Remove max 2 pods at once
+        periodSeconds: 120
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
