@@ -7,10 +7,10 @@ use std::collections::HashMap;
 /// Version migration for protocol messages
 pub trait VersionMigration: Send + Sync {
     /// Source version
-    fn from_version(&self) -> &ProtocolVersion;
+    fn source_version(&self) -> &ProtocolVersion;
 
     /// Target version
-    fn to_version(&self) -> &ProtocolVersion;
+    fn target_version(&self) -> &ProtocolVersion;
 
     /// Migrate message from source to target version
     fn migrate(&self, message: &[u8]) -> Result<Vec<u8>>;
@@ -35,8 +35,8 @@ impl VersionRegistry {
     /// Register a migration between versions
     pub fn register_migration(&mut self, migration: Box<dyn VersionMigration>) {
         let key = (
-            migration.from_version().clone(),
-            migration.to_version().clone(),
+            migration.source_version().clone(),
+            migration.target_version().clone(),
         );
         self.migrations.insert(key, migration);
     }
@@ -113,11 +113,11 @@ impl Default for V1_0ToV1_1Migration {
 }
 
 impl VersionMigration for V1_0ToV1_1Migration {
-    fn from_version(&self) -> &ProtocolVersion {
+    fn source_version(&self) -> &ProtocolVersion {
         &self.from
     }
 
-    fn to_version(&self) -> &ProtocolVersion {
+    fn target_version(&self) -> &ProtocolVersion {
         &self.to
     }
 

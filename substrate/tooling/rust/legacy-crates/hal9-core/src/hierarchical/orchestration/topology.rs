@@ -147,8 +147,8 @@ impl GraphTopology {
         let mut distances = vec![vec![usize::MAX; n]; n];
 
         // Initialize distances
-        for i in 0..n {
-            distances[i][i] = 0;
+        for (i, distance_row) in distances.iter_mut().enumerate().take(n) {
+            distance_row[i] = 0;
         }
 
         for edge in self.graph.edge_indices() {
@@ -170,10 +170,10 @@ impl GraphTopology {
 
         // Find maximum distance
         let mut diameter = 0;
-        for i in 0..n {
-            for j in 0..n {
-                if distances[i][j] != usize::MAX {
-                    diameter = diameter.max(distances[i][j]);
+        for distance_row in distances.iter().take(n) {
+            for &distance in distance_row.iter().take(n) {
+                if distance != usize::MAX {
+                    diameter = diameter.max(distance);
                 }
             }
         }

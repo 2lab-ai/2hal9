@@ -228,12 +228,14 @@ impl GradientProtocol {
 
     /// Accumulate gradient for batch processing
     pub async fn accumulate_gradient(&self, neuron_id: Uuid, gradient: Gradient) -> Result<()> {
-        let mut accumulator = self.accumulator.lock();
+        let (flushed_gradient, batch_size) = {
+            let mut accumulator = self.accumulator.lock();
+            let batch_size = accumulator.batch_size;
+            (accumulator.add(neuron_id, gradient), batch_size)
+        };
 
-        if let Some(flushed) = accumulator.add(neuron_id, gradient) {
+        if let Some(flushed) = flushed_gradient {
             // Auto-flushed, send it
-            drop(accumulator); // Release lock before async operation
-
             let message = GradientMessage {
                 id: Uuid::new_v4(),
                 source_neuron: Uuid::nil(), // Accumulated gradient has no single source
@@ -243,7 +245,7 @@ impl GradientProtocol {
                 learning_context: LearningContext {
                     learning_rate: 0.01,
                     momentum: 0.9,
-                    batch_size: self.accumulator.lock().batch_size as u32,
+                    batch_size: batch_size as u32,
                     epoch: 0,
                     loss_type: LossType::MeanSquaredError,
                 },

@@ -323,8 +323,8 @@ impl ConsensusProtocol {
             } => {
                 // Only create proposal if it doesn't already exist
                 let mut proposals = self.proposals.write().await;
-                if !proposals.contains_key(&proposal_id) {
-                    let proposal = ProposalState {
+                proposals.entry(proposal_id).or_insert_with(|| {
+                    ProposalState {
                         proposal_id,
                         proposer,
                         value,
@@ -332,10 +332,8 @@ impl ConsensusProtocol {
                         created_at: timestamp,
                         expires_at: timestamp + chrono::Duration::from_std(ttl).unwrap(),
                         status: ProposalStatus::Pending,
-                    };
-
-                    proposals.insert(proposal_id, proposal);
-                }
+                    }
+                });
             }
 
             ConsensusMessage::Vote {

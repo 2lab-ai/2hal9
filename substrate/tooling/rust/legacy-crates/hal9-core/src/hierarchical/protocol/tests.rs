@@ -1,7 +1,7 @@
 //! Comprehensive tests for the Protocol Layer
 
 #[cfg(test)]
-mod tests {
+mod protocol_tests {
     use super::super::*;
     use crate::hierarchical::substrate::transport::{ChannelTransport, MessageTransport};
     use std::sync::Arc;
@@ -237,8 +237,8 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(50)).await;
 
         // 3 nodes vote Accept (including proposer)
-        for i in 0..3 {
-            protocols[i]
+        for protocol in protocols.iter().take(3) {
+            protocol
                 .vote(proposal_id, consensus::Vote::Accept)
                 .await
                 .unwrap();
@@ -262,8 +262,8 @@ mod tests {
         // Check that only the proposer created a proposal
         assert_eq!(protocols[0].metrics().proposals_created, 1);
         // Other nodes shouldn't have created proposals
-        for i in 1..5 {
-            assert_eq!(protocols[i].metrics().proposals_created, 0);
+        for protocol in protocols.iter().skip(1).take(4) {
+            assert_eq!(protocol.metrics().proposals_created, 0);
         }
     }
 
