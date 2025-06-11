@@ -95,15 +95,16 @@ impl RollbackManager {
         self.rollback_history.write().push(event.clone());
 
         // Execute based on strategy
-        match &*self.strategy.read() {
+        let strategy = self.strategy.read().clone();
+        match strategy {
             RollbackStrategy::Immediate => {
                 self.execute_immediate_rollback(&snapshot).await?;
             }
             RollbackStrategy::Gradual { duration } => {
-                self.execute_gradual_rollback(&snapshot, *duration).await?;
+                self.execute_gradual_rollback(&snapshot, duration).await?;
             }
             RollbackStrategy::Partial { components } => {
-                self.execute_partial_rollback(&snapshot, components).await?;
+                self.execute_partial_rollback(&snapshot, &components).await?;
             }
         }
 

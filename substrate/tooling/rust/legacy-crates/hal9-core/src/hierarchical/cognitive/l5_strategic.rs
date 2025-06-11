@@ -100,7 +100,7 @@ impl L5StrategicNeuron {
     }
 
     /// Generate strategic directives for lower layers
-    #[allow(dead_code)]
+    #[allow(dead_code, clippy::only_used_in_recursion)]
     fn generate_directives(&self, goals: &[Goal]) -> Vec<CognitiveOutput> {
         goals
             .iter()
@@ -554,6 +554,7 @@ impl GoalHierarchy {
         all_goals
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     fn collect_goals(&self, goal: &Goal, collection: &mut Vec<Goal>) {
         collection.push(goal.clone());
         for sub_goal in &goal.sub_goals {
