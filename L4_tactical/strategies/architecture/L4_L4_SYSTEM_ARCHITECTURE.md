@@ -94,11 +94,46 @@ pub struct LocalRouter {
 
 - ❌ Real Claude API calls
 - ❌ Process spawning
-- ❌ TCP networking
-- ❌ Multi-server support
+- ❌ TCP networking (Phase 1)
+- ❌ Multi-server support (Phase 1)
 - ❌ Backward propagation
 - ❌ Complex routing tables
-- ❌ Dynamic topology
+
+### Future Enhancement: A2A Integration
+
+#### Phase 2: A2A Protocol Support
+- **A2A Agent Architecture**: Each layer becomes an independent A2A agent
+- **Auto-Discovery**: Neurons discover peers via mDNS/gossip protocol
+- **Self-Organization**: Bottom-up topology formation based on performance
+- **Direct Neural Connections**: Bypass router for neuron-to-neuron communication
+
+```rust
+// Future A2A implementation
+pub struct A2ANeuron {
+    base: ManagedNeuron,
+    a2a_client: A2AClient,
+    discovery: DiscoveryService,
+    direct_connections: HashMap<NeuronId, DirectChannel>,
+}
+```
+
+#### A2A Implementation Phases
+1. **Phase 2a: Basic A2A Protocol**
+   - Implement A2A client/server per neuron
+   - Enable neuron-to-neuron messaging
+   - Maintain backward compatibility
+
+2. **Phase 2b: Auto-Discovery**
+   - mDNS for local network discovery
+   - Gossip protocol for wide-area discovery
+   - Dynamic peer registration
+
+3. **Phase 2c: Self-Organization**
+   - Performance-based connection weighting
+   - Automatic topology optimization
+   - Emergent layer formation
+
+- ❌ Dynamic topology (until Phase 2c)
 - ❌ Persistent storage
 - ❌ Advanced monitoring
 
