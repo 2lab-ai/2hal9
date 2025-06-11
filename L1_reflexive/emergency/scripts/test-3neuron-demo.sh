@@ -39,6 +39,32 @@ send_signal() {
     sleep 2
 }
 
+# Function to check disk space before starting
+check_disk_space() {
+    local disk_usage=$(df -h . | awk 'NR==2 {print $5}' | sed 's/%//')
+    if [ $disk_usage -gt 90 ]; then
+        log_error "Disk space critical: ${disk_usage}% used!"
+        log_info "Running emergency cleanup..."
+        
+        # Clean old logs
+        find "$HAL9_LOG_DIR" -name "*.log" -mtime +3 -delete 2>/dev/null || true
+        
+        # Clean old crash dumps
+        find "$HAL9_LOG_DIR" -name "*.crash" -o -name "core.*" -delete 2>/dev/null || true
+        
+        # Show space after cleanup
+        local new_usage=$(df -h . | awk 'NR==2 {print $5}' | sed 's/%//')
+        log_info "Disk usage after cleanup: ${new_usage}%"
+        
+        if [ $new_usage -gt 95 ]; then
+            log_error "Still not enough disk space. Cannot proceed."
+            log_info "Consider: cargo clean in $HAL9_HOME/target"
+            return 1
+        fi
+    fi
+    return 0
+}
+
 # Function to start server if not running
 ensure_server_running() {
     if curl -s "http://localhost:$HAL9_PORT_MAIN/health" > /dev/null 2>&1; then
@@ -106,6 +132,11 @@ ensure_server_running() {
 # Main test execution
 main() {
     local STARTED_SERVER=false
+    
+    # Check disk space first
+    if ! check_disk_space; then
+        exit 1
+    fi
     
     # Ensure server is running
     ensure_server_running
