@@ -13,7 +13,7 @@ mod tests {
         #[tokio::test]
         async fn test_schema_creation() {
             // Test that schema can be created
-            let schema = Schema::build(QueryRoot, MutationRoot, SubscriptionRoot).finish();
+            let _schema = Schema::build(QueryRoot, MutationRoot, SubscriptionRoot).finish();
 
             // Schema should be valid
             assert!(true);
@@ -21,7 +21,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_introspection_query() {
-            let schema = Schema::build(QueryRoot, MutationRoot, SubscriptionRoot).finish();
+            let _schema = Schema::build(QueryRoot, MutationRoot, SubscriptionRoot).finish();
 
             let query = r#"
                 {
@@ -192,7 +192,6 @@ mod tests {
 
     mod resolver_tests {
         use super::*;
-        use uuid::Uuid;
 
         #[test]
         fn test_input_validation() {
