@@ -963,7 +963,7 @@ mod tests {
             }
 
             fn layer(&self) -> crate::neuron::Layer {
-                crate::neuron::Layer::from_str(&self.layer).unwrap_or(crate::neuron::Layer::L4)
+                crate::neuron::Layer::parse(&self.layer).unwrap_or(crate::neuron::Layer::L4)
             }
 
             async fn process_signal(&self, signal: &crate::NeuronSignal) -> Result<String> {
