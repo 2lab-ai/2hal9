@@ -40,6 +40,7 @@ impl Default for PoolConfig {
 /// Pooled connection wrapper
 pub struct PooledConnection {
     stream: TcpStream,
+    #[allow(dead_code)]
     created_at: Instant,
     last_used: RwLock<Instant>,
     server_id: String,
