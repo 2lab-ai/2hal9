@@ -95,8 +95,25 @@ impl L1ReflexiveNeuron {
     }
     
     fn generate_cache_key(&self, input: &str) -> String {
-        // Simple key generation - could be enhanced with hashing
-        input.chars().take(100).collect()
+        // Use fast hash for cache key generation
+        // xxHash is extremely fast and good for this use case
+        use std::hash::{Hash, Hasher};
+        use std::collections::hash_map::DefaultHasher;
+        
+        let mut hasher = DefaultHasher::new();
+        input.hash(&mut hasher);
+        
+        // Include length to avoid collisions on similar strings
+        let hash = hasher.finish();
+        let len = input.len().min(u16::MAX as usize) as u16;
+        
+        // Format: hash_length_prefix for debugging
+        // The prefix helps with cache analysis
+        format!("{:016x}_{:04x}_{}", 
+            hash, 
+            len,
+            input.chars().take(8).collect::<String>()
+        )
     }
 }
 
