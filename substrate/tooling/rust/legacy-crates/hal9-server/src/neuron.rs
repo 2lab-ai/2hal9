@@ -54,7 +54,7 @@ struct NeuronStats {
 impl ManagedNeuron {
     /// Create a new managed neuron
     pub fn new(config: NeuronConfig, claude: Box<dyn ClaudeInterface>) -> Result<Self> {
-        let layer = Layer::from_str(&config.layer)
+        let layer = Layer::parse(&config.layer)
             .ok_or_else(|| Error::Config(format!("Invalid layer: {}", config.layer)))?;
 
         let circuit_breaker = CircuitBreaker::new(
@@ -713,6 +713,7 @@ impl NeuronInterface for ManagedNeuron {
 pub struct NeuronRegistry {
     neurons: Arc<DashMap<String, Arc<ManagedNeuron>>>,
     metrics: Option<Arc<crate::metrics::Metrics>>,
+    #[allow(dead_code)]
     parallel_executor: crate::performance::ParallelExecutor,
 }
 

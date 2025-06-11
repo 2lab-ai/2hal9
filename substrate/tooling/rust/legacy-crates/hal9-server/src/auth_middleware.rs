@@ -30,13 +30,7 @@ fn extract_bearer_token(req: &Request) -> Option<String> {
     req.headers()
         .get(header::AUTHORIZATION)
         .and_then(|header| header.to_str().ok())
-        .and_then(|auth| {
-            if auth.starts_with("Bearer ") {
-                Some(auth[7..].to_string())
-            } else {
-                None
-            }
-        })
+        .and_then(|auth| auth.strip_prefix("Bearer ").map(|s| s.to_string()))
 }
 
 /// Extract API key from X-API-Key header

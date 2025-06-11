@@ -429,12 +429,11 @@ pub async fn codegen_health(State(_state): State<Arc<CodegenApiState>>) -> impl 
         "codegen-test-designer",
     ];
 
-    let mut healthy_count = 0;
     let total_count = neurons.len();
 
     // In production, check actual neuron health
     // For now, assume all healthy
-    healthy_count = total_count;
+    let healthy_count = total_count;
 
     Json(serde_json::json!({
         "status": if healthy_count == total_count { "healthy" } else { "degraded" },
