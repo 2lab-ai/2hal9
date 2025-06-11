@@ -1,12 +1,13 @@
 //! Optimized connection pooling for 1000+ users
 
-use anyhow::Result;
-use sqlx::{PgPool, Pool, Postgres, postgres::PgPoolOptions};
+use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use std::time::Duration;
 use metrics::{counter, gauge, histogram};
+use crate::database::{DatabasePool, DatabaseConfig, DatabaseType, PoolMetrics};
+use crate::connection_pool::{ResilientConnectionPool, PoolHealthMetrics};
 
 /// Connection pool configuration
 #[derive(Debug, Clone)]
@@ -69,16 +70,19 @@ pub struct PoolStats {
 /// Optimized connection pool manager
 pub struct OptimizedConnectionPool {
     /// Primary pool for writes
-    primary_pool: PgPool,
+    primary_pool: Arc<ResilientConnectionPool>,
     
     /// Read replica pools by region
-    read_pools: HashMap<String, PgPool>,
+    read_pools: HashMap<String, Arc<ResilientConnectionPool>>,
     
     /// Pool statistics
     stats: Arc<RwLock<HashMap<String, PoolStats>>>,
     
     /// Configuration
     config: PoolConfig,
+    
+    /// Database type (must be PostgreSQL for scaling features)
+    db_type: DatabaseType,
 }
 
 impl OptimizedConnectionPool {
@@ -88,13 +92,40 @@ impl OptimizedConnectionPool {
         replica_urls: HashMap<String, String>,
         config: PoolConfig,
     ) -> Result<Self> {
+        // Parse database type from URL
+        let db_type = if primary_url.starts_with("postgres://") || primary_url.starts_with("postgresql://") {
+            DatabaseType::Postgres
+        } else {
+            return Err(anyhow!("Scaling features require PostgreSQL database"));
+        };
+        
         // Create primary pool
-        let primary_pool = Self::create_pool("primary", primary_url, &config).await?;
+        let primary_config = DatabaseConfig {
+            database_type: db_type,
+            url: primary_url.to_string(),
+            max_connections: config.max_connections,
+            min_connections: config.min_connections,
+            connection_timeout: config.connect_timeout,
+            idle_timeout: config.idle_timeout,
+            max_lifetime: config.max_lifetime,
+        };
+        
+        let primary_pool = Arc::new(ResilientConnectionPool::new(primary_config, None).await?);
         
         // Create read replica pools
         let mut read_pools = HashMap::new();
         for (region, url) in replica_urls {
-            let pool = Self::create_pool(&region, &url, &config).await?;
+            let replica_config = DatabaseConfig {
+                database_type: db_type,
+                url,
+                max_connections: config.max_connections,
+                min_connections: config.min_connections,
+                connection_timeout: config.connect_timeout,
+                idle_timeout: config.idle_timeout,
+                max_lifetime: config.max_lifetime,
+            };
+            
+            let pool = Arc::new(ResilientConnectionPool::new(replica_config, None).await?);
             read_pools.insert(region, pool);
         }
         
@@ -105,75 +136,37 @@ impl OptimizedConnectionPool {
             read_pools,
             stats,
             config,
+            db_type,
         })
     }
     
-    /// Create a single pool with configuration
-    async fn create_pool(name: &str, url: &str, config: &PoolConfig) -> Result<PgPool> {
-        let pool = PgPoolOptions::new()
-            .max_connections(config.max_connections)
-            .min_connections(config.min_connections)
-            .connect_timeout(config.connect_timeout)
-            .idle_timeout(config.idle_timeout)
-            .max_lifetime(config.max_lifetime)
-            .test_before_acquire(config.test_before_acquire)
-            .before_acquire(move |conn, _meta| {
-                Box::pin(async move {
-                    // Custom connection preparation
-                    sqlx::query("SET application_name = 'hal9_server'")
-                        .execute(conn)
-                        .await?;
-                    
-                    // Set statement timeout
-                    sqlx::query("SET statement_timeout = '30s'")
-                        .execute(conn)
-                        .await?;
-                    
-                    Ok(true)
-                })
-            })
-            .after_connect(move |conn, _meta| {
-                Box::pin(async move {
-                    // Prepare commonly used statements
-                    sqlx::query("PREPARE get_user AS SELECT * FROM users WHERE id = $1")
-                        .execute(conn)
-                        .await?;
-                    
-                    sqlx::query("PREPARE get_org AS SELECT * FROM organizations WHERE id = $1")
-                        .execute(conn)
-                        .await?;
-                    
-                    counter!("hal9.db.connections.created", 1, "pool" => name.to_string());
-                    Ok(())
-                })
-            })
-            .connect(url)
-            .await?;
-        
-        tracing::info!("Created connection pool '{}' with {} connections", name, config.max_connections);
-        
-        Ok(pool)
+    /// Get the underlying database pool with PostgreSQL-specific features
+    async fn get_pg_pool(&self, pool: &ResilientConnectionPool) -> Result<sqlx::PgPool> {
+        let db_pool = pool.get_pool().await?;
+        db_pool.as_pg_pool()
+            .cloned()
+            .ok_or_else(|| anyhow!("Scaling features require PostgreSQL database"))
     }
     
     /// Get primary pool for writes
-    pub fn primary(&self) -> &PgPool {
-        &self.primary_pool
+    pub fn primary(&self) -> Arc<ResilientConnectionPool> {
+        self.primary_pool.clone()
     }
     
     /// Get read pool for region
-    pub fn read_pool(&self, region: Option<&str>) -> &PgPool {
+    pub fn read_pool(&self, region: Option<&str>) -> Arc<ResilientConnectionPool> {
         if let Some(region) = region {
             if let Some(pool) = self.read_pools.get(region) {
-                return pool;
+                return pool.clone();
             }
         }
         
         // Fallback to primary if no replica available
-        &self.primary_pool
+        self.primary_pool.clone()
     }
     
     /// Get the best read pool based on current load
-    pub async fn best_read_pool(&self) -> &PgPool {
+    pub async fn best_read_pool(&self) -> Arc<ResilientConnectionPool> {
         let stats = self.stats.read().await;
         
         let mut best_pool = None;
@@ -195,19 +188,20 @@ impl OptimizedConnectionPool {
             }
         }
         
-        best_pool.unwrap_or(&self.primary_pool)
+        best_pool.map(|p| p.clone()).unwrap_or_else(|| self.primary_pool.clone())
     }
     
     /// Execute with automatic retry
     pub async fn execute_with_retry<T, F>(&self, f: F) -> Result<T>
     where
-        F: Fn(&PgPool) -> futures::future::BoxFuture<'_, Result<T>>,
+        F: Fn(Arc<ResilientConnectionPool>) -> futures::future::BoxFuture<'static, Result<T>>,
     {
         let mut attempts = 0;
         let mut backoff = Duration::from_millis(100);
         
         loop {
-            match f(&self.primary_pool).await {
+            let pool = self.primary_pool.clone();
+            match f(pool).await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
                     attempts += 1;
@@ -237,36 +231,42 @@ impl OptimizedConnectionPool {
         let mut stats = self.stats.write().await;
         
         // Update primary pool stats
-        let primary_stats = PoolStats {
-            total_connections: self.primary_pool.size(),
-            idle_connections: self.primary_pool.num_idle(),
-            active_connections: self.primary_pool.size() - self.primary_pool.num_idle(),
-            wait_count: 0, // Would need custom tracking
-            wait_duration_ms: 0,
-            timeout_count: 0,
-        };
-        stats.insert("primary".to_string(), primary_stats.clone());
-        
-        // Metrics
-        gauge!("hal9.db.connections.total", primary_stats.total_connections as f64, "pool" => "primary");
-        gauge!("hal9.db.connections.idle", primary_stats.idle_connections as f64, "pool" => "primary");
-        gauge!("hal9.db.connections.active", primary_stats.active_connections as f64, "pool" => "primary");
-        
-        // Update replica pool stats
-        for (region, pool) in &self.read_pools {
-            let pool_stats = PoolStats {
-                total_connections: pool.size(),
-                idle_connections: pool.num_idle(),
-                active_connections: pool.size() - pool.num_idle(),
-                wait_count: 0,
+        if let Ok(db_pool) = self.primary_pool.get_pool().await {
+            let metrics = db_pool.metrics();
+            let primary_stats = PoolStats {
+                total_connections: metrics.max_size,
+                idle_connections: metrics.idle,
+                active_connections: metrics.size - metrics.idle,
+                wait_count: 0, // Would need custom tracking
                 wait_duration_ms: 0,
                 timeout_count: 0,
             };
-            stats.insert(region.clone(), pool_stats.clone());
+            stats.insert("primary".to_string(), primary_stats.clone());
             
-            gauge!("hal9.db.connections.total", pool_stats.total_connections as f64, "pool" => region.clone());
-            gauge!("hal9.db.connections.idle", pool_stats.idle_connections as f64, "pool" => region.clone());
-            gauge!("hal9.db.connections.active", pool_stats.active_connections as f64, "pool" => region.clone());
+            // Metrics
+            gauge!("hal9.db.connections.total", primary_stats.total_connections as f64, "pool" => "primary");
+            gauge!("hal9.db.connections.idle", primary_stats.idle_connections as f64, "pool" => "primary");
+            gauge!("hal9.db.connections.active", primary_stats.active_connections as f64, "pool" => "primary");
+        }
+        
+        // Update replica pool stats
+        for (region, pool) in &self.read_pools {
+            if let Ok(db_pool) = pool.get_pool().await {
+                let metrics = db_pool.metrics();
+                let pool_stats = PoolStats {
+                    total_connections: metrics.max_size,
+                    idle_connections: metrics.idle,
+                    active_connections: metrics.size - metrics.idle,
+                    wait_count: 0,
+                    wait_duration_ms: 0,
+                    timeout_count: 0,
+                };
+                stats.insert(region.clone(), pool_stats.clone());
+                
+                gauge!("hal9.db.connections.total", pool_stats.total_connections as f64, "pool" => region.clone());
+                gauge!("hal9.db.connections.idle", pool_stats.idle_connections as f64, "pool" => region.clone());
+                gauge!("hal9.db.connections.active", pool_stats.active_connections as f64, "pool" => region.clone());
+            }
         }
     }
     
@@ -283,43 +283,25 @@ impl OptimizedConnectionPool {
         };
         
         // Check primary
-        match sqlx::query("SELECT 1").fetch_one(&self.primary_pool).await {
-            Ok(_) => {
-                report.pools.insert("primary".to_string(), PoolHealth {
-                    healthy: true,
-                    latency_ms: 0, // Would measure actual latency
-                    error: None,
-                });
-            }
-            Err(e) => {
-                report.healthy = false;
-                report.pools.insert("primary".to_string(), PoolHealth {
-                    healthy: false,
-                    latency_ms: 0,
-                    error: Some(e.to_string()),
-                });
-            }
+        let primary_healthy = self.primary_pool.is_healthy().await;
+        report.pools.insert("primary".to_string(), PoolHealth {
+            healthy: primary_healthy,
+            latency_ms: 0, // Would measure actual latency
+            error: if !primary_healthy { Some("Circuit breaker open".to_string()) } else { None },
+        });
+        
+        if !primary_healthy {
+            report.healthy = false;
         }
         
         // Check replicas
         for (region, pool) in &self.read_pools {
-            match sqlx::query("SELECT 1").fetch_one(pool).await {
-                Ok(_) => {
-                    report.pools.insert(region.clone(), PoolHealth {
-                        healthy: true,
-                        latency_ms: 0,
-                        error: None,
-                    });
-                }
-                Err(e) => {
-                    // Replica failure doesn't make system unhealthy
-                    report.pools.insert(region.clone(), PoolHealth {
-                        healthy: false,
-                        latency_ms: 0,
-                        error: Some(e.to_string()),
-                    });
-                }
-            }
+            let healthy = pool.is_healthy().await;
+            report.pools.insert(region.clone(), PoolHealth {
+                healthy,
+                latency_ms: 0,
+                error: if !healthy { Some("Circuit breaker open".to_string()) } else { None },
+            });
         }
         
         Ok(report)
@@ -329,14 +311,7 @@ impl OptimizedConnectionPool {
     pub async fn shutdown(&self) -> Result<()> {
         tracing::info!("Shutting down connection pools...");
         
-        // Close all pools
-        self.primary_pool.close().await;
-        
-        for (region, pool) in &self.read_pools {
-            tracing::info!("Closing pool for region {}", region);
-            pool.close().await;
-        }
-        
+        // Pools will be closed when dropped
         Ok(())
     }
 }

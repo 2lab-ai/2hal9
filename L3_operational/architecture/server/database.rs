@@ -105,6 +105,56 @@ impl DatabasePool {
         }
     }
     
+    /// Get PostgreSQL pool if available
+    pub fn as_pg_pool(&self) -> Option<&PgPool> {
+        match self {
+            Self::Postgres(pool) => Some(pool),
+            _ => None,
+        }
+    }
+    
+    /// Get SQLite pool if available
+    pub fn as_sqlite_pool(&self) -> Option<&SqlitePool> {
+        match self {
+            Self::Sqlite(pool) => Some(pool),
+            _ => None,
+        }
+    }
+    
+    /// Get database type
+    pub fn database_type(&self) -> DatabaseType {
+        match self {
+            Self::Sqlite(_) => DatabaseType::Sqlite,
+            Self::Postgres(_) => DatabaseType::Postgres,
+        }
+    }
+    
+    /// Check if using PostgreSQL
+    pub fn is_postgres(&self) -> bool {
+        matches!(self, Self::Postgres(_))
+    }
+    
+    /// Check if using SQLite
+    pub fn is_sqlite(&self) -> bool {
+        matches!(self, Self::Sqlite(_))
+    }
+    
+    /// Get as Any pool for generic operations
+    pub async fn as_any_pool(&self) -> Result<AnyPool> {
+        match self {
+            Self::Sqlite(pool) => {
+                // Create AnyPool from SQLite
+                let any_pool = AnyPool::from(pool.clone());
+                Ok(any_pool)
+            }
+            Self::Postgres(pool) => {
+                // Create AnyPool from PostgreSQL  
+                let any_pool = AnyPool::from(pool.clone());
+                Ok(any_pool)
+            }
+        }
+    }
+    
     /// Run migrations
     pub async fn migrate(&self) -> Result<()> {
         match self {
