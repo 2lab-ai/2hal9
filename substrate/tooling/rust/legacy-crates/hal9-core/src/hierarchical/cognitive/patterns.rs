@@ -139,10 +139,14 @@ pub struct ClusterCenter {
     pub purpose: String,
 }
 
+// Type aliases to reduce complexity
+type ClusterCondition = Box<dyn Fn(&CognitiveCluster) -> bool + Send + Sync>;
+type ClusterAction = Box<dyn Fn(&mut Vec<CognitiveCluster>) + Send + Sync>;
+
 pub struct OrganizationRule {
     pub name: String,
-    pub condition: Box<dyn Fn(&CognitiveCluster) -> bool + Send + Sync>,
-    pub action: Box<dyn Fn(&mut Vec<CognitiveCluster>) + Send + Sync>,
+    pub condition: ClusterCondition,
+    pub action: ClusterAction,
 }
 
 impl Default for SelfOrganization {
@@ -189,9 +193,12 @@ pub struct InspirationSource {
     pub activation_level: f32,
 }
 
+// Type alias for combination function
+type CombineFunction = Box<dyn Fn(&[InspirationSource]) -> Option<NovelIdea> + Send + Sync>;
+
 pub struct CombinationMethod {
     pub name: String,
-    pub combine: Box<dyn Fn(&[InspirationSource]) -> Option<NovelIdea> + Send + Sync>,
+    pub combine: CombineFunction,
 }
 
 #[derive(Debug, Clone)]

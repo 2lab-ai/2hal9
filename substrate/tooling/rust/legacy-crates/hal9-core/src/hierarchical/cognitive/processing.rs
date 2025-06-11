@@ -82,9 +82,13 @@ pub struct EmergentPattern {
     interaction_rules: Vec<InteractionRule>,
 }
 
+// Type aliases for interaction functions
+type InteractionCondition = Box<dyn Fn(&ProcessingState) -> bool + Send + Sync>;
+type InteractionAction = Box<dyn Fn(&mut ProcessingState) -> Result<()> + Send + Sync>;
+
 pub struct InteractionRule {
-    pub condition: Box<dyn Fn(&ProcessingState) -> bool + Send + Sync>,
-    pub action: Box<dyn Fn(&mut ProcessingState) -> Result<()> + Send + Sync>,
+    pub condition: InteractionCondition,
+    pub action: InteractionAction,
 }
 
 /// Processing state for pattern execution
