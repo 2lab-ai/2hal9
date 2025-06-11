@@ -278,15 +278,13 @@ mod optimization_tests {
     
     #[tokio::test]
     async fn test_topology_changes() {
-        let changes = vec![
-            TopologyChange::UnitRemoved { id: Uuid::new_v4() },
+        let changes = [TopologyChange::UnitRemoved { id: Uuid::new_v4() },
             TopologyChange::ConnectionWeightChanged {
                 from: Uuid::new_v4(),
                 to: Uuid::new_v4(),
                 old: 1.0,
                 new: 1.5,
-            },
-        ];
+            }];
         
         assert_eq!(changes.len(), 2);
         if let TopologyChange::ConnectionWeightChanged { old, new, .. } = &changes[1] {

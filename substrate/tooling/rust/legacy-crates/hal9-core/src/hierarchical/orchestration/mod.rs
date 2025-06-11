@@ -341,8 +341,8 @@ impl Orchestrator for DefaultOrchestrator {
 
         let units: HashMap<Uuid, UnitDescriptor> = state_snapshot
             .units
-            .into_iter()
-            .map(|(id, _unit_state)| {
+            .into_keys()
+            .map(|id| {
                 (
                     id,
                     UnitDescriptor {
