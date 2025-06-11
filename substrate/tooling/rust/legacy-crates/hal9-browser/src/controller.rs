@@ -399,7 +399,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_browser_controller_creation() {
-        let config = BrowserConfig::default();
+        let _config = BrowserConfig::default();
         // Note: This test requires playwright to be installed
         // let controller = BrowserController::new(config).await;
         // assert!(controller.is_ok());
