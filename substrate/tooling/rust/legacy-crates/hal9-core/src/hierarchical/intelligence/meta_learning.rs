@@ -125,7 +125,7 @@ enum LayerType {
 }
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
+#[allow(dead_code, clippy::upper_case_acronyms)]
 enum RecurrentCellType {
     LSTM,
     GRU,
@@ -142,7 +142,7 @@ enum ConnectionPattern {
 }
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
+#[allow(dead_code, clippy::upper_case_acronyms)]
 enum ActivationFunction {
     ReLU,
     Tanh,
@@ -202,7 +202,7 @@ struct GaussianProcess {
     observations: Vec<(Vec<f32>, f32)>,
 }
 
-#[allow(dead_code)]
+#[allow(dead_code, clippy::upper_case_acronyms)]
 enum Kernel {
     RBF { length_scale: f32 },
     Matern { nu: f32, length_scale: f32 },
