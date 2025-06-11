@@ -1,0 +1,1 @@
+scripts/setup/run-me-first.sh

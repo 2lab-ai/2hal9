@@ -43,3 +43,6 @@ Thumbs.db
 # Test artifacts
 *.profraw
 *.profdata
+
+# Backup files
+*.tar.gz
