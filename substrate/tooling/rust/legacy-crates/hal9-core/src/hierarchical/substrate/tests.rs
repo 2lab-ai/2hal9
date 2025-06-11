@@ -1,7 +1,7 @@
 //! Integration tests for substrate layer components
 
 #[cfg(test)]
-mod tests {
+mod substrate_tests {
     use super::super::*;
     use crate::hierarchical::substrate::{
         resources::{ComputeResource, LocalResources, ResourcePriority, ResourceRequest},

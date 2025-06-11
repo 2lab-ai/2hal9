@@ -347,15 +347,17 @@ pub struct CacheStats {
     pub evictions: u64,
 }
 
+#[derive(Default)]
 pub struct PatternMatcher {
     #[allow(dead_code)]
     patterns: Vec<Pattern>,
 }
 
+
 impl PatternMatcher {
     #[cfg(test)]
     pub fn new() -> Self {
-        Self { patterns: Vec::new() }
+        Self::default()
     }
     
     #[cfg(test)]

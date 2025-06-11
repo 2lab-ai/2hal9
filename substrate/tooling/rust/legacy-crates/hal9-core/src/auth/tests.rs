@@ -51,10 +51,20 @@ mod jwt_tests {
     #[tokio::test]
     async fn test_jwt_manager_initialization() {
         let secret = "test-secret-key-with-sufficient-length-for-hs256";
-        let _manager = JwtManager::with_durations(secret.to_string(), 60, 7);
+        let manager = JwtManager::with_durations(secret.to_string(), 60, 7);
         
-        // Test that manager is created successfully
-        assert!(true); // Manager creation test
+        // Test that manager is created successfully by generating tokens
+        let user = create_test_user();
+        let access_token = manager.generate_access_token(&user.id, &user.username, &user.role).unwrap();
+        let refresh_token = manager.generate_refresh_token(&user.id, &user.username, &user.role).unwrap();
+        
+        // Tokens should be generated successfully
+        assert!(!access_token.is_empty());
+        assert!(!refresh_token.is_empty());
+        
+        // Validate the tokens work
+        assert!(manager.validate_access_token(&access_token).is_ok());
+        assert!(manager.validate_refresh_token(&refresh_token).is_ok());
     }
     
     #[tokio::test]
