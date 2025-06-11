@@ -15,6 +15,7 @@ use crate::{
 /// Main browser controller managing all automation operations
 pub struct BrowserController {
     /// Playwright instance
+    #[allow(dead_code)]
     playwright: Playwright,
 
     /// Browser instance
@@ -30,6 +31,7 @@ pub struct BrowserController {
     metrics: Arc<BrowserMetrics>,
 
     /// Configuration
+    #[allow(dead_code)]
     config: BrowserConfig,
 }
 

@@ -24,6 +24,7 @@ pub struct SecuritySandbox {
     rate_limiter: Arc<RateLimiter<NotKeyed, InMemoryState, QuantaClock>>,
 
     /// Credential vault
+    #[allow(dead_code)]
     credential_vault: Arc<Mutex<CredentialVault>>,
 
     /// Audit logger

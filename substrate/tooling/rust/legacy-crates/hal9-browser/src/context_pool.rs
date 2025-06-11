@@ -175,6 +175,7 @@ impl ContextPool {
 /// Inner context wrapper
 struct PooledContextInner {
     context: BrowserContext,
+    #[allow(dead_code)]
     page: Page,
     created_at: Instant,
     last_used: Instant,

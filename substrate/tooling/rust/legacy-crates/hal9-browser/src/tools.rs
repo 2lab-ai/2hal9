@@ -11,6 +11,7 @@ use hal9_core::{Error, Result};
 
 /// Base trait for browser tools
 #[async_trait]
+#[allow(dead_code)]
 trait BrowserTool: Tool {
     /// Get browser controller
     async fn get_controller(&self) -> Arc<BrowserController>;
