@@ -160,15 +160,35 @@ health_check_local() {
     
     # Check if HAL9 processes are running
     log_info "Checking HAL9 processes..."
-    local hal9_procs=$(ps aux | grep -E "hal9-server|hal9_server" | grep -v grep | wc -l)
+    local hal9_procs=$(ps aux | grep -E "hal9-server|hal9_server|target/.*hal9" | grep -v grep | wc -l)
+    local hal9_pids=$(ps aux | grep -E "hal9-server|hal9_server|target/.*hal9" | grep -v grep | awk '{print $2}' | tr '\n' ' ')
+    
     if [ $hal9_procs -gt 0 ]; then
-        echo -e "$STATUS_OK Found $hal9_procs HAL9 process(es) running"
+        echo -e "$STATUS_OK Found $hal9_procs HAL9 process(es) running (PIDs: $hal9_pids)"
+        # Verify they're actually listening
+        local listening=false
+        for pid in $hal9_pids; do
+            if lsof -p $pid 2>/dev/null | grep -q "LISTEN.*:$HAL9_PORT_MAIN"; then
+                listening=true
+                break
+            fi
+        done
+        if ! $listening; then
+            echo -e "$STATUS_WARN HAL9 process found but not listening on port $HAL9_PORT_MAIN"
+        fi
     else
         echo -e "$STATUS_FAIL No HAL9 processes found"
         # Check what's using the port
         if lsof -i :$HAL9_PORT_MAIN 2>/dev/null | grep -q LISTEN; then
             log_warning "Port $HAL9_PORT_MAIN is in use by another process:"
-            lsof -i :$HAL9_PORT_MAIN | grep LISTEN | head -2
+            local port_info=$(lsof -i :$HAL9_PORT_MAIN | grep LISTEN)
+            echo "$port_info" | head -2
+            # Extract process type
+            local proc_cmd=$(echo "$port_info" | awk '{print $1}' | head -1)
+            if [[ "$proc_cmd" == "Python" ]] || [[ "$proc_cmd" == "python"* ]]; then
+                echo -e "$STATUS_FAIL Python process blocking HAL9 port!"
+                echo "  To fix: kill -9 $(echo "$port_info" | awk '{print $2}' | head -1)"
+            fi
         fi
     fi
     
