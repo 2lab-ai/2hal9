@@ -20,6 +20,7 @@ use hal9_core::{
     learning::{ErrorGradient, GradientCalculator, PromptAdjuster, 
                PatternMatcher},
 };
+use md5;
 
 use crate::{
     claude::ClaudeInterface,
@@ -68,14 +69,22 @@ impl ManagedNeuron {
             CircuitBreakerConfig::default()
         );
         
-        // Enable caching for L2 neurons (implementation layer)
-        let response_cache = if layer == Layer::L2 {
-            Some(ResponseCache::new(
-                std::time::Duration::from_secs(300), // 5 minute TTL
+        // Enable caching for all layers with different TTLs
+        // L2 gets longest TTL, L3/L4 get shorter TTLs
+        let response_cache = match layer {
+            Layer::L2 => Some(ResponseCache::new(
+                std::time::Duration::from_secs(600), // 10 minute TTL for implementation
+                2000 // max entries
+            )),
+            Layer::L3 => Some(ResponseCache::new(
+                std::time::Duration::from_secs(300), // 5 minute TTL for design
                 1000 // max entries
-            ))
-        } else {
-            None
+            )),
+            Layer::L4 => Some(ResponseCache::new(
+                std::time::Duration::from_secs(120), // 2 minute TTL for strategy
+                500 // max entries
+            )),
+            _ => None,
         };
         
         // Initialize tool registry based on layer
@@ -465,20 +474,27 @@ impl NeuronInterface for ManagedNeuron {
         let prompt = format!("{}\n\n{}", base_prompt, self.format_prompt(signal).await);
         let cache_key = format!("{}-{}", self.layer.as_str(), prompt.len());
         
-        // Check cache for L2 neurons
+        // Check cache first (for all layers, not just L2)
+        // Cache key includes signal content hash for better hit rate
+        let cache_key = format!("{}-{}-{:x}", 
+            self.layer.as_str(), 
+            signal.from_neuron,
+            md5::compute(&prompt).0[..8].iter().map(|b| format!("{:02x}", b)).collect::<String>()
+        );
+        
         if let Some(cache) = &self.response_cache {
             if let Some(cached_response) = cache.get(&cache_key) {
                 debug!("Neuron {} using cached response", self.id);
                 
-                // Record metrics for cached response
+                // Fast path for cached responses - minimal overhead
+                let duration = start_time.elapsed();
                 if let Some(metrics) = &self.metrics {
-                    let duration = start_time.elapsed();
                     metrics.record_processing_time(&self.id, duration);
                     metrics.record_signal_processed();
                 }
                 
                 *self.state.write().await = NeuronState::Running;
-                self.performance_monitor.record("cache_hit", perf_timer.elapsed());
+                self.performance_monitor.record("cache_hit", duration);
                 return Ok(cached_response);
             }
         }
@@ -497,10 +513,56 @@ impl NeuronInterface for ManagedNeuron {
                 break;
             }
             
-            // Send to Claude
-            let response = match self.claude.send_message(&current_prompt).await {
-                Ok(resp) => resp,
-                Err(e) => {
+            // Send to Claude with timeout to prevent hanging
+            let timeout_duration = std::time::Duration::from_secs(30);
+            let response = match tokio::time::timeout(
+                timeout_duration,
+                self.claude.send_message(&current_prompt)
+            ).await {
+                Ok(Ok(resp)) => resp,
+                Ok(Err(e)) => {
+                    // Update error stats
+                    let mut stats = self.stats.write().await;
+                    stats.errors_count += 1;
+                    drop(stats);
+                    
+                    // Record error metrics
+                    if let Some(metrics) = &self.metrics {
+                        metrics.record_error(&e.to_string());
+                        metrics.record_signal_failed();
+                    }
+                    
+                    // Record failure with circuit breaker
+                    self.circuit_breaker.record_failure().await;
+                    
+                    error!("Neuron {} failed to process signal: {}", self.id, e);
+                    return Err(e);
+                }
+                Err(_) => {
+                    // Timeout error
+                    let timeout_err = Error::Generic("Claude API timeout".to_string());
+                    
+                    // Update error stats
+                    let mut stats = self.stats.write().await;
+                    stats.errors_count += 1;
+                    drop(stats);
+                    
+                    // Record error metrics
+                    if let Some(metrics) = &self.metrics {
+                        metrics.record_error("timeout");
+                        metrics.record_signal_failed();
+                    }
+                    
+                    // Record failure with circuit breaker
+                    self.circuit_breaker.record_failure().await;
+                    
+                    error!("Neuron {} timed out after {:?}", self.id, timeout_duration);
+                    return Err(timeout_err);
+                }
+            };
+            
+            // Early success recording for circuit breaker
+            self.circuit_breaker.record_success().await;
                     // Update error stats
                     let mut stats = self.stats.write().await;
                     stats.errors_count += 1;

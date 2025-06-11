@@ -41,7 +41,9 @@ pub struct ResponseCache {
 struct CachedResponse {
     response: String,
     timestamp: Instant,
+    last_accessed: Instant,
     hit_count: u64,
+    size_bytes: usize,
 }
 
 impl ResponseCache {
@@ -58,6 +60,7 @@ impl ResponseCache {
         self.cache.get_mut(key).and_then(|mut entry| {
             if entry.timestamp.elapsed() < self.ttl {
                 entry.hit_count += 1;
+                entry.last_accessed = Instant::now();
                 debug!("Cache hit for key: {} (hits: {})", key, entry.hit_count);
                 Some(entry.response.clone())
             } else {
@@ -77,26 +80,47 @@ impl ResponseCache {
             self.evict_lru();
         }
         
+        let size_bytes = response.len();
+        let now = Instant::now();
         self.cache.insert(key, CachedResponse {
             response,
-            timestamp: Instant::now(),
+            timestamp: now,
+            last_accessed: now,
             hit_count: 0,
+            size_bytes,
         });
     }
     
-    /// Evict least recently used entries
+    /// Evict least recently used entries using smart eviction
     fn evict_lru(&self) {
         let mut entries: Vec<_> = self.cache.iter()
-            .map(|entry| (entry.key().clone(), entry.timestamp))
+            .map(|entry| {
+                let score = Self::calculate_eviction_score(&entry);
+                (entry.key().clone(), score)
+            })
             .collect();
             
-        entries.sort_by_key(|(_, timestamp)| *timestamp);
+        // Sort by eviction score (lower = more likely to evict)
+        entries.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap());
         
-        // Remove oldest 10% of entries
-        let remove_count = self.max_entries / 10;
+        // Remove lowest scoring entries until we're under 90% capacity
+        let target_size = (self.max_entries * 9) / 10;
+        let remove_count = self.cache.len().saturating_sub(target_size);
+        
         for (key, _) in entries.into_iter().take(remove_count) {
             self.cache.remove(&key);
         }
+    }
+    
+    /// Calculate eviction score (higher = keep longer)
+    fn calculate_eviction_score(entry: &dashmap::mapref::one::Ref<String, CachedResponse>) -> f64 {
+        let age_minutes = entry.timestamp.elapsed().as_secs_f64() / 60.0;
+        let last_access_minutes = entry.last_accessed.elapsed().as_secs_f64() / 60.0;
+        let hit_rate = entry.hit_count as f64 / age_minutes.max(1.0);
+        let size_penalty = (entry.size_bytes as f64 / 1024.0).ln().max(1.0);
+        
+        // Score formula: frequent access + recent access - size penalty
+        (hit_rate * 10.0) + (1.0 / (last_access_minutes + 1.0)) - size_penalty
     }
     
     /// Get cache statistics

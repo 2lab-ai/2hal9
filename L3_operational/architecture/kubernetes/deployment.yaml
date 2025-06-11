@@ -70,6 +70,11 @@ metadata:
     component: server
 spec:
   replicas: 5    # Increased to match HPA minReplicas
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2         # Allow 2 extra pods during updates
+      maxUnavailable: 1   # Keep most pods running during updates
   selector:
     matchLabels:
       app: hal9
@@ -79,11 +84,18 @@ spec:
       labels:
         app: hal9
         component: server
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
     spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         fsGroup: 1000
+      containers:
+      priorityClassName: hal9-critical   # Use priority class
+      terminationGracePeriodSeconds: 60   # Allow graceful shutdown
       containers:
       - name: hal9-server
         image: hal9:latest
@@ -98,6 +110,16 @@ spec:
         env:
         - name: RUST_LOG
           value: "info"
+        - name: RUST_BACKTRACE
+          value: "1"
+        - name: HAL9_MAX_CONNECTIONS
+          value: "1000"
+        - name: HAL9_CACHE_SIZE
+          value: "2000"
+        - name: HAL9_CIRCUIT_BREAKER_THRESHOLD
+          value: "5"
+        - name: HAL9_CIRCUIT_BREAKER_TIMEOUT
+          value: "60"
         - name: HAL9_CONFIG_PATH
           value: "/app/config/production.yaml"
         - name: ANTHROPIC_API_KEY
@@ -141,6 +163,11 @@ spec:
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 30
+        # Add lifecycle hooks for graceful shutdown
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 15"]  # Allow time for load balancer to stop routing
       volumes:
       - name: config
         configMap:

@@ -1,0 +1,156 @@
+# Advanced autoscaling configuration for HAL9
+# Optimized based on production experience and L3-L1 operational feedback
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hal9-hpa-advanced
+  namespace: hal9
+  labels:
+    app: hal9
+    component: autoscaler
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hal9-server
+  minReplicas: 5        # Never go below 5 (learned from 3am incidents)
+  maxReplicas: 50       # Increased from 30 for extreme load scenarios
+  metrics:
+  # CPU-based scaling (primary metric)
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50    # Trigger early to prevent lag
+  # Memory-based scaling (secondary metric)
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 65    # Lower threshold for memory-intensive workloads
+  # Custom metrics based on actual workload
+  - type: Pods
+    pods:
+      metric:
+        name: hal9_neurons_processing_rate
+      target:
+        type: AverageValue
+        averageValue: "30"        # 30 signals/second per pod
+  - type: Pods
+    pods:
+      metric:
+        name: hal9_circuit_breaker_open_ratio
+      target:
+        type: AverageValue
+        averageValue: "0.1"       # Scale up if >10% circuit breakers open
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30      # React quickly to load spikes
+      selectPolicy: Max                   # Use most aggressive scaling
+      policies:
+      # Aggressive scaling for sudden load
+      - type: Percent
+        value: 100                        # Double pods if needed
+        periodSeconds: 30
+      # Bulk scaling for predicted load
+      - type: Pods
+        value: 10                         # Add up to 10 pods at once
+        periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 600     # 10 minutes before scale down
+      selectPolicy: Min                   # Conservative scale down
+      policies:
+      # Gradual scale down
+      - type: Percent
+        value: 10                         # Remove max 10% of pods
+        periodSeconds: 300                # Every 5 minutes
+      # Minimum scale down
+      - type: Pods
+        value: 1                          # Remove 1 pod at a time minimum
+        periodSeconds: 180                # Every 3 minutes
+---
+# Vertical Pod Autoscaler for right-sizing
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: hal9-vpa
+  namespace: hal9
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hal9-server
+  updatePolicy:
+    updateMode: "Auto"                    # Allow automatic updates
+  resourcePolicy:
+    containerPolicies:
+    - containerName: hal9-server
+      minAllowed:
+        cpu: 500m                         # Minimum CPU
+        memory: 1Gi                       # Minimum memory
+      maxAllowed:
+        cpu: 4                            # Maximum 4 cores
+        memory: 8Gi                       # Maximum 8GB RAM
+      controlledResources: ["cpu", "memory"]
+---
+# PodDisruptionBudget to maintain availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: hal9-pdb
+  namespace: hal9
+spec:
+  minAvailable: 3                         # Always keep 3 pods running
+  selector:
+    matchLabels:
+      app: hal9
+      component: server
+---
+# Priority class for critical pods
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: hal9-critical
+value: 1000
+globalDefault: false
+description: "Critical priority for HAL9 server pods"
+---
+# NetworkPolicy for security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hal9-network-policy
+  namespace: hal9
+spec:
+  podSelector:
+    matchLabels:
+      app: hal9
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 8080
+    - protocol: TCP
+      port: 9090
+  egress:
+  - to:
+    - namespaceSelector: {}               # Allow all egress (for Claude API)
+    ports:
+    - protocol: TCP
+      port: 443                           # HTTPS for API calls
+    - protocol: TCP
+      port: 53                            # DNS
+    - protocol: UDP
+      port: 53                            # DNS
