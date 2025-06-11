@@ -146,6 +146,7 @@ pub struct ClaudeAPIClient {
     last_usage: Mutex<Option<TokenUsage>>,
     client: reqwest::Client,
     rate_limiter: Arc<tokio::sync::Semaphore>,
+    #[allow(dead_code)]
     request_timeout: Duration,
     retry_count: u32,
     cost_per_1k_prompt: f64,

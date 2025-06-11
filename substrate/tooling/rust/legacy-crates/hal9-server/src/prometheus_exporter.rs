@@ -8,6 +8,7 @@ use std::sync::Arc;
 enum MetricType {
     Counter,
     Gauge,
+    #[allow(dead_code)]
     Histogram,
 }
 
