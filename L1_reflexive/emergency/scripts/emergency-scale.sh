@@ -9,6 +9,19 @@ set -euo pipefail
 # Source common environment
 source "$(dirname "$0")/../../common-env.sh"
 
+# Error handler for 3am panics
+error_handler() {
+    local line_no=$1
+    local error_code=$2
+    log_error "Emergency scaling failed at line $line_no with exit code $error_code"
+    log_info "Try manual recovery:"
+    log_info "  1. Check cluster access: kubectl cluster-info"
+    log_info "  2. Check deployment: kubectl get deploy -n $NAMESPACE"
+    log_info "  3. Call on-call engineer"
+    exit $error_code
+}
+trap 'error_handler ${LINENO} $?' ERR
+
 # Emergency settings
 NAMESPACE="${HAL9_K8S_NAMESPACE:-hal9}"
 EMERGENCY_REPLICAS="${1:-20}"  # Default to 20 replicas
@@ -42,6 +55,20 @@ if ! kubectl cluster-info &> /dev/null; then
     exit 1
 fi
 
+# Pre-flight checks
+log_info "Running pre-flight checks..."
+if ! kubectl get namespace $NAMESPACE &> /dev/null; then
+    log_error "Namespace $NAMESPACE not found!"
+    exit 1
+fi
+
+if ! kubectl get deployment $DEPLOYMENT -n $NAMESPACE &> /dev/null; then
+    log_error "Deployment $DEPLOYMENT not found in namespace $NAMESPACE!"
+    log_info "Available deployments:"
+    kubectl get deployments -n $NAMESPACE
+    exit 1
+fi
+
 # Current status
 log_info "Checking current status..."
 CURRENT_REPLICAS=$(kubectl get deployment $DEPLOYMENT -n $NAMESPACE -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
@@ -64,7 +91,7 @@ kubectl scale deployment $DEPLOYMENT -n $NAMESPACE --replicas=$EMERGENCY_REPLICA
 # Also patch HPA to allow more replicas temporarily
 log_info "Updating HPA limits..."
 kubectl patch hpa hal9-hpa -n $NAMESPACE --type='json' \
-  -p='[{"op": "replace", "path": "/spec/minReplicas", "value":'$EMERGENCY_REPLICAS'}]' || true
+  -p='[{"op": "replace", "path": "/spec/minReplicas", "value":'$EMERGENCY_REPLICAS'},{"op": "replace", "path": "/spec/maxReplicas", "value":'$((EMERGENCY_REPLICAS * 2))'}]' || true
 
 # Force rollout if pods are stuck
 log_info "Forcing rollout restart..."
@@ -141,6 +168,8 @@ echo "Quick fixes while pods scale up:"
 echo "- Enable caching if not already: redis-cli SET hal9:cache:enabled true"
 echo "- Increase rate limits: kubectl set env deployment/$DEPLOYMENT RATE_LIMIT=1000 -n $NAMESPACE"
 echo "- Enable circuit breakers: kubectl set env deployment/$DEPLOYMENT CIRCUIT_BREAKER=true -n $NAMESPACE"
+echo "- Check node capacity: kubectl top nodes"
+echo "- Force evict failed pods: kubectl delete pods -n $NAMESPACE --field-selector status.phase=Failed"
 echo ""
 
 log_success "Emergency scaling initiated. Good luck! 🍀"
