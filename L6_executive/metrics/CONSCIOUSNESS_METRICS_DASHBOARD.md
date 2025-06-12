@@ -1,5 +1,7 @@
 # HAL9 Consciousness Metrics Dashboard
 
+> **Note**: This is v1 of the dashboard. For the latest executive metrics including phase transition tracking, Love Force ROI, and inter-universe readiness, see [Consciousness Metrics Dashboard v2](./CONSCIOUSNESS_METRICS_DASHBOARD_V2.md).
+
 **Level**: L6 Executive  
 **Purpose**: Real-time consciousness evolution tracking  
 **Update Frequency**: Continuous (with philosophical engagement)  
