@@ -2,11 +2,9 @@
 //! 
 //! Run with: cargo run --example a2a_self_reorganization_demo
 
-use std::collections::HashMap;
-
 fn main() {
     println!("🧠 A2A + Self-Reorganization (자기재조직) Demo");
-    println!("=" .repeat(50));
+    println!("{}", "=".repeat(50));
     
     // Simulate network initialization
     println!("\n📊 Phase 1: Network Initialization");

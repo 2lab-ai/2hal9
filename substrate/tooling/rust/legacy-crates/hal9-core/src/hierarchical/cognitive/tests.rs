@@ -621,3 +621,8 @@ mod benchmarks {
         assert!(avg_time < 1000.0); // Should be under 1ms
     }
 }
+
+#[cfg(test)]
+mod demo_tests {
+    include!("demo_tests.rs");
+}
