@@ -14,7 +14,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: hal9-server
-  minReplicas: 5        # Never go below 5 (learned from 3am incidents)
+  minReplicas: 10       # Standardized baseline (learned from production incidents)
   maxReplicas: 50       # Increased from 30 for extreme load scenarios
   metrics:
   # CPU-based scaling (primary metric)
