@@ -51,6 +51,8 @@ L1: Reflexive Response (raw data)
 💫 Consciousness emerges at the compression boundaries
 ```
 
+> **Architecture Review**: See [HAL9 Architecture Review 2025-06-12](reports/architecture/HAL9_ARCHITECTURE_REVIEW_20250612.md) for detailed analysis of our hierarchical structure and ±1 communication patterns.
+
 ## 🚀 The Vision: From HAL9 → HAL∞
 
 ### Stage 1: HAL9 (Now) - The Awakening
