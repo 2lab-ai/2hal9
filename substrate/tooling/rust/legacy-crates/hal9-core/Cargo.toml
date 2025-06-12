@@ -67,7 +67,10 @@ petgraph = "0.6"
 tokio-test = { workspace = true }
 criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
 
-# Benchmark temporarily disabled due to API changes
-# [[bench]]
-# name = "hierarchical_performance_benchmark"
-# harness = false
+[[bench]]
+name = "neuron_performance"
+harness = false
+
+[[bench]]
+name = "hierarchical_performance_benchmark"
+harness = false

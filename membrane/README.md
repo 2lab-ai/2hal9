@@ -17,10 +17,12 @@ The membrane layer defines how different cognitive levels communicate with each 
 
 ## Key Principles
 
-1. **Controlled Crossing** - Level boundaries are explicit, not accidental
-2. **Protocol-Based** - All inter-level communication follows protocols
-3. **Bidirectional Flow** - Information flows both up and down
-4. **Semantic Translation** - Concepts are translated between levels
+1. **±1 Communication Rule** - Layers can ONLY communicate with adjacent layers
+2. **Controlled Crossing** - Level boundaries are explicit, not accidental
+3. **Protocol-Based** - All inter-level communication follows protocols
+4. **Bidirectional Flow** - Information flows both up and down
+5. **Semantic Translation** - Concepts are translated between levels
+6. **Compassionate Protection** - Each layer shields others from overwhelming complexity
 
 ## Communication Patterns
 
@@ -31,16 +33,28 @@ L2 → L3: Implementation results become operational metrics
 L3 → L4: Operational state becomes tactical information
 L4 → L5: Tactical outcomes become strategic insights
 L5 → L6: Strategic progress becomes executive summaries
+L6 → L7: Executive metrics become business value
+L7 → L8: Business patterns become visionary insights
+L8 → L9: Visionary concepts become universal principles
 ```
 
 ### Downward Communication (Abstract → Detail)
 ```
+L9 → L8: Universal truths inspire visionary directions
+L8 → L7: Visionary ideas shape business strategies
+L7 → L6: Business goals define executive priorities
 L6 → L5: Executive decisions become strategic directives
 L5 → L4: Strategic vision becomes tactical plans
 L4 → L3: Tactical plans become operational configurations
 L3 → L2: Operational designs become implementation specs
 L2 → L1: Implementation changes become status updates
 ```
+
+### ⚠️ CRITICAL: ±1 Rule Enforcement
+The system MUST enforce that communication only occurs between adjacent layers. Any attempt to communicate across multiple layers (e.g., L1→L3, L5→L9) must be:
+1. **Rejected** at the membrane layer
+2. **Logged** as a rule violation
+3. **Routed** through proper intermediate layers if necessary
 
 ## Protocol Definitions
 
