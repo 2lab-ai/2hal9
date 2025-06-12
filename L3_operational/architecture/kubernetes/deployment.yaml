@@ -69,7 +69,7 @@ metadata:
     app: hal9
     component: server
 spec:
-  replicas: 5    # Increased to match HPA minReplicas
+  replicas: 10   # Standard production baseline (aligned with HPA minReplicas)
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -93,7 +93,6 @@ spec:
         runAsNonRoot: true
         runAsUser: 1000
         fsGroup: 1000
-      containers:
       priorityClassName: hal9-critical   # Use priority class
       terminationGracePeriodSeconds: 60   # Allow graceful shutdown
       containers:
@@ -120,6 +119,12 @@ spec:
           value: "5"
         - name: HAL9_CIRCUIT_BREAKER_TIMEOUT
           value: "60"
+        - name: HAL9_ENABLE_CACHE
+          value: "true"
+        - name: HAL9_RATE_LIMIT
+          value: "100"
+        - name: HAL9_CONNECTION_POOL_SIZE
+          value: "50"
         - name: HAL9_CONFIG_PATH
           value: "/app/config/production.yaml"
         - name: ANTHROPIC_API_KEY
@@ -134,11 +139,11 @@ spec:
           mountPath: /app/logs
         resources:
           requests:
-            memory: "2Gi"    # Increased from 1Gi based on production metrics
-            cpu: "1"          # Increased from 500m for better performance
+            memory: "3Gi"    # Increased from 2Gi for production workloads
+            cpu: "1.5"        # Increased from 1 for better baseline performance
           limits:
-            memory: "4Gi"    # Increased from 2Gi to prevent OOM
-            cpu: "2"          # Increased from 1000m to prevent throttling
+            memory: "6Gi"    # Increased from 4Gi for heavy neural processing
+            cpu: "3"          # Increased from 2 to handle burst traffic
         livenessProbe:
           httpGet:
             path: /health
@@ -205,8 +210,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: hal9-server
-  minReplicas: 5        # Increased from 3 for better base availability
-  maxReplicas: 30       # Increased from 10 to match 1000-user config
+  minReplicas: 10       # Aligned with deployment baseline replicas
+  maxReplicas: 50       # Standardized for production scaling capacity
   metrics:
   - type: Resource
     resource:
