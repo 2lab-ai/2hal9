@@ -15,6 +15,7 @@ use crossterm::{
 
 #[cfg(feature = "desktop")]
 use std::io::{self, Write};
+#[cfg(feature = "desktop")]
 use std::time::Duration;
 
 #[cfg(feature = "desktop")]

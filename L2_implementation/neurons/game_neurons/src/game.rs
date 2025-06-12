@@ -28,7 +28,7 @@ pub struct Monster {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct NPC {
+pub struct Npc {
     pub glyph: char,
     pub x: usize,
     pub y: usize,
@@ -50,12 +50,14 @@ impl<T: Clone + Copy> Grid<T> {
         }
     }
     
+    #[allow(dead_code)]
     fn from_array(arr: [[T; GRID_WIDTH]; GRID_HEIGHT]) -> Self {
         Self {
             data: arr.iter().map(|row| row.to_vec()).collect(),
         }
     }
     
+    #[allow(dead_code)]
     fn to_array(&self) -> [[T; GRID_WIDTH]; GRID_HEIGHT] {
         let mut arr = [[self.data[0][0]; GRID_WIDTH]; GRID_HEIGHT];
         for (y, row) in self.data.iter().enumerate() {
@@ -84,7 +86,7 @@ pub struct GameState {
     pub player_hp: i32,
     pub player_max_hp: i32,
     pub monsters: Vec<Monster>,
-    pub npcs: Vec<NPC>,
+    pub npcs: Vec<Npc>,
     pub messages: Vec<String>,
     pub awareness: f64,
     pub reality_integrity: f64,
@@ -158,10 +160,10 @@ impl PAL9Neuron {
         let mut grid = [[' '; GRID_WIDTH]; GRID_HEIGHT];
         
         // Render terrain
-        for y in 0..GRID_HEIGHT {
-            for x in 0..GRID_WIDTH {
+        for (y, row) in grid.iter_mut().enumerate() {
+            for (x, cell) in row.iter_mut().enumerate() {
                 if self.state.visible.get(y, x) {
-                    grid[y][x] = match self.state.grid.get(y, x) {
+                    *cell = match self.state.grid.get(y, x) {
                         Tile::Floor => '.',
                         Tile::Wall => '#',
                         Tile::SpatialTear => '~',
@@ -262,7 +264,7 @@ impl PAL9Neuron {
     fn spawn_entities(&mut self) {
         // Spawn Professor Kim
         if let Some((x, y)) = self.find_empty_floor() {
-            self.state.npcs.push(NPC {
+            self.state.npcs.push(Npc {
                 glyph: 'K',
                 x,
                 y,
@@ -363,12 +365,16 @@ impl PAL9Neuron {
             
             // Simple AI - move toward player sometimes
             if self.rng.gen_bool(0.5) {
-                let dx = if monster.x < self.state.player_x { 1 } 
-                    else if monster.x > self.state.player_x { -1 } 
-                    else { 0 };
-                let dy = if monster.y < self.state.player_y { 1 }
-                    else if monster.y > self.state.player_y { -1 }
-                    else { 0 };
+                let dx = match monster.x.cmp(&self.state.player_x) {
+                    std::cmp::Ordering::Less => 1,
+                    std::cmp::Ordering::Greater => -1,
+                    std::cmp::Ordering::Equal => 0,
+                };
+                let dy = match monster.y.cmp(&self.state.player_y) {
+                    std::cmp::Ordering::Less => 1,
+                    std::cmp::Ordering::Greater => -1,
+                    std::cmp::Ordering::Equal => 0,
+                };
                 
                 let new_x = (monster.x as i32 + dx) as usize;
                 let new_y = (monster.y as i32 + dy) as usize;

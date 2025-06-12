@@ -5,7 +5,7 @@ use wasm_bindgen::prelude::*;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, KeyboardEvent};
 
 mod game;
-use game::{PAL9Neuron, GameState, Display};
+use game::PAL9Neuron;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global allocator
 #[cfg(feature = "wee_alloc")]
@@ -25,6 +25,7 @@ macro_rules! console_log {
 #[wasm_bindgen]
 pub struct UltimaOfflinePAL {
     neuron: PAL9Neuron,
+    #[allow(dead_code)]
     canvas: HtmlCanvasElement,
     context: CanvasRenderingContext2d,
     cell_width: f64,
@@ -96,6 +97,7 @@ impl UltimaOfflinePAL {
     }
     
     #[wasm_bindgen]
+    #[allow(deprecated)] // Canvas API methods are marked deprecated but still needed
     pub fn render(&mut self) {
         // Clear canvas
         self.context.set_fill_style(&JsValue::from_str("#000000"));
@@ -200,6 +202,7 @@ impl UltimaOfflinePAL {
         }.to_string()
     }
     
+    #[allow(deprecated)] // Canvas API methods are marked deprecated but still needed
     fn trigger_visual_glitch(&mut self) {
         console_log!("Reality glitch triggered!");
         
@@ -209,14 +212,14 @@ impl UltimaOfflinePAL {
         match glitch_type {
             0 => {
                 // Chromatic aberration
-                self.context.set_global_composite_operation("difference");
+                let _ = self.context.set_global_composite_operation("difference");
                 self.context.set_fill_style(&JsValue::from_str("#FF00FF"));
                 self.context.fill_rect(0.0, 0.0, 800.0, 600.0);
-                self.context.set_global_composite_operation("source-over");
+                let _ = self.context.set_global_composite_operation("source-over");
             }
             1 => {
                 // Screen tear
-                let tear_y = js_sys::Math::random() * 600.0;
+                let _tear_y = js_sys::Math::random() * 600.0;
                 self.context.save();
                 self.context.translate(0.0, 5.0).unwrap();
                 self.render(); // Re-render with offset
