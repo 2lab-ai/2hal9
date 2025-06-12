@@ -1,31 +1,80 @@
 //! Embeddings generation for semantic memory search
 
 use crate::Result;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use std::collections::HashMap;
 
-/// Simple embedding generator (placeholder for real implementation)
+/// Advanced embedding generator with caching and improved algorithms
 pub struct EmbeddingGenerator {
     dimension: usize,
+    cache: Arc<RwLock<HashMap<String, Vec<f32>>>>,
+    cache_hits: Arc<RwLock<u64>>,
+    cache_misses: Arc<RwLock<u64>>,
 }
 
 impl EmbeddingGenerator {
     /// Create a new embedding generator
     pub fn new(dimension: usize) -> Self {
-        Self { dimension }
+        Self { 
+            dimension,
+            cache: Arc::new(RwLock::new(HashMap::with_capacity(10000))),
+            cache_hits: Arc::new(RwLock::new(0)),
+            cache_misses: Arc::new(RwLock::new(0)),
+        }
     }
     
-    /// Generate embedding for text
-    /// In a real implementation, this would use a model like BERT or Sentence Transformers
+    /// Generate embedding for text with enhanced algorithm and caching
+    /// TODO: Integrate with real embedding model (BERT/Sentence Transformers)
     pub async fn generate(&self, text: &str) -> Result<Vec<f32>> {
-        // For now, generate a simple hash-based embedding
-        let mut embedding = vec![0.0; self.dimension];
-        
-        // Simple character-based hashing
-        for (i, ch) in text.chars().enumerate() {
-            let idx = i % self.dimension;
-            embedding[idx] += (ch as u32) as f32 / 1000.0;
+        // Check cache first
+        {
+            let cache = self.cache.read().await;
+            if let Some(cached) = cache.get(text) {
+                *self.cache_hits.write().await += 1;
+                return Ok(cached.clone());
+            }
         }
         
-        // Normalize
+        *self.cache_misses.write().await += 1;
+        
+        // Enhanced embedding generation with n-gram features
+        let mut embedding = vec![0.0; self.dimension];
+        let text_lower = text.to_lowercase();
+        let words: Vec<&str> = text_lower.split_whitespace().collect();
+        
+        // Word-level features
+        for (word_idx, word) in words.iter().enumerate() {
+            // Unigram features
+            let hash = Self::hash_string(word) as usize;
+            embedding[hash % self.dimension] += 1.0;
+            
+            // Bigram features
+            if word_idx > 0 {
+                let bigram = format!("{} {}", words[word_idx - 1], word);
+                let bigram_hash = Self::hash_string(&bigram) as usize;
+                embedding[(bigram_hash % self.dimension + self.dimension / 4) % self.dimension] += 0.7;
+            }
+            
+            // Character n-grams (3-grams)
+            if word.len() >= 3 {
+                for i in 0..word.len() - 2 {
+                    let trigram = &word[i..i + 3];
+                    let trigram_hash = Self::hash_string(trigram) as usize;
+                    embedding[(trigram_hash % self.dimension + self.dimension / 2) % self.dimension] += 0.5;
+                }
+            }
+        }
+        
+        // Apply TF-IDF-like weighting
+        let doc_length = words.len() as f32;
+        if doc_length > 0.0 {
+            for val in &mut embedding {
+                *val = (*val / doc_length.sqrt()).tanh(); // Smooth normalization
+            }
+        }
+        
+        // L2 Normalize
         let magnitude: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
         if magnitude > 0.0 {
             for val in &mut embedding {
@@ -33,7 +82,30 @@ impl EmbeddingGenerator {
             }
         }
         
+        // Cache the result
+        {
+            let mut cache = self.cache.write().await;
+            // Implement LRU eviction if cache is too large
+            if cache.len() >= 10000 {
+                // Simple eviction: remove random entry
+                if let Some(key) = cache.keys().next().cloned() {
+                    cache.remove(&key);
+                }
+            }
+            cache.insert(text.to_string(), embedding.clone());
+        }
+        
         Ok(embedding)
+    }
+    
+    /// Fast string hashing using FNV-1a algorithm
+    fn hash_string(s: &str) -> u64 {
+        const FNV_PRIME: u64 = 0x100000001b3;
+        const FNV_OFFSET: u64 = 0xcbf29ce484222325;
+        
+        s.bytes().fold(FNV_OFFSET, |hash, byte| {
+            (hash ^ byte as u64).wrapping_mul(FNV_PRIME)
+        })
     }
     
     /// Calculate cosine similarity between two embeddings
@@ -59,18 +131,73 @@ impl EmbeddingGenerator {
         candidates: &[(String, Vec<f32>)],
         top_k: usize,
     ) -> Vec<(String, f32)> {
-        let mut similarities: Vec<(String, f32)> = candidates
-            .iter()
-            .map(|(id, embedding)| {
-                let similarity = Self::cosine_similarity(query, embedding);
-                (id.clone(), similarity)
-            })
+        use std::collections::BinaryHeap;
+        use std::cmp::Ordering;
+        
+        #[derive(Clone)]
+        struct SimilarityScore {
+            index: usize,
+            score: f32,
+        }
+        
+        impl PartialEq for SimilarityScore {
+            fn eq(&self, other: &Self) -> bool {
+                self.score == other.score
+            }
+        }
+        
+        impl Eq for SimilarityScore {}
+        
+        impl PartialOrd for SimilarityScore {
+            fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+                // Reverse order for min-heap behavior
+                other.score.partial_cmp(&self.score)
+            }
+        }
+        
+        impl Ord for SimilarityScore {
+            fn cmp(&self, other: &Self) -> Ordering {
+                self.partial_cmp(other).unwrap_or(Ordering::Equal)
+            }
+        }
+        
+        let mut heap = BinaryHeap::with_capacity(top_k + 1);
+        
+        for (idx, (_, embedding)) in candidates.iter().enumerate() {
+            let similarity = Self::cosine_similarity(query, embedding);
+            heap.push(SimilarityScore { index: idx, score: similarity });
+            
+            if heap.len() > top_k {
+                heap.pop(); // Remove the lowest score
+            }
+        }
+        
+        // Extract results, maintaining original string references
+        let mut results: Vec<(String, f32)> = heap
+            .into_iter()
+            .map(|item| (candidates[item.index].0.clone(), item.score))
             .collect();
             
-        similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        similarities.truncate(top_k);
+        // Sort by descending similarity
+        results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
         
-        similarities
+        results
+    }
+    
+    /// Get cache statistics
+    pub async fn cache_stats(&self) -> (u64, u64, f64) {
+        let hits = *self.cache_hits.read().await;
+        let misses = *self.cache_misses.read().await;
+        let total = hits + misses;
+        let hit_rate = if total > 0 { hits as f64 / total as f64 } else { 0.0 };
+        (hits, misses, hit_rate)
+    }
+    
+    /// Clear the embedding cache
+    pub async fn clear_cache(&self) {
+        self.cache.write().await.clear();
+        *self.cache_hits.write().await = 0;
+        *self.cache_misses.write().await = 0;
     }
 }
 

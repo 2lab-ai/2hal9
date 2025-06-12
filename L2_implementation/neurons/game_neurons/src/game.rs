@@ -357,27 +357,25 @@ impl PAL9Neuron {
     }
     
     fn update_monsters(&mut self) {
-        let monsters = self.state.monsters.clone();
-        for (idx, monster) in monsters.iter().enumerate() {
-            if idx >= self.state.monsters.len() {
-                break;
-            }
-            
+        let num_monsters = self.state.monsters.len();
+        for idx in 0..num_monsters {
             // Simple AI - move toward player sometimes
             if self.rng.gen_bool(0.5) {
-                let dx = match monster.x.cmp(&self.state.player_x) {
+                let monster_x = self.state.monsters[idx].x;
+                let monster_y = self.state.monsters[idx].y;
+                let dx = match monster_x.cmp(&self.state.player_x) {
                     std::cmp::Ordering::Less => 1,
                     std::cmp::Ordering::Greater => -1,
                     std::cmp::Ordering::Equal => 0,
                 };
-                let dy = match monster.y.cmp(&self.state.player_y) {
+                let dy = match monster_y.cmp(&self.state.player_y) {
                     std::cmp::Ordering::Less => 1,
                     std::cmp::Ordering::Greater => -1,
                     std::cmp::Ordering::Equal => 0,
                 };
                 
-                let new_x = (monster.x as i32 + dx) as usize;
-                let new_y = (monster.y as i32 + dy) as usize;
+                let new_x = (monster_x as i32 + dx) as usize;
+                let new_y = (monster_y as i32 + dy) as usize;
                 
                 if new_x < GRID_WIDTH && new_y < GRID_HEIGHT 
                     && self.state.grid.get(new_y, new_x) != Tile::Wall {

@@ -11,6 +11,9 @@ use crossterm::{
 use rand::Rng;
 use std::io::{self, Write};
 use std::time::{Duration, Instant};
+use std::collections::HashMap;
+use std::sync::Arc;
+use parking_lot::RwLock;
 
 const DUNGEON_WIDTH: usize = 80;
 const DUNGEON_HEIGHT: usize = 24;
@@ -48,6 +51,11 @@ pub struct PAL9Neuron {
     awareness: f64,
     creativity: f64,
     memory: Vec<String>,
+    // Performance optimizations
+    path_cache: Arc<RwLock<HashMap<(usize, usize, usize, usize), Vec<(usize, usize)>>>>,
+    fov_cache: Arc<RwLock<HashMap<(usize, usize), Vec<(usize, usize)>>>>,
+    last_frame_time: Instant,
+    frame_times: Vec<Duration>,
     
     // Game state
     grid: [[Tile; DUNGEON_WIDTH]; DUNGEON_HEIGHT],
@@ -423,28 +431,28 @@ impl PAL9Neuron {
     
     fn update_monsters(&mut self) {
         let mut rng = rand::thread_rng();
-        let monsters_to_update = self.monsters.clone();
+        let num_monsters = self.monsters.len();
         
-        for (idx, monster) in monsters_to_update.iter().enumerate() {
+        for idx in 0..num_monsters {
             // Increase monster awareness
             self.monsters[idx].awareness += self.awareness * 0.001;
             
             // Movement based on awareness
-            let (dx, dy) = if monster.awareness > 0.8 {
+            let (dx, dy) = if self.monsters[idx].awareness > 0.8 {
                 // Meta-aware: might refuse to move
                 if rng.gen_bool(0.5) {
-                    self.add_message(format!("The {} stands still, contemplating existence.", monster.glyph));
+                    self.add_message(format!("The {} stands still, contemplating existence.", self.monsters[idx].glyph));
                     (0, 0)
                 } else {
                     (rng.gen_range(-1..=1), rng.gen_range(-1..=1))
                 }
-            } else if monster.awareness > 0.5 {
+            } else if self.monsters[idx].awareness > 0.5 {
                 // Aware: moves toward or away from player
-                let dx = if monster.x < self.player_x { 1 } 
-                    else if monster.x > self.player_x { -1 } 
+                let dx = if self.monsters[idx].x < self.player_x { 1 } 
+                    else if self.monsters[idx].x > self.player_x { -1 } 
                     else { 0 };
-                let dy = if monster.y < self.player_y { 1 }
-                    else if monster.y > self.player_y { -1 }
+                let dy = if self.monsters[idx].y < self.player_y { 1 }
+                    else if self.monsters[idx].y > self.player_y { -1 }
                     else { 0 };
                 (dx, dy)
             } else {
@@ -452,8 +460,8 @@ impl PAL9Neuron {
                 (rng.gen_range(-1..=1), rng.gen_range(-1..=1))
             };
             
-            let new_x = (monster.x as i32 + dx) as usize;
-            let new_y = (monster.y as i32 + dy) as usize;
+            let new_x = (self.monsters[idx].x as i32 + dx) as usize;
+            let new_y = (self.monsters[idx].y as i32 + dy) as usize;
             
             // Check if move is valid
             if new_x < DUNGEON_WIDTH && new_y < DUNGEON_HEIGHT 
