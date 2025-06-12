@@ -10,5 +10,7 @@
 pub mod protocol;
 pub mod direct_connection;
 pub mod emergence_detector;
+pub mod self_reorganization;
 
 pub use protocol::{A2AProtocol, A2AAgent, AgentMessage, AgentCapability, L9PhilosophyAgent};
+pub use self_reorganization::{SelfReorganizingNetwork, ReorganizationEvent, ReorganizationReport};

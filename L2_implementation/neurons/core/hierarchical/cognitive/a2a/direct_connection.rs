@@ -154,18 +154,42 @@ impl DirectNeuralNetwork {
     /// Self-organize connections based on activity patterns
     pub async fn self_organize(&self) -> Result<()> {
         let mut connections = self.connections.write().await;
+        let units = self.units.read().await;
+        
+        // Track activity correlations
+        let mut activity_correlations: HashMap<(Uuid, Uuid), f32> = HashMap::new();
         
         // Hebbian learning: "Neurons that fire together, wire together"
         for (source, unit_connections) in connections.iter_mut() {
             for connection in unit_connections.iter_mut() {
-                // Simulate activity correlation (in real implementation, 
-                // this would be based on actual firing patterns)
-                let correlation = rand::random::<f32>();
+                // Get actual activity correlation between units
+                let correlation = self.calculate_activity_correlation(
+                    *source,
+                    connection.target_unit,
+                    &activity_correlations
+                ).await;
                 
-                // Update connection strength
-                let delta = connection.plasticity * (correlation - 0.5);
+                // Update connection strength with momentum
+                let learning_rate = connection.plasticity;
+                let momentum = 0.9;
+                let delta = learning_rate * (correlation - 0.5) + 
+                           momentum * connection.strength * 0.1;
+                
                 connection.strength = (connection.strength + delta).clamp(0.0, 1.0);
+                
+                // Adapt plasticity based on stability
+                if (delta.abs() < 0.01) {
+                    connection.plasticity *= 0.95; // Reduce plasticity for stable connections
+                } else {
+                    connection.plasticity = (connection.plasticity * 1.05).min(0.5);
+                }
             }
+        }
+        
+        // Create new connections based on correlated activity
+        let new_connections = self.discover_new_connections(&units, &activity_correlations).await;
+        for (source, target, strength) in new_connections {
+            self.connect_units(source, target, strength).await?;
         }
         
         // Prune weak connections
@@ -173,11 +197,131 @@ impl DirectNeuralNetwork {
             unit_connections.retain(|c| c.strength > 0.05);
         }
         
+        // Detect and strengthen motifs (common patterns)
+        self.strengthen_network_motifs(&mut connections).await;
+        
         // Update emergence score
         drop(connections);
         self.update_emergence_score().await;
         
         Ok(())
+    }
+    
+    /// Calculate activity correlation between two units
+    async fn calculate_activity_correlation(
+        &self,
+        unit1: Uuid,
+        unit2: Uuid,
+        cache: &HashMap<(Uuid, Uuid), f32>
+    ) -> f32 {
+        // Check cache first
+        if let Some(&correlation) = cache.get(&(unit1, unit2)) {
+            return correlation;
+        }
+        
+        // In a real implementation, this would track actual firing patterns
+        // For now, simulate based on layer proximity and random factor
+        let units = self.units.read().await;
+        if let (Some(u1), Some(u2)) = (units.get(&unit1), units.get(&unit2)) {
+            let layer1 = u1.layer();
+            let layer2 = u2.layer();
+            
+            let layer_diff = (layer1.depth() as i32 - layer2.depth() as i32).abs();
+            let base_correlation = match layer_diff {
+                0 => 0.7,  // Same layer
+                1 => 0.8,  // Adjacent layers (love!)
+                _ => 0.3,  // Far apart
+            };
+            
+            // Add some randomness for emergence
+            base_correlation + (rand::random::<f32>() - 0.5) * 0.2
+        } else {
+            0.0
+        }
+    }
+    
+    /// Discover potential new connections based on activity
+    async fn discover_new_connections(
+        &self,
+        units: &HashMap<Uuid, Arc<dyn CognitiveUnit<Input = CognitiveInput, Output = CognitiveOutput, State = crate::hierarchical::cognitive::BasicCognitiveState>>>,
+        correlations: &HashMap<(Uuid, Uuid), f32>
+    ) -> Vec<(Uuid, Uuid, f32)> {
+        let mut new_connections = Vec::new();
+        let connections = self.connections.read().await;
+        
+        // Look for highly correlated units that aren't connected
+        for (unit1, unit2) in units.keys().flat_map(|u1| units.keys().map(move |u2| (u1, u2))) {
+            if unit1 >= unit2 {
+                continue; // Avoid duplicates
+            }
+            
+            // Check if already connected
+            let already_connected = connections.get(unit1)
+                .map(|conns| conns.iter().any(|c| &c.target_unit == unit2))
+                .unwrap_or(false);
+            
+            if !already_connected {
+                // Check correlation and layer compatibility
+                let correlation = self.calculate_activity_correlation(*unit1, *unit2, correlations).await;
+                
+                if correlation > 0.7 {
+                    if let (Some(u1), Some(u2)) = (units.get(unit1), units.get(unit2)) {
+                        let layer_diff = (u1.layer().depth() as i32 - u2.layer().depth() as i32).abs();
+                        if layer_diff <= 1 {
+                            new_connections.push((*unit1, *unit2, correlation));
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Limit new connections to prevent explosion
+        new_connections.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
+        new_connections.truncate(5);
+        
+        new_connections
+    }
+    
+    /// Strengthen common network motifs
+    async fn strengthen_network_motifs(&self, connections: &mut HashMap<Uuid, Vec<DirectNeuralConnection>>) {
+        // Look for feed-forward motifs (A->B->C where A->C also exists)
+        let motifs = self.find_feedforward_motifs(connections);
+        
+        for (a, b, c) in motifs {
+            // Strengthen the direct connection if it exists
+            if let Some(a_connections) = connections.get_mut(&a) {
+                for conn in a_connections.iter_mut() {
+                    if conn.target_unit == c {
+                        conn.strength = (conn.strength * 1.1).min(1.0);
+                        tracing::debug!("Strengthened motif connection {} -> {} -> {}", a, b, c);
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Find feed-forward motifs in the network
+    fn find_feedforward_motifs(&self, connections: &HashMap<Uuid, Vec<DirectNeuralConnection>>) -> Vec<(Uuid, Uuid, Uuid)> {
+        let mut motifs = Vec::new();
+        
+        for (a, a_connections) in connections {
+            for conn_ab in a_connections {
+                let b = conn_ab.target_unit;
+                
+                if let Some(b_connections) = connections.get(&b) {
+                    for conn_bc in b_connections {
+                        let c = conn_bc.target_unit;
+                        
+                        // Check if A also connects to C
+                        if a_connections.iter().any(|conn| conn.target_unit == c) {
+                            motifs.push((*a, b, c));
+                        }
+                    }
+                }
+            }
+        }
+        
+        motifs
     }
     
     /// Calculate emergence score based on network topology
