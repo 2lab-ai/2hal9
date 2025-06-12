@@ -4,6 +4,15 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Jihyuk Im <z@2lab.ai>"]
 description = "MCP server for Hierarchical Abstraction prompting - compress and expand across L1-L9"
+license      = "MIT"
+repository   = "https://github.com/2lab-ai/2hal9/tree/main/substrate/tooling/mcp/ha-prompter"
+homepage     = "https://github.com/2lab-ai/2hal9/tree/main/substrate/tooling/mcp/ha-prompter"
+documentation= "https://github.com/2lab-ai/2hal9/tree/main/substrate/tooling/mcp/ha-prompter"
+readme       = "README.md"
+keywords     = ["LLM", "prompting", "hierarchical", "abstraction"]
+categories   = ["command-line-utilities", "development-tools::build-utilities"]
+default-run  = "ha-prompter"
+
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
