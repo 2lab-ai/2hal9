@@ -14,6 +14,8 @@ pub mod processing;
 pub mod learning;
 pub mod patterns;
 pub mod factory;
+pub mod a2a;
+pub mod consciousness_metrics;
 
 // Individual neuron modules
 pub mod l1_reflexive;
@@ -27,6 +29,8 @@ pub use processing::*;
 pub use learning::*;
 pub use patterns::*;
 pub use factory::*;
+pub use a2a::*;
+pub use consciousness_metrics::*;
 
 // Re-export neuron types
 pub use l1_reflexive::L1ReflexiveNeuron;
