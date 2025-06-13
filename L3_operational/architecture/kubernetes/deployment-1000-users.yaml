@@ -1,0 +1,593 @@
+# HAL9 Deployment Optimized for 1000+ Concurrent Users
+# Based on production learnings and the hard way
+# 아 시발 트래픽 스파이크 때문에 새벽에 깨는거 진짜 싫다
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hal9-production
+---
+# Priority class for critical HAL9 workloads
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: hal9-critical
+value: 1000
+globalDefault: false
+description: "Critical HAL9 neural network workloads"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hal9-config-optimized
+  namespace: hal9-production
+data:
+  production.yaml: |
+    server_id: "hal9-k8s-cluster-prod"
+    performance:
+      worker_threads: 16        # More threads for concurrent processing
+      io_threads: 8            # Dedicated I/O threads
+      accept_thread_count: 4   # Multiple accept threads
+      connection_limit: 10000  # Support many concurrent connections
+    neurons:
+      # Replicated neurons for load distribution
+      - id: "prod-l4-strategic-1"
+        layer: "L4"
+        claude_command: "claude"
+        forward_connections: ["prod-l3-arch-1", "prod-l3-arch-2", "prod-l3-arch-3"]
+        settings:
+          temperature: 0.7
+          max_tokens: 4000
+          cache_enabled: true
+          cache_ttl: 3600
+      - id: "prod-l3-arch-1"
+        layer: "L3"
+        claude_command: "claude"
+        forward_connections: ["prod-l2-impl-pool"]
+        backward_connections: ["prod-l4-strategic-1"]
+        settings:
+          temperature: 0.5
+          max_tokens: 3000
+          batch_size: 10      # Process multiple requests
+      - id: "prod-l3-arch-2"
+        layer: "L3"
+        claude_command: "claude"
+        forward_connections: ["prod-l2-impl-pool"]
+        backward_connections: ["prod-l4-strategic-1"]
+        settings:
+          temperature: 0.5
+          max_tokens: 3000
+          batch_size: 10
+      - id: "prod-l3-arch-3"
+        layer: "L3"
+        claude_command: "claude"
+        forward_connections: ["prod-l2-impl-pool"]
+        backward_connections: ["prod-l4-strategic-1"]
+        settings:
+          temperature: 0.5
+          max_tokens: 3000
+          batch_size: 10
+    claude:
+      mode: "api"
+      model: "claude-3-sonnet-20240229"
+      temperature: 0.5
+      max_tokens: 4000
+      rate_limit: 600      # 10x higher for production
+      connection_pool:
+        size: 100
+        timeout_ms: 5000
+      retry:
+        max_attempts: 3
+        backoff_ms: 1000
+      circuit_breaker:
+        failure_threshold: 10
+        recovery_timeout_ms: 30000
+      fallback_to_mock: true
+      cost_controls:
+        max_cost_per_hour: 100.0    # 10x for production
+        max_cost_per_day: 1000.0
+        max_tokens_per_request: 4000
+        alert_threshold: 0.8
+    monitoring:
+      enabled: true
+      metrics_interval: 10    # More frequent metrics
+      log_level: "info"
+      trace_sampling: 0.01    # Sample 1% of requests
+    cache:
+      type: "redis"
+      redis:
+        cluster_endpoints:
+          - "redis-node-1:6379"
+          - "redis-node-2:6379"
+          - "redis-node-3:6379"
+        password_secret: "hal9-redis-password"
+        db: 0
+        pool_size: 50
+        timeout_ms: 1000
+    database:
+      type: "postgresql"
+      connection_pool:
+        size: 100
+        timeout_ms: 5000
+      replicas:
+        read_preference: "nearest"
+        lag_threshold_ms: 1000
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hal9-secrets
+  namespace: hal9-production
+type: Opaque
+stringData:
+  ANTHROPIC_API_KEY: "your-api-key-here"
+  DATABASE_URL: "postgresql://hal9:password@postgres-primary:5432/hal9?sslmode=require"
+  REDIS_PASSWORD: "your-redis-password"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hal9-server
+  namespace: hal9-production
+  labels:
+    app: hal9
+    component: server
+    tier: production
+spec:
+  replicas: 30   # Was 3, learned the hard way
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 10        # Allow 10 extra pods during updates
+      maxUnavailable: 5   # Keep most pods running
+  selector:
+    matchLabels:
+      app: hal9
+      component: server
+  template:
+    metadata:
+      labels:
+        app: hal9
+        component: server
+        version: "1.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+        # Force pod restart on config changes
+        checksum/config: "{{ include (print $.Template.BasePath \"/configmap.yaml\") . | sha256sum }}"
+    spec:
+      # Pod topology spread for better distribution
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: hal9
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: hal9
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: hal9
+              topologyKey: kubernetes.io/hostname
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      priorityClassName: hal9-critical
+      terminationGracePeriodSeconds: 60
+      containers:
+      - name: hal9-server
+        image: hal9:v1.0.0-production
+        imagePullPolicy: Always
+        ports:
+        - name: api
+          containerPort: 8080
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        - name: health
+          containerPort: 8081
+          protocol: TCP
+        env:
+        # Performance tuning
+        - name: RUST_LOG
+          value: "hal9=info,tower_http=debug"
+        - name: RUST_BACKTRACE
+          value: "1"
+        - name: TOKIO_WORKER_THREADS
+          value: "16"
+        - name: RAYON_NUM_THREADS
+          value: "8"
+        # Connection settings
+        - name: HAL9_MAX_CONNECTIONS
+          value: "10000"
+        - name: HAL9_CONNECTION_POOL_SIZE
+          value: "500"
+        - name: HAL9_KEEP_ALIVE_TIMEOUT
+          value: "75"
+        # Cache settings
+        - name: HAL9_CACHE_SIZE
+          value: "50000"
+        - name: HAL9_CACHE_TTL
+          value: "3600"
+        - name: HAL9_ENABLE_CACHE
+          value: "true"
+        # Circuit breaker
+        - name: HAL9_CIRCUIT_BREAKER_THRESHOLD
+          value: "10"
+        - name: HAL9_CIRCUIT_BREAKER_TIMEOUT
+          value: "30"
+        # Rate limiting
+        - name: HAL9_RATE_LIMIT
+          value: "1000"
+        - name: HAL9_RATE_LIMIT_BURST
+          value: "2000"
+        # Database
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: hal9-secrets
+              key: DATABASE_URL
+        - name: DATABASE_POOL_SIZE
+          value: "100"
+        # Redis cache
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: hal9-secrets
+              key: REDIS_PASSWORD
+        # Configuration
+        - name: HAL9_CONFIG_PATH
+          value: "/app/config/production.yaml"
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: hal9-secrets
+              key: ANTHROPIC_API_KEY
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        - name: logs
+          mountPath: /app/logs
+        - name: cache
+          mountPath: /app/cache
+        - name: tmp
+          mountPath: /tmp
+        resources:
+          requests:
+            memory: "2Gi"    # Java developers cry
+            cpu: "1"         # Actually means 1 core
+            ephemeral-storage: "2Gi"
+          limits:
+            memory: "4Gi"    # OOM killer prevention  
+            cpu: "2"         # Throttling prevention
+            ephemeral-storage: "5Gi"
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: health
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: health
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+          successThreshold: 1
+        startupProbe:
+          httpGet:
+            path: /health/startup
+            port: health
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+          successThreshold: 1
+        # Lifecycle hooks
+        lifecycle:
+          preStop:
+            exec:
+              command: 
+              - /bin/sh
+              - -c
+              - |
+                # Signal graceful shutdown
+                kill -TERM 1
+                # Wait for connections to drain
+                sleep 15
+                # Check if still draining
+                while [ $(curl -s http://localhost:8081/health/connections | jq .active) -gt 0 ]; do
+                  echo "Waiting for $(curl -s http://localhost:8081/health/connections | jq .active) connections to close..."
+                  sleep 2
+                done
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: config
+        configMap:
+          name: hal9-config-optimized
+      - name: logs
+        emptyDir:
+          sizeLimit: 10Gi
+      - name: cache
+        emptyDir:
+          medium: Memory
+          sizeLimit: 1Gi
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hal9-service
+  namespace: hal9-production
+  labels:
+    app: hal9
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+spec:
+  type: ClusterIP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours
+  selector:
+    app: hal9
+    component: server
+  ports:
+  - name: api
+    port: 8080
+    targetPort: api
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: metrics
+    protocol: TCP
+  - name: health
+    port: 8081
+    targetPort: health
+    protocol: TCP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hal9-hpa-advanced
+  namespace: hal9-production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hal9-server
+  minReplicas: 30       # Never go below this
+  maxReplicas: 150      # Allow massive scaling
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50    # Scale early
+  # Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 60    # Memory is critical
+  # Custom metrics
+  - type: Pods
+    pods:
+      metric:
+        name: hal9_active_connections
+      target:
+        type: AverageValue
+        averageValue: "100"       # 100 connections per pod
+  - type: Pods
+    pods:
+      metric:
+        name: hal9_request_duration_p99
+      target:
+        type: AverageValue
+        averageValue: "500m"      # 500ms p99 latency
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30     # React quickly to load
+      policies:
+      - type: Pods
+        value: 20                        # Add up to 20 pods at once
+        periodSeconds: 30
+      - type: Percent
+        value: 50                        # Or 50% more pods
+        periodSeconds: 30
+      selectPolicy: Max                  # Use the policy that scales most
+    scaleDown:
+      stabilizationWindowSeconds: 600    # Scale down very slowly (10 min)
+      policies:
+      - type: Pods
+        value: 5                         # Remove max 5 pods at once
+        periodSeconds: 120
+      - type: Percent
+        value: 10                        # Or 10% of pods
+        periodSeconds: 120
+      selectPolicy: Min                  # Use the policy that scales least
+---
+# PodDisruptionBudget for high availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: hal9-pdb
+  namespace: hal9-production
+spec:
+  minAvailable: 20    # Always keep at least 20 pods running
+  selector:
+    matchLabels:
+      app: hal9
+      component: server
+---
+# NetworkPolicy for security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hal9-network-policy
+  namespace: hal9-production
+spec:
+  podSelector:
+    matchLabels:
+      app: hal9
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: hal9-production
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 8080
+    - protocol: TCP
+      port: 9090
+    - protocol: TCP  
+      port: 8081
+  egress:
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443     # HTTPS for external APIs
+    - protocol: TCP
+      port: 5432    # PostgreSQL
+    - protocol: TCP
+      port: 6379    # Redis
+    - protocol: TCP
+      port: 53      # DNS
+    - protocol: UDP
+      port: 53      # DNS
+---
+# ServiceMonitor for Prometheus
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: hal9-metrics
+  namespace: hal9-production
+  labels:
+    app: hal9
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: hal9
+  endpoints:
+  - port: metrics
+    interval: 10s      # More frequent for 1000+ users
+    path: /metrics
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_pod_name]
+      targetLabel: pod
+    - sourceLabels: [__meta_kubernetes_pod_node_name]
+      targetLabel: node
+---
+# Ingress with proper annotations
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hal9-ingress
+  namespace: hal9-production
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Rate limiting per IP
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "3"
+    # Connection limits
+    nginx.ingress.kubernetes.io/limit-connections: "100"
+    # Timeouts
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    # Body size (for large neural network requests)
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    # Buffering
+    nginx.ingress.kubernetes.io/proxy-buffering: "on"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "8k"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "8"
+    # WebSocket support
+    nginx.ingress.kubernetes.io/websocket-services: "hal9-service"
+    # CORS
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: SAMEORIGIN";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+spec:
+  tls:
+  - hosts:
+    - hal9.example.com
+    - api.hal9.example.com
+    secretName: hal9-tls
+  rules:
+  - host: hal9.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: hal9-service
+            port:
+              name: api
+  - host: api.hal9.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: hal9-service
+            port:
+              name: api
+
+# Remember: 시발 이거 때문에 얼마나 고생했는지
+# The database is always the bottleneck
+# Caching helps until cache invalidation  
+# Parallelism helps until synchronization
+# Microservices help until networking
