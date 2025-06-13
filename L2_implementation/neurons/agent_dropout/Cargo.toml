@@ -1,0 +1,46 @@
+[package]
+name = "agent_dropout"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Core dependencies
+tokio = { version = "1.40", features = ["full"] }
+async-trait = "0.1"
+uuid = { version = "1.10", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Networking
+# actix-web = "4.9"
+# reqwest = { version = "0.12", features = ["json"] }
+
+# Data structures
+dashmap = "6.1"
+petgraph = "0.6"
+rayon = "1.10"
+
+# Storage
+# sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite"] }
+
+# Metrics
+# prometheus = "0.13"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Random
+rand = "0.8"
+
+# Error handling
+thiserror = "1.0"
+
+# Internal dependencies
+# neuron_interface = { path = "../core" }
+
+[dev-dependencies]
+criterion = "0.5"
+mockall = "0.13"
+test-case = "3.3"
