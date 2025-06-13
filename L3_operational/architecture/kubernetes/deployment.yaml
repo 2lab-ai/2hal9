@@ -69,7 +69,7 @@ metadata:
     app: hal9
     component: server
 spec:
-  replicas: 10   # Standard production baseline (aligned with HPA minReplicas)
+  replicas: 30   # Was 3, learned the hard way - for 1000+ users
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -112,9 +112,9 @@ spec:
         - name: RUST_BACKTRACE
           value: "1"
         - name: HAL9_MAX_CONNECTIONS
-          value: "1000"
+          value: "5000"        # Increased for 1000+ users
         - name: HAL9_CACHE_SIZE
-          value: "2000"
+          value: "10000"       # Larger cache for better performance
         - name: HAL9_CIRCUIT_BREAKER_THRESHOLD
           value: "5"
         - name: HAL9_CIRCUIT_BREAKER_TIMEOUT
@@ -124,7 +124,7 @@ spec:
         - name: HAL9_RATE_LIMIT
           value: "100"
         - name: HAL9_CONNECTION_POOL_SIZE
-          value: "50"
+          value: "200"         # Increased pool size for high concurrency
         - name: HAL9_CONFIG_PATH
           value: "/app/config/production.yaml"
         - name: ANTHROPIC_API_KEY
@@ -139,11 +139,11 @@ spec:
           mountPath: /app/logs
         resources:
           requests:
-            memory: "3Gi"    # Increased from 2Gi for production workloads
-            cpu: "1.5"        # Increased from 1 for better baseline performance
+            memory: "2Gi"    # Java developers cry
+            cpu: "1"         # Actually means 1 core
           limits:
-            memory: "6Gi"    # Increased from 4Gi for heavy neural processing
-            cpu: "3"          # Increased from 2 to handle burst traffic
+            memory: "4Gi"    # OOM killer prevention
+            cpu: "2"         # Throttling prevention
         livenessProbe:
           httpGet:
             path: /health
@@ -210,28 +210,28 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: hal9-server
-  minReplicas: 10       # Aligned with deployment baseline replicas
-  maxReplicas: 50       # Standardized for production scaling capacity
+  minReplicas: 30       # Increased for 1000+ concurrent users
+  maxReplicas: 100      # Allow aggressive scaling for peak loads
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: 60    # Reduced from 70 for earlier scaling
+        averageUtilization: 50    # Scale even earlier for 1000+ users
   - type: Resource
     resource:
       name: memory
       target:
         type: Utilization
-        averageUtilization: 70    # Reduced from 80 for earlier scaling
+        averageUtilization: 60    # More aggressive memory-based scaling
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 60    # Scale up quickly
       policies:
       - type: Pods
-        value: 5                        # Add up to 5 pods at once
-        periodSeconds: 60
+        value: 10                       # Add up to 10 pods at once for rapid scaling
+        periodSeconds: 30               # Faster scaling for traffic spikes
     scaleDown:
       stabilizationWindowSeconds: 300   # Scale down slowly
       policies:
