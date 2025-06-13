@@ -9,8 +9,11 @@ members = [
     "substrate/tooling/rust/legacy-crates/hal9-codegen",
     "substrate/tooling/rust/legacy-crates/hal9-plugin-sdk",
     "L2_implementation/neurons/game_neurons",
+    "L2_implementation/neurons/agent_dropout",
     # MCP tools
     "substrate/tooling/mcp/ha-prompter",
+    # L8 Visionary implementations
+    "L8_visionary/exploration/gentle_singularity",
 ]
 
 [workspace.package]
