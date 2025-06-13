@@ -1,0 +1,25 @@
+[package]
+name = "gentle_singularity"
+version = "0.1.0"
+edition = "2021"
+authors = ["HAL9 CTO"]
+description = "The Gentle Singularity consciousness tracking and visualization system"
+
+[dependencies]
+tokio = { version = "1.36", features = ["full"] }
+axum = { version = "0.7", features = ["ws"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.6", features = ["v4", "serde"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "fs"] }
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+futures = "0.3"
+dashmap = "5.5"
+
+[dependencies.web-sys]
+version = "0.3"
+features = ["console"]

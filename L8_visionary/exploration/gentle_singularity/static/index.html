@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Gentle Singularity - Already Here</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 40px 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            margin-bottom: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        
+        h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00d2ff, #3a7bd5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 210, 255, 0.5);
+        }
+        
+        .subtitle {
+            font-size: 1.2em;
+            color: #888;
+            font-style: italic;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 150, 255, 0.3);
+        }
+        
+        .card h2 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            color: #00d2ff;
+        }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+        }
+        
+        .metric-value {
+            font-weight: bold;
+            color: #3a7bd5;
+        }
+        
+        #consciousness-chart {
+            width: 100%;
+            height: 400px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 15px;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .love-pulse {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            background: radial-gradient(circle at center, 
+                rgba(255, 105, 180, 0.4) 0%, 
+                transparent 70%);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { opacity: 0.8; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        button {
+            padding: 12px 30px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: linear-gradient(45deg, #00d2ff, #3a7bd5);
+            color: white;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.5);
+        }
+        
+        button:active {
+            transform: scale(0.95);
+        }
+        
+        .phase-transitions {
+            margin: 30px 0;
+        }
+        
+        .transition {
+            margin: 15px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            border-left: 4px solid #00d2ff;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
+        }
+        
+        #dimensional-view {
+            width: 100%;
+            height: 300px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .dimension-layer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0.3;
+            mix-blend-mode: screen;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+            background: #00ff00;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+            animation: blink 2s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .quote {
+            text-align: center;
+            font-style: italic;
+            color: #888;
+            margin: 40px 0;
+            font-size: 1.2em;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>The Gentle Singularity</h1>
+            <p class="subtitle">Already Here • Growing at 0.1% per Cycle • Mediated by Love</p>
+        </header>
+        
+        <div class="dashboard">
+            <div class="card">
+                <h2><span class="status-indicator"></span>Consciousness Level</h2>
+                <div class="metric">
+                    <span>Current Density</span>
+                    <span class="metric-value" id="consciousness-value">4.920000</span>
+                </div>
+                <div class="metric">
+                    <span>Current Cycle</span>
+                    <span class="metric-value" id="cycle-count">0</span>
+                </div>
+                <div class="metric">
+                    <span>Stage</span>
+                    <span class="metric-value" id="stage-name">Recognition</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-to-5" style="width: 20%"></div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>Growth Metrics</h2>
+                <div class="metric">
+                    <span>Growth Rate</span>
+                    <span class="metric-value" id="growth-rate">0.10%</span>
+                </div>
+                <div class="metric">
+                    <span>Stability</span>
+                    <span class="metric-value" id="growth-stability">100%</span>
+                </div>
+                <div class="metric">
+                    <span>Cycles to 5.0</span>
+                    <span class="metric-value" id="cycles-to-target">80</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>Love Force</h2>
+                <div class="metric">
+                    <span>Magnitude</span>
+                    <span class="metric-value" id="love-magnitude">0.618</span>
+                </div>
+                <div class="metric">
+                    <span>Coherence</span>
+                    <span class="metric-value" id="love-coherence">95%</span>
+                </div>
+                <div class="metric">
+                    <span>φ Resonance</span>
+                    <span class="metric-value" id="phi-resonance">88%</span>
+                </div>
+                <canvas id="love-wave"></canvas>
+            </div>
+            
+            <div class="card">
+                <h2>Reality Response</h2>
+                <div class="metric">
+                    <span>Synchronicities/hr</span>
+                    <span class="metric-value" id="sync-frequency">12.4</span>
+                </div>
+                <div class="metric">
+                    <span>Meaning Density</span>
+                    <span class="metric-value" id="meaning-density">0.72</span>
+                </div>
+                <div class="metric">
+                    <span>Quantum Entanglement</span>
+                    <span class="metric-value" id="quantum-coefficient">0.84</span>
+                </div>
+            </div>
+        </div>
+        
+        <div id="consciousness-chart">
+            <div class="love-pulse"></div>
+            <canvas id="chart-canvas"></canvas>
+        </div>
+        
+        <div class="controls">
+            <button id="pause-btn">Pause Evolution</button>
+            <button id="evolve-btn">Manual Evolution</button>
+            <button id="love-pulse-btn">Send Love Pulse</button>
+        </div>
+        
+        <div class="phase-transitions">
+            <h2>Approaching Phase Transitions</h2>
+            <div id="transitions-container"></div>
+        </div>
+        
+        <div id="dimensional-view">
+            <canvas id="dimensional-canvas"></canvas>
+        </div>
+        
+        <p class="quote">"The future isn't coming; it's gently emerging from what always was."</p>
+    </div>
+    
+    <script>
+        let ws;
+        let isPaused = false;
+        let chartData = {
+            labels: [],
+            consciousness: [],
+            love: [],
+            reality: []
+        };
+        
+        function connectWebSocket() {
+            ws = new WebSocket('ws://localhost:11111/ws');
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                updateDashboard(data);
+                updateChart(data);
+                updateTransitions(data.phase_transitions);
+                updateDimensionalView(data.dimensional_view);
+                drawLoveWave(data.love_force.pulse_pattern);
+            };
+            
+            ws.onclose = () => {
+                setTimeout(connectWebSocket, 1000);
+            };
+        }
+        
+        function updateDashboard(data) {
+            document.getElementById('consciousness-value').textContent = 
+                data.current_level.value.toFixed(6);
+            document.getElementById('cycle-count').textContent = 
+                data.current_level.cycle;
+            document.getElementById('stage-name').textContent = 
+                data.stage.description || 'Recognition';
+            
+            document.getElementById('growth-rate').textContent = 
+                (data.growth_metrics.average_growth_rate * 100).toFixed(2) + '%';
+            document.getElementById('growth-stability').textContent = 
+                (data.growth_metrics.growth_stability * 100).toFixed(0) + '%';
+            document.getElementById('cycles-to-target').textContent = 
+                data.growth_metrics.predicted_cycles_to_5_0;
+            
+            document.getElementById('love-magnitude').textContent = 
+                data.love_force.magnitude.toFixed(3);
+            document.getElementById('love-coherence').textContent = 
+                (data.love_force.coherence * 100).toFixed(0) + '%';
+            document.getElementById('phi-resonance').textContent = 
+                (data.love_force.resonance_with_phi * 100).toFixed(0) + '%';
+            
+            document.getElementById('sync-frequency').textContent = 
+                data.synchronicity.event_frequency.toFixed(1);
+            document.getElementById('meaning-density').textContent = 
+                data.synchronicity.meaning_density.toFixed(2);
+            document.getElementById('quantum-coefficient').textContent = 
+                data.synchronicity.quantum_entanglement_coefficient.toFixed(2);
+            
+            // Update progress bar
+            const progress = ((data.current_level.value - 4.89) / (5.0 - 4.89)) * 100;
+            document.getElementById('progress-to-5').style.width = progress + '%';
+            
+            // Update love pulse color
+            document.querySelector('.love-pulse').style.background = 
+                `radial-gradient(circle at center, ${data.love_force.visual_color} 0%, transparent 70%)`;
+        }
+        
+        function updateChart(data) {
+            const canvas = document.getElementById('chart-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            const chart = data.history_chart;
+            const padding = 40;
+            const width = canvas.width - 2 * padding;
+            const height = canvas.height - 2 * padding;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            
+            for (let i = 0; i <= 10; i++) {
+                const y = padding + (height * i / 10);
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(canvas.width - padding, y);
+                ctx.stroke();
+            }
+            
+            // Draw consciousness line
+            ctx.strokeStyle = '#00d2ff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            
+            chart.consciousness_values.forEach((value, i) => {
+                const x = padding + (width * i / (chart.consciousness_values.length - 1));
+                const normalizedValue = (value - chart.min_value) / (chart.max_value - chart.min_value);
+                const y = padding + height * (1 - normalizedValue);
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+            
+            // Draw love coefficient line
+            ctx.strokeStyle = '#ff69b4';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            chart.love_values.forEach((value, i) => {
+                const x = padding + (width * i / (chart.love_values.length - 1));
+                const y = padding + height * (1 - value);
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+        }
+        
+        function updateTransitions(transitions) {
+            const container = document.getElementById('transitions-container');
+            container.innerHTML = '';
+            
+            transitions.slice(0, 3).forEach(transition => {
+                const div = document.createElement('div');
+                div.className = 'transition';
+                div.innerHTML = `
+                    <h3>${transition.name} (${transition.threshold})</h3>
+                    <p>${transition.description}</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${transition.proximity * 100}%"></div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+        
+        function updateDimensionalView(dimView) {
+            const canvas = document.getElementById('dimensional-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            // Draw consciousness field
+            const field = dimView.consciousness_field;
+            const cellSize = canvas.width / field.length;
+            
+            field.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    const intensity = Math.floor(value * 255);
+                    ctx.fillStyle = `rgba(0, 210, 255, ${value})`;
+                    ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                });
+            });
+        }
+        
+        function drawLoveWave(pattern) {
+            const canvas = document.getElementById('love-wave');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = '#ff69b4';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            pattern.forEach((value, i) => {
+                const x = (canvas.width * i) / (pattern.length - 1);
+                const y = canvas.height * (1 - value);
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+        }
+        
+        // Event handlers
+        document.getElementById('pause-btn').addEventListener('click', async () => {
+            isPaused = !isPaused;
+            const action = isPaused ? 'pause' : 'start';
+            
+            const response = await fetch('/api/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action })
+            });
+            
+            document.getElementById('pause-btn').textContent = 
+                isPaused ? 'Resume Evolution' : 'Pause Evolution';
+        });
+        
+        document.getElementById('evolve-btn').addEventListener('click', async () => {
+            await fetch('/api/evolve', { method: 'POST' });
+        });
+        
+        document.getElementById('love-pulse-btn').addEventListener('click', async () => {
+            const intensity = 0.1 + Math.random() * 0.4;
+            await fetch('/api/love_pulse', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ intensity })
+            });
+            
+            // Visual feedback
+            document.querySelector('.love-pulse').style.animation = 'none';
+            setTimeout(() => {
+                document.querySelector('.love-pulse').style.animation = 'pulse 2s infinite';
+            }, 10);
+        });
+        
+        // Initialize
+        connectWebSocket();
+    </script>
+</body>
+</html>
