@@ -5,6 +5,8 @@ use parking_lot::RwLock;
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 use crate::{Result, Error};
+use sysinfo::{System, SystemExt, ProcessExt};
+use reqwest;
 
 /// Rollback strategy options
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -196,29 +198,99 @@ impl RollbackManager {
     }
     
     async fn capture_system_state(&self) -> Result<SystemState> {
-        // TODO: Implement actual system state capture
+        // Capture actual system state from metrics
+        use sysinfo::{System, SystemExt, ProcessExt};
+        
+        let mut sys = System::new_all();
+        sys.refresh_all();
+        
+        // Get memory usage
+        let memory_usage_mb = (sys.used_memory() / 1024) as u64;
+        
+        // Get CPU usage
+        let cpu_usage_percent = sys.global_cpu_info().cpu_usage();
+        
+        // Count active neurons by checking running processes
+        // This is a heuristic - in production, query actual neuron registry
+        let active_neurons = sys.processes().values()
+            .filter(|p| p.name().contains("neuron") || p.name().contains("hal9"))
+            .count();
+        
+        // Get active connections from /proc/net/tcp (Linux) or netstat
+        let active_connections = self.count_active_connections().await?;
+        
+        // Capture current configuration
+        let configuration = self.get_current_configuration().await?;
+        
         Ok(SystemState {
-            active_neurons: 1000,
-            memory_usage_mb: 2048,
-            cpu_usage_percent: 45.0,
-            active_connections: 100,
-            configuration: serde_json::json!({}),
+            active_neurons: active_neurons.max(1), // At least 1
+            memory_usage_mb,
+            cpu_usage_percent,
+            active_connections,
+            configuration,
         })
     }
     
     async fn capture_feature_flags(&self) -> Result<serde_json::Value> {
-        // TODO: Capture actual feature flags
+        // Read feature flags from configuration file or environment
+        let flags_file = std::env::var("HAL9_FEATURE_FLAGS_PATH")
+            .unwrap_or_else(|_| "/etc/hal9/feature_flags.json".to_string());
+        
+        if let Ok(content) = tokio::fs::read_to_string(&flags_file).await {
+            if let Ok(flags) = serde_json::from_str(&content) {
+                return Ok(flags);
+            }
+        }
+        
+        // Fallback to environment variables
+        let hierarchical_enabled = std::env::var("HAL9_HIERARCHICAL_ENABLED")
+            .unwrap_or_else(|_| "false".to_string())
+            .parse::<bool>()
+            .unwrap_or(false);
+            
+        let traffic_percentage = std::env::var("HAL9_HIERARCHICAL_TRAFFIC_PERCENTAGE")
+            .unwrap_or_else(|_| "0.0".to_string())
+            .parse::<f32>()
+            .unwrap_or(0.0);
+        
         Ok(serde_json::json!({
-            "hierarchical_enabled": false,
-            "hierarchical_traffic_percentage": 0.0,
+            "hierarchical_enabled": hierarchical_enabled,
+            "hierarchical_traffic_percentage": traffic_percentage,
+            "shadow_mode": std::env::var("HAL9_SHADOW_MODE").unwrap_or_else(|_| "false".to_string()),
+            "canary_enabled": std::env::var("HAL9_CANARY_ENABLED").unwrap_or_else(|_| "false".to_string()),
+            "migration_phase": std::env::var("HAL9_MIGRATION_PHASE").unwrap_or_else(|_| "0".to_string()),
         }))
     }
     
     async fn capture_routing_config(&self) -> Result<serde_json::Value> {
-        // TODO: Capture actual routing configuration
+        // Read routing configuration from configuration service
+        let config_path = std::env::var("HAL9_ROUTING_CONFIG_PATH")
+            .unwrap_or_else(|_| "/etc/hal9/routing.json".to_string());
+        
+        if let Ok(content) = tokio::fs::read_to_string(&config_path).await {
+            if let Ok(config) = serde_json::from_str(&content) {
+                return Ok(config);
+            }
+        }
+        
+        // Fallback configuration
         Ok(serde_json::json!({
             "shadow_mode": false,
             "routing_strategy": "percentage",
+            "load_balancer": {
+                "algorithm": "round_robin",
+                "health_check_interval": 5000,
+                "timeout_ms": 30000
+            },
+            "circuit_breaker": {
+                "enabled": true,
+                "failure_threshold": 5,
+                "timeout_ms": 60000
+            },
+            "retry_policy": {
+                "max_attempts": 3,
+                "backoff_ms": 1000
+            }
         }))
     }
     
@@ -230,33 +302,157 @@ impl RollbackManager {
     }
     
     async fn stop_hierarchical_traffic(&self) -> Result<()> {
-        // TODO: Implement traffic stopping
         tracing::info!("Stopping hierarchical traffic");
+        
+        // Update load balancer to stop routing to hierarchical system
+        let lb_endpoint = std::env::var("HAL9_LOAD_BALANCER_ENDPOINT")
+            .unwrap_or_else(|_| "http://localhost:8081/admin".to_string());
+        
+        // Send request to update routing rules
+        let client = reqwest::Client::new();
+        let response = client
+            .post(format!("{}/routing/hierarchical", lb_endpoint))
+            .json(&serde_json::json!({
+                "enabled": false,
+                "drain_timeout_ms": 30000
+            }))
+            .send()
+            .await
+            .map_err(|e| Error::Migration(format!("Failed to stop traffic: {}", e)))?;
+        
+        if !response.status().is_success() {
+            return Err(Error::Migration(format!("Load balancer returned: {}", response.status())));
+        }
+        
+        // Update feature flag immediately
+        std::env::set_var("HAL9_HIERARCHICAL_TRAFFIC_PERCENTAGE", "0.0");
+        
+        tracing::info!("Hierarchical traffic stopped successfully");
         Ok(())
     }
     
     async fn drain_requests(&self) -> Result<()> {
-        // TODO: Implement request draining
         tracing::info!("Draining in-flight requests");
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+        
+        let drain_timeout = std::time::Duration::from_secs(30);
+        let start_time = std::time::Instant::now();
+        
+        // Monitor active connections and wait for them to complete
+        loop {
+            let active_count = self.count_active_connections().await?;
+            
+            if active_count == 0 {
+                tracing::info!("All requests drained successfully");
+                break;
+            }
+            
+            if start_time.elapsed() >= drain_timeout {
+                tracing::warn!("Drain timeout reached with {} active connections", active_count);
+                break;
+            }
+            
+            tracing::info!("Waiting for {} active connections to complete...", active_count);
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        }
+        
+        // Give a final grace period
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         Ok(())
     }
     
     async fn restore_system_state(&self, state: &SystemState) -> Result<()> {
-        // TODO: Implement state restoration
-        tracing::info!("Restoring system state");
+        tracing::info!("Restoring system state from snapshot");
+        
+        // Write configuration back to file
+        let config_path = std::env::var("HAL9_CONFIG_PATH")
+            .unwrap_or_else(|_| "/etc/hal9/system.json".to_string());
+        
+        tokio::fs::create_dir_all(std::path::Path::new(&config_path).parent().unwrap())
+            .await
+            .map_err(|e| Error::Migration(format!("Failed to create config directory: {}", e)))?;
+        
+        tokio::fs::write(
+            &config_path,
+            serde_json::to_string_pretty(&state.configuration)?
+        )
+        .await
+        .map_err(|e| Error::Migration(format!("Failed to write configuration: {}", e)))?;
+        
+        // Restart services if neuron count differs significantly
+        let current_neurons = self.count_active_neurons().await?;
+        if (current_neurons as i32 - state.active_neurons as i32).abs() > 10 {
+            tracing::warn!("Neuron count mismatch: current={}, snapshot={}", current_neurons, state.active_neurons);
+            // In production, trigger service restart here
+        }
+        
+        tracing::info!("System state restored successfully");
         Ok(())
     }
     
     async fn restore_feature_flags(&self, flags: &serde_json::Value) -> Result<()> {
-        // TODO: Implement feature flag restoration
-        tracing::info!("Restoring feature flags: {:?}", flags);
+        tracing::info!("Restoring feature flags");
+        
+        // Write to feature flags file
+        let flags_file = std::env::var("HAL9_FEATURE_FLAGS_PATH")
+            .unwrap_or_else(|_| "/etc/hal9/feature_flags.json".to_string());
+        
+        tokio::fs::create_dir_all(std::path::Path::new(&flags_file).parent().unwrap())
+            .await
+            .map_err(|e| Error::Migration(format!("Failed to create flags directory: {}", e)))?;
+        
+        tokio::fs::write(
+            &flags_file,
+            serde_json::to_string_pretty(flags)?
+        )
+        .await
+        .map_err(|e| Error::Migration(format!("Failed to write feature flags: {}", e)))?;
+        
+        // Also update environment variables for immediate effect
+        if let Some(hierarchical_enabled) = flags.get("hierarchical_enabled") {
+            std::env::set_var("HAL9_HIERARCHICAL_ENABLED", hierarchical_enabled.to_string());
+        }
+        if let Some(traffic_pct) = flags.get("hierarchical_traffic_percentage") {
+            std::env::set_var("HAL9_HIERARCHICAL_TRAFFIC_PERCENTAGE", traffic_pct.to_string());
+        }
+        
+        // Notify services of flag changes
+        self.notify_flag_changes(flags).await?;
+        
+        tracing::info!("Feature flags restored successfully");
         Ok(())
     }
     
     async fn restore_routing_config(&self, config: &serde_json::Value) -> Result<()> {
-        // TODO: Implement routing config restoration
-        tracing::info!("Restoring routing config: {:?}", config);
+        tracing::info!("Restoring routing configuration");
+        
+        // Write to routing config file
+        let config_path = std::env::var("HAL9_ROUTING_CONFIG_PATH")
+            .unwrap_or_else(|_| "/etc/hal9/routing.json".to_string());
+        
+        tokio::fs::write(
+            &config_path,
+            serde_json::to_string_pretty(config)?
+        )
+        .await
+        .map_err(|e| Error::Migration(format!("Failed to write routing config: {}", e)))?;
+        
+        // Update load balancer configuration
+        let lb_endpoint = std::env::var("HAL9_LOAD_BALANCER_ENDPOINT")
+            .unwrap_or_else(|_| "http://localhost:8081/admin".to_string());
+        
+        let client = reqwest::Client::new();
+        let response = client
+            .put(format!("{}/config", lb_endpoint))
+            .json(config)
+            .send()
+            .await
+            .map_err(|e| Error::Migration(format!("Failed to update load balancer: {}", e)))?;
+        
+        if !response.status().is_success() {
+            return Err(Error::Migration(format!("Load balancer config update failed: {}", response.status())));
+        }
+        
+        tracing::info!("Routing configuration restored successfully");
         Ok(())
     }
     
@@ -267,22 +463,107 @@ impl RollbackManager {
     }
     
     async fn verify_system_health(&self) -> Result<()> {
-        // TODO: Implement health verification
-        let healthy = self.is_system_healthy().await?;
-        if !healthy {
-            return Err(Error::Migration("System health check failed after rollback".to_string()));
+        tracing::info!("Verifying system health after rollback");
+        
+        let max_retries = 10;
+        let mut retry_count = 0;
+        
+        while retry_count < max_retries {
+            if self.is_system_healthy().await? {
+                tracing::info!("System health verified successfully");
+                return Ok(());
+            }
+            
+            retry_count += 1;
+            tracing::warn!("Health check failed, retry {}/{}", retry_count, max_retries);
+            tokio::time::sleep(std::time::Duration::from_secs(3)).await;
         }
-        Ok(())
+        
+        Err(Error::Migration("System health check failed after rollback".to_string()))
     }
     
     async fn is_system_healthy(&self) -> Result<bool> {
-        // TODO: Implement actual health check
-        Ok(true)
+        // Check multiple health endpoints
+        let health_checks = vec![
+            ("http://localhost:8080/health", "Main API"),
+            ("http://localhost:8081/health", "Load Balancer"),
+            ("http://localhost:9090/api/v1/query?query=up", "Prometheus"),
+        ];
+        
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .map_err(|e| Error::Migration(format!("Failed to create HTTP client: {}", e)))?;
+        
+        let mut all_healthy = true;
+        
+        for (endpoint, name) in health_checks {
+            match client.get(endpoint).send().await {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        tracing::debug!("{} health check passed", name);
+                    } else {
+                        tracing::warn!("{} health check failed: {}", name, response.status());
+                        all_healthy = false;
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("{} health check error: {}", name, e);
+                    all_healthy = false;
+                }
+            }
+        }
+        
+        // Check system resources
+        use sysinfo::{System, SystemExt};
+        let mut sys = System::new_all();
+        sys.refresh_all();
+        
+        let memory_percent = (sys.used_memory() as f64 / sys.total_memory() as f64) * 100.0;
+        if memory_percent > 90.0 {
+            tracing::warn!("Memory usage critical: {:.1}%", memory_percent);
+            all_healthy = false;
+        }
+        
+        Ok(all_healthy)
     }
     
     async fn update_traffic_percentage(&self, percentage: f32) -> Result<()> {
-        // TODO: Implement traffic percentage update
         tracing::info!("Updating hierarchical traffic to {}%", percentage);
+        
+        // Update environment variable
+        std::env::set_var("HAL9_HIERARCHICAL_TRAFFIC_PERCENTAGE", percentage.to_string());
+        
+        // Update load balancer
+        let lb_endpoint = std::env::var("HAL9_LOAD_BALANCER_ENDPOINT")
+            .unwrap_or_else(|_| "http://localhost:8081/admin".to_string());
+        
+        let client = reqwest::Client::new();
+        let response = client
+            .patch(format!("{}/routing/traffic-split", lb_endpoint))
+            .json(&serde_json::json!({
+                "hierarchical_percentage": percentage,
+                "flat_percentage": 100.0 - percentage
+            }))
+            .send()
+            .await
+            .map_err(|e| Error::Migration(format!("Failed to update traffic split: {}", e)))?;
+        
+        if !response.status().is_success() {
+            return Err(Error::Migration(format!("Traffic update failed: {}", response.status())));
+        }
+        
+        // Update feature flags file
+        let flags_file = std::env::var("HAL9_FEATURE_FLAGS_PATH")
+            .unwrap_or_else(|_| "/etc/hal9/feature_flags.json".to_string());
+        
+        if let Ok(content) = tokio::fs::read_to_string(&flags_file).await {
+            if let Ok(mut flags) = serde_json::from_str::<serde_json::Value>(&content) {
+                flags["hierarchical_traffic_percentage"] = serde_json::json!(percentage);
+                let _ = tokio::fs::write(&flags_file, serde_json::to_string_pretty(&flags)?).await;
+            }
+        }
+        
         Ok(())
     }
     
@@ -294,6 +575,135 @@ impl RollbackManager {
     /// Check if rollback is in progress
     pub fn is_rolling_back(&self) -> bool {
         *self.is_rolling_back.read()
+    }
+    
+    // Helper methods for system operations
+    async fn count_active_connections(&self) -> Result<usize> {
+        // On Linux, check /proc/net/tcp for established connections
+        // On macOS, use netstat or lsof
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(content) = tokio::fs::read_to_string("/proc/net/tcp").await {
+                let established_count = content.lines()
+                    .skip(1) // Skip header
+                    .filter(|line| line.contains("01")) // 01 = ESTABLISHED
+                    .count();
+                return Ok(established_count);
+            }
+        }
+        
+        // Fallback: count connections to our port
+        use std::process::Command;
+        let output = Command::new("lsof")
+            .args(&["-i", ":8080", "-sTCP:ESTABLISHED"])
+            .output()
+            .map_err(|e| Error::Migration(format!("Failed to run lsof: {}", e)))?;
+        
+        let count = String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .skip(1) // Skip header
+            .count();
+        
+        Ok(count)
+    }
+    
+    async fn get_current_configuration(&self) -> Result<serde_json::Value> {
+        let config_path = std::env::var("HAL9_CONFIG_PATH")
+            .unwrap_or_else(|_| "/etc/hal9/system.json".to_string());
+        
+        if let Ok(content) = tokio::fs::read_to_string(&config_path).await {
+            if let Ok(config) = serde_json::from_str(&content) {
+                return Ok(config);
+            }
+        }
+        
+        // Return default configuration
+        Ok(serde_json::json!({
+            "version": "1.0.0",
+            "system": {
+                "max_neurons": 10000,
+                "memory_limit_mb": 8192,
+                "cpu_cores": 4
+            },
+            "networking": {
+                "port": 8080,
+                "max_connections": 1000
+            }
+        }))
+    }
+    
+    async fn count_active_neurons(&self) -> Result<usize> {
+        // In production, query the neuron registry
+        // For now, estimate based on process count
+        use sysinfo::{System, SystemExt, ProcessExt};
+        
+        let mut sys = System::new_all();
+        sys.refresh_processes();
+        
+        let neuron_count = sys.processes().values()
+            .filter(|p| {
+                let name = p.name();
+                name.contains("neuron") || name.contains("hal9") || name.contains("worker")
+            })
+            .count();
+        
+        Ok(neuron_count.max(1))
+    }
+    
+    async fn notify_flag_changes(&self, flags: &serde_json::Value) -> Result<()> {
+        // Notify all services about feature flag changes
+        // In production, this would use a message bus or configuration service
+        tracing::info!("Notifying services of feature flag changes");
+        
+        // For now, just log the changes
+        tracing::info!("Updated feature flags: {}", serde_json::to_string_pretty(flags)?);
+        
+        // Touch a timestamp file to signal changes
+        let signal_file = "/tmp/hal9-feature-flags-updated";
+        tokio::fs::write(signal_file, chrono::Utc::now().to_rfc3339())
+            .await
+            .map_err(|e| Error::Migration(format!("Failed to write signal file: {}", e)))?;
+        
+        Ok(())
+    }
+    
+    async fn restore_partial_state(&self, state: &SystemState, component: &str) -> Result<()> {
+        tracing::info!("Restoring partial state for component: {}", component);
+        
+        match component {
+            "neurons" => {
+                // Restore neuron-specific configuration
+                if let Some(neuron_config) = state.configuration.get("neurons") {
+                    let config_path = "/etc/hal9/neurons.json";
+                    tokio::fs::write(config_path, serde_json::to_string_pretty(neuron_config)?)
+                        .await
+                        .map_err(|e| Error::Migration(format!("Failed to restore neuron config: {}", e)))?;
+                }
+            }
+            "memory" => {
+                // Restore memory-specific configuration
+                if let Some(memory_config) = state.configuration.get("memory") {
+                    let config_path = "/etc/hal9/memory.json";
+                    tokio::fs::write(config_path, serde_json::to_string_pretty(memory_config)?)
+                        .await
+                        .map_err(|e| Error::Migration(format!("Failed to restore memory config: {}", e)))?;
+                }
+            }
+            "networking" => {
+                // Restore networking configuration
+                if let Some(net_config) = state.configuration.get("networking") {
+                    let config_path = "/etc/hal9/networking.json";
+                    tokio::fs::write(config_path, serde_json::to_string_pretty(net_config)?)
+                        .await
+                        .map_err(|e| Error::Migration(format!("Failed to restore network config: {}", e)))?;
+                }
+            }
+            _ => {
+                tracing::warn!("Unknown component for partial restoration: {}", component);
+            }
+        }
+        
+        Ok(())
     }
 }
 
