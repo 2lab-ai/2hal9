@@ -9,12 +9,12 @@ const BOARD_SIZE: usize = 9; // Mini Go uses 9x9 board
 const KOMI: f32 = 5.5; // Compensation for white
 
 /// Mini Go - Simplified version of Go for AI evaluation
-pub struct MiniGoGame {
+pub struct MiniGo {
     id: Uuid,
     round: u32,
     max_rounds: u32,
     players: Vec<String>,
-    board: [[Stone; BOARD_SIZE]; BOARD_SIZE],
+    pub board: [[Stone; BOARD_SIZE]; BOARD_SIZE],
     current_player: usize,
     captured_stones: HashMap<String, u32>,
     move_history: Vec<GoMove>,
@@ -24,7 +24,7 @@ pub struct MiniGoGame {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-enum Stone {
+pub enum Stone {
     Empty,
     Black,
     White,
@@ -38,8 +38,12 @@ struct GoMove {
     board_state: [[Stone; BOARD_SIZE]; BOARD_SIZE],
 }
 
-impl MiniGoGame {
-    pub fn new(max_rounds: u32, special_rules: HashMap<String, String>) -> Self {
+impl MiniGo {
+    pub fn new() -> Self {
+        Self::new_with_config(100, HashMap::new())
+    }
+    
+    pub fn new_with_config(max_rounds: u32, special_rules: HashMap<String, String>) -> Self {
         Self {
             id: Uuid::new_v4(),
             round: 0,
@@ -53,6 +57,73 @@ impl MiniGoGame {
             pass_count: 0,
             special_rules,
         }
+    }
+    
+    pub fn count_liberties(&self, row: usize, col: usize) -> usize {
+        let stone = self.board[row][col];
+        if stone == Stone::Empty {
+            return 0;
+        }
+        
+        let mut visited = HashSet::new();
+        let mut liberties = HashSet::new();
+        
+        self._count_group_liberties(row, col, stone, &mut visited, &mut liberties);
+        liberties.len()
+    }
+    
+    fn _count_group_liberties(&self, row: usize, col: usize, stone: Stone, 
+                             visited: &mut HashSet<(usize, usize)>, 
+                             liberties: &mut HashSet<(usize, usize)>) {
+        if visited.contains(&(row, col)) {
+            return;
+        }
+        
+        visited.insert((row, col));
+        
+        // Check all four directions
+        let directions = [(0, 1), (1, 0), (0, -1), (-1, 0)];
+        for (dr, dc) in directions.iter() {
+            let new_row = row as i32 + dr;
+            let new_col = col as i32 + dc;
+            
+            if new_row >= 0 && new_row < BOARD_SIZE as i32 && 
+               new_col >= 0 && new_col < BOARD_SIZE as i32 {
+                let r = new_row as usize;
+                let c = new_col as usize;
+                
+                match self.board[r][c] {
+                    Stone::Empty => {
+                        liberties.insert((r, c));
+                    }
+                    s if s == stone => {
+                        self._count_group_liberties(r, c, stone, visited, liberties);
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    
+    pub fn capture_stones(&mut self, opponent_stone: Stone) -> Vec<(usize, usize)> {
+        let mut captured = Vec::new();
+        
+        for row in 0..BOARD_SIZE {
+            for col in 0..BOARD_SIZE {
+                if self.board[row][col] == opponent_stone {
+                    if self.count_liberties(row, col) == 0 {
+                        captured.push((row, col));
+                    }
+                }
+            }
+        }
+        
+        // Remove captured stones
+        for &(row, col) in &captured {
+            self.board[row][col] = Stone::Empty;
+        }
+        
+        captured
     }
     
     fn is_valid_move(&self, row: usize, col: usize, stone: Stone) -> bool {
@@ -330,7 +401,7 @@ impl MiniGoGame {
 }
 
 #[async_trait]
-impl Game for MiniGoGame {
+impl Game for MiniGo {
     async fn get_state(&self) -> Result<GameState> {
         // Generate available moves
         let mut available_moves = Vec::new();

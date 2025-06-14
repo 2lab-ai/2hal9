@@ -3,9 +3,17 @@ pub mod byzantine_generals;
 pub mod collective_maze;
 pub mod recursive_reasoning;
 pub mod swarm_optimization;
+// pub mod prisoners_dilemma;
+// pub mod quantum_consensus;
+// pub mod mini_go;
+// pub mod mini_holdem;
+// pub mod squid_game;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod core_logic_tests;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

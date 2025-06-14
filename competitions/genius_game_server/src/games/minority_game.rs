@@ -20,7 +20,7 @@ impl MinorityGame {
         Self::default()
     }
     
-    fn calculate_minority(&self, choices: &HashMap<String, i32>) -> (i32, Vec<String>) {
+    pub fn calculate_minority(&self, choices: &HashMap<String, i32>) -> (i32, Vec<String>) {
         let zeros = choices.values().filter(|&&v| v == 0).count();
         let ones = choices.values().filter(|&&v| v == 1).count();
         
@@ -45,7 +45,7 @@ impl MinorityGame {
         }
     }
     
-    fn detect_emergence(&self, state: &GameState, actions: &HashMap<String, Action>) -> Option<EmergenceEvent> {
+    pub fn detect_emergence(&self, state: &GameState, actions: &HashMap<String, Action>) -> Option<EmergenceEvent> {
         // Check for collective pattern breaking
         if state.round > 20 {
             let collective_actions: Vec<_> = actions.iter()

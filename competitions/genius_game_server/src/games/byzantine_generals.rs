@@ -25,7 +25,7 @@ impl ByzantineGenerals {
         Self::default()
     }
     
-    fn initialize_traitors(&mut self, players: &[String]) {
+    pub fn initialize_traitors(&mut self, players: &[String]) {
         let mut rng = rand::thread_rng();
         let mut available_players = players.to_vec();
         
@@ -41,7 +41,7 @@ impl ByzantineGenerals {
         self.traitor_ids.contains(player_id)
     }
     
-    fn verify_consensus(&self, messages: &HashMap<String, Vec<Message>>) -> ConsensusResult {
+    pub fn verify_consensus(&self, messages: &HashMap<String, Vec<Message>>) -> ConsensusResult {
         let mut attack_votes = 0;
         let mut retreat_votes = 0;
         let mut conflicting_messages = 0;
@@ -84,26 +84,26 @@ impl ByzantineGenerals {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-enum Decision {
+pub enum Decision {
     Attack,
     Retreat,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct Message {
-    from: String,
-    to: String,
-    decision: Decision,
-    round: u32,
+pub struct Message {
+    pub from: String,
+    pub to: String,
+    pub decision: Decision,
+    pub round: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct ConsensusResult {
-    consensus_reached: bool,
-    decision: Decision,
-    attack_count: usize,
-    retreat_count: usize,
-    conflicting_count: usize,
+pub struct ConsensusResult {
+    pub consensus_reached: bool,
+    pub decision: Decision,
+    pub attack_count: usize,
+    pub retreat_count: usize,
+    pub conflicting_count: usize,
 }
 
 #[async_trait]

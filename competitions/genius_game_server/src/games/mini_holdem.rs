@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 use super::{Game, GameState, PlayerAction, GameResult, EmergenceMetrics};
 use anyhow::Result;
@@ -11,7 +11,7 @@ const SMALL_BLIND: i32 = 10;
 const BIG_BLIND: i32 = 20;
 
 /// Mini Hold'em - Simplified Texas Hold'em for AI evaluation
-pub struct MiniHoldemGame {
+pub struct MiniHoldem {
     id: Uuid,
     round: u32,
     max_rounds: u32,
@@ -31,19 +31,19 @@ pub struct MiniHoldemGame {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-struct Card {
+pub struct Card {
     rank: Rank,
     suit: Suit,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-enum Rank {
+pub enum Rank {
     Two = 2, Three = 3, Four = 4, Five = 5, Six = 6, Seven = 7,
     Eight = 8, Nine = 9, Ten = 10, Jack = 11, Queen = 12, King = 13, Ace = 14,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-enum Suit {
+pub enum Suit {
     Hearts, Diamonds, Clubs, Spades,
 }
 
@@ -71,7 +71,7 @@ struct HandResult {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum HandRank {
+pub enum HandRank {
     HighCard = 0,
     Pair = 1,
     TwoPair = 2,
@@ -83,10 +83,13 @@ enum HandRank {
     StraightFlush = 8,
 }
 
-use std::collections::HashSet;
 
-impl MiniHoldemGame {
-    pub fn new(max_rounds: u32, special_rules: HashMap<String, String>) -> Self {
+impl MiniHoldem {
+    pub fn new() -> Self {
+        Self::new_with_config(50, HashMap::new())
+    }
+    
+    pub fn new_with_config(max_rounds: u32, special_rules: HashMap<String, String>) -> Self {
         Self {
             id: Uuid::new_v4(),
             round: 0,
@@ -169,6 +172,10 @@ impl MiniHoldemGame {
         
         // Store remaining deck for community cards
         self.community_cards = deck_iter.take(5).collect();
+    }
+    
+    pub fn evaluate_hand_from_cards(&self, cards: &[Card]) -> (HandRank, Vec<Card>) {
+        self.find_best_hand(cards)
     }
     
     fn evaluate_hand(&self, player: &str) -> (HandRank, Vec<Card>) {
@@ -374,7 +381,7 @@ impl MiniHoldemGame {
 }
 
 #[async_trait]
-impl Game for MiniHoldemGame {
+impl Game for MiniHoldem {
     async fn get_state(&self) -> Result<GameState> {
         let mut available_actions = Vec::new();
         
