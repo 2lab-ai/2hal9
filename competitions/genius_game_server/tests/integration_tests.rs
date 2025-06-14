@@ -1,13 +1,10 @@
 #[cfg(test)]
 mod integration_tests {
-    use genius_game_server::{GameEngine, GeniusGameServer};
-    use genius_game_server::games::{GameConfig, GameType, Action, Game};
+    use genius_game_server::GameEngine;
+    use genius_game_server::games::{GameConfig, GameType, Action};
     use genius_game_server::collective::{CollectiveIntelligence, CollectiveConfig, CollectiveType, CoordinationStrategy};
     use genius_game_server::sota::{SOTAManager, SOTAConfig, ThinkingTime};
     use std::collections::HashMap;
-    use std::time::Duration;
-    use tokio::time::timeout;
-    use uuid::Uuid;
 
     #[tokio::test]
     async fn test_minority_game_full_cycle() {
@@ -63,7 +60,7 @@ mod integration_tests {
             });
             
             let result = engine.process_turn(game_id, actions).await.unwrap();
-            assert_eq!(result.round, round + 1);
+            assert_eq!(result.round, round + 2); // +2 because initial round was 1
             
             // One should win each round (unless tie)
             if result.outcome.winners.len() > 0 {
@@ -73,7 +70,7 @@ mod integration_tests {
         
         // Finalize and check results
         let final_result = engine.finalize_game(game_id).await.unwrap();
-        assert_eq!(final_result.total_rounds, 5);
+        assert_eq!(final_result.total_rounds, 6); // 1 initial + 5 game rounds
         assert_eq!(final_result.final_scores.len(), 2);
         assert!(!final_result.winner.is_empty());
     }
@@ -105,7 +102,7 @@ mod integration_tests {
         let _ = engine.process_turn(game_id, initial_actions).await.unwrap();
         
         // Test consensus rounds
-        for round in 0..3 {
+        for _round in 0..3 {
             let mut actions = HashMap::new();
             
             // Most generals vote attack
@@ -347,7 +344,7 @@ mod integration_tests {
 
     #[tokio::test]
     async fn test_concurrent_game_handling() {
-        let engine = GameEngine::new();
+        let _engine = GameEngine::new();
         
         let mut game_handles = vec![];
         

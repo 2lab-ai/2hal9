@@ -45,7 +45,7 @@ impl SwarmOptimization {
         }
     }
     
-    pub fn update_particles(&mut self, particles: &mut Vec<Particle>) {
+    pub fn update_particles(&mut self, particles: &mut [Particle]) {
         let w = 0.729;  // Inertia weight
         let c1 = 1.49445; // Cognitive parameter
         let c2 = 1.49445; // Social parameter
@@ -81,8 +81,8 @@ impl SwarmOptimization {
         let threshold = 0.001;
         
         for particle in particles.iter().skip(1) {
-            for i in 0..self.dimensions {
-                if (particle.position[i] - first_pos[i]).abs() > threshold {
+            for (i, first_val) in first_pos.iter().enumerate().take(self.dimensions) {
+                if (particle.position[i] - first_val).abs() > threshold {
                     return false;
                 }
             }
