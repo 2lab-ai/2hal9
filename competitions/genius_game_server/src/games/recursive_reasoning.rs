@@ -5,9 +5,9 @@ use uuid::Uuid;
 use rand::Rng;
 
 pub struct RecursiveReasoning {
-    max_depth: usize,
-    guessing_rounds: usize,
-    thinking_depth_scores: HashMap<String, Vec<usize>>,
+    pub max_depth: usize,
+    pub guessing_rounds: usize,
+    pub thinking_depth_scores: HashMap<String, Vec<usize>>,
 }
 
 impl Default for RecursiveReasoning {
@@ -23,6 +23,23 @@ impl RecursiveReasoning {
             guessing_rounds: 10,
             thinking_depth_scores: HashMap::new(),
         }
+    }
+    
+    pub fn calculate_reasoning_depth(&self, guess: i32, target: i32) -> usize {
+        // Calculate how deep the recursive reasoning goes based on the guess
+        let distance = (guess - target).abs() as f64;
+        let max_distance = 100.0; // Maximum possible distance
+        
+        // Closer guesses indicate deeper reasoning
+        let depth_ratio = 1.0 - (distance / max_distance).min(1.0);
+        let calculated_depth = (depth_ratio * self.max_depth as f64).round() as usize;
+        
+        // Special case: perfect recursive reasoning (guess = 0)
+        if guess == 0 {
+            return self.max_depth;
+        }
+        
+        calculated_depth.max(1)
     }
     
     fn generate_puzzle(&self, round: u32) -> RecursivePuzzle {

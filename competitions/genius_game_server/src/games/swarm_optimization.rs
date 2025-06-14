@@ -5,15 +5,23 @@ use uuid::Uuid;
 use rand::Rng;
 
 pub struct SwarmOptimization {
-    dimensions: usize,
-    search_space_min: f64,
-    search_space_max: f64,
-    target_position: Vec<f64>,
-    agent_positions: HashMap<String, Vec<f64>>,
-    best_positions: HashMap<String, Vec<f64>>,
-    velocities: HashMap<String, Vec<f64>>,
-    global_best_position: Vec<f64>,
-    global_best_fitness: f64,
+    pub dimensions: usize,
+    pub search_space_min: f64,
+    pub search_space_max: f64,
+    pub target_position: Vec<f64>,
+    pub agent_positions: HashMap<String, Vec<f64>>,
+    pub best_positions: HashMap<String, Vec<f64>>,
+    pub velocities: HashMap<String, Vec<f64>>,
+    pub global_best_position: Vec<f64>,
+    pub global_best_fitness: f64,
+}
+
+pub struct Particle {
+    pub id: usize,
+    pub position: Vec<f64>,
+    pub velocity: Vec<f64>,
+    pub personal_best: Vec<f64>,
+    pub personal_best_value: f64,
 }
 
 impl Default for SwarmOptimization {
@@ -35,6 +43,60 @@ impl SwarmOptimization {
             global_best_position: vec![],
             global_best_fitness: f64::NEG_INFINITY,
         }
+    }
+    
+    pub fn update_particles(&mut self, particles: &mut Vec<Particle>) {
+        let w = 0.729;  // Inertia weight
+        let c1 = 1.49445; // Cognitive parameter
+        let c2 = 1.49445; // Social parameter
+        
+        for particle in particles.iter_mut() {
+            for i in 0..self.dimensions {
+                let r1 = rand::thread_rng().gen::<f64>();
+                let r2 = rand::thread_rng().gen::<f64>();
+                
+                // Update velocity
+                let cognitive = c1 * r1 * (particle.personal_best[i] - particle.position[i]);
+                let social = c2 * r2 * (self.global_best_position[i] - particle.position[i]);
+                particle.velocity[i] = w * particle.velocity[i] + cognitive + social;
+                
+                // Update position
+                particle.position[i] += particle.velocity[i];
+                
+                // Clamp to search space
+                particle.position[i] = particle.position[i]
+                    .max(self.search_space_min)
+                    .min(self.search_space_max);
+            }
+        }
+    }
+    
+    pub fn check_convergence(&self, particles: &[Particle]) -> bool {
+        // Check if all particles are close to each other
+        if particles.is_empty() {
+            return false;
+        }
+        
+        let first_pos = &particles[0].position;
+        let threshold = 0.001;
+        
+        for particle in particles.iter().skip(1) {
+            for i in 0..self.dimensions {
+                if (particle.position[i] - first_pos[i]).abs() > threshold {
+                    return false;
+                }
+            }
+        }
+        
+        true
+    }
+    
+    pub fn global_best(&self) -> &Vec<f64> {
+        &self.global_best_position
+    }
+    
+    pub fn global_best_value(&self) -> f64 {
+        self.global_best_fitness
     }
     
     fn generate_target(&mut self, round: u32) {
