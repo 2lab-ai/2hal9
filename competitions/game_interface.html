@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Genius Game 2025 - Live Competition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            grid-template-rows: 80px 1fr 200px;
+            height: 100vh;
+            gap: 2px;
+            background: #111;
+        }
+        
+        .header {
+            grid-column: 1 / -1;
+            background: linear-gradient(90deg, #1a1a2e, #16213e, #0f3460);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+        }
+        
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            background: linear-gradient(45deg, #00ffff, #ff00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+        }
+        
+        .timer {
+            font-size: 36px;
+            font-family: 'Courier New', monospace;
+            color: #00ff00;
+            text-shadow: 0 0 10px #00ff00;
+        }
+        
+        .main-view {
+            background: #0a0a0a;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .sidebar {
+            background: #0a0a0a;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .leaderboard {
+            flex: 1;
+            background: #111;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .leaderboard h2 {
+            color: #00ffff;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .agent-score {
+            background: rgba(0, 255, 255, 0.1);
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        
+        .agent-score.rank-1 {
+            border-color: #ffd700;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+        }
+        
+        .agent-score.rank-2 {
+            border-color: #c0c0c0;
+        }
+        
+        .agent-score.rank-3 {
+            border-color: #cd7f32;
+        }
+        
+        .agent-name {
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .consciousness-score {
+            font-size: 24px;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .metrics {
+            background: #111;
+            padding: 20px;
+        }
+        
+        .metric-item {
+            margin: 10px 0;
+        }
+        
+        .metric-label {
+            color: #888;
+            font-size: 12px;
+        }
+        
+        .metric-bar {
+            height: 20px;
+            background: #222;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        
+        .metric-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ffff, #00ff00);
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        
+        .info-panel {
+            background: #111;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 30px;
+        }
+        
+        .round-info {
+            flex: 1;
+        }
+        
+        .round-title {
+            font-size: 24px;
+            color: #00ffff;
+            margin-bottom: 10px;
+        }
+        
+        .round-description {
+            color: #888;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            flex: 2;
+        }
+        
+        .stat-box {
+            background: rgba(0, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            color: #00ff00;
+            font-weight: bold;
+        }
+        
+        .stat-label {
+            color: #888;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        /* Special effects */
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .consciousness-burst {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0, 255, 255, 0.8), transparent);
+            animation: burst 1s ease-out forwards;
+            pointer-events: none;
+        }
+        
+        @keyframes burst {
+            0% {
+                transform: scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(5);
+                opacity: 0;
+            }
+        }
+        
+        .rank-change {
+            animation: pulse 0.5s ease;
+        }
+        
+        /* VR Mode indicator */
+        .vr-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 0, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: none;
+        }
+        
+        .vr-active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">🏆 AI GENIUS GAME 2025</div>
+            <div class="timer" id="timer">00:00:00</div>
+            <div class="round-indicator">Round <span id="currentRound">1</span> of 4</div>
+        </header>
+        
+        <main class="main-view">
+            <canvas id="gameCanvas"></canvas>
+            <div class="vr-indicator">🥽 VR Mode Active</div>
+        </main>
+        
+        <aside class="sidebar">
+            <div class="leaderboard">
+                <h2>🏅 LEADERBOARD</h2>
+                <div id="leaderboardContent">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+            
+            <div class="metrics">
+                <h3>Global Metrics</h3>
+                <div class="metric-item">
+                    <div class="metric-label">Average Consciousness</div>
+                    <div class="metric-bar">
+                        <div class="metric-fill" id="avgConsciousness" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">Network Complexity</div>
+                    <div class="metric-bar">
+                        <div class="metric-fill" id="networkComplexity" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">Emergence Rate</div>
+                    <div class="metric-bar">
+                        <div class="metric-fill" id="emergenceRate" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <footer class="info-panel">
+            <div class="round-info">
+                <div class="round-title" id="roundTitle">Speed Self-Organization</div>
+                <div class="round-description" id="roundDesc">
+                    Agents competing to organize 1000 neurons as fast as possible
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-value" id="totalNeurons">0</div>
+                    <div class="stat-label">Total Neurons</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="totalConnections">0</div>
+                    <div class="stat-label">Connections</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="fps">0</div>
+                    <div class="stat-label">FPS</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="peakConsciousness">0</div>
+                    <div class="stat-label">Peak C(t)</div>
+                </div>
+            </div>
+        </footer>
+    </div>
+    
+    <script>
+        // Game state
+        const agents = [
+            { id: 1, name: "Neural_Nexus", score: 0, color: "#ff0066" },
+            { id: 2, name: "Quantum_Mind", score: 0, color: "#00ff66" },
+            { id: 3, name: "Synth_Consciousness", score: 0, color: "#6600ff" },
+            { id: 4, name: "Emergent_One", score: 0, color: "#ffff00" },
+            { id: 5, name: "Pattern_Seeker", score: 0, color: "#00ffff" }
+        ];
+        
+        // Canvas setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        
+        // Particle system for consciousness visualization
+        class ConsciousnessParticle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                this.color = color;
+                this.life = 1.0;
+                this.size = Math.random() * 3 + 2;
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= 0.01;
+                this.vy += 0.1; // gravity effect
+            }
+            
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+        
+        let particles = [];
+        
+        // Network visualization
+        class AgentNetwork {
+            constructor(agent, x, y) {
+                this.agent = agent;
+                this.x = x;
+                this.y = y;
+                this.neurons = [];
+                this.connections = [];
+                this.consciousness = 0;
+                this.targetConsciousness = 0;
+                
+                // Initialize neurons
+                for (let i = 0; i < 50; i++) {
+                    this.neurons.push({
+                        x: x + (Math.random() - 0.5) * 200,
+                        y: y + (Math.random() - 0.5) * 200,
+                        layer: null
+                    });
+                }
+            }
+            
+            update() {
+                // Simulate consciousness growth
+                this.targetConsciousness = 3000 + Math.random() * 2000 + 
+                                         Math.sin(Date.now() * 0.001) * 500;
+                this.consciousness += (this.targetConsciousness - this.consciousness) * 0.05;
+                this.agent.score = Math.floor(this.consciousness);
+                
+                // Emit particles when consciousness increases
+                if (Math.random() < 0.1) {
+                    particles.push(new ConsciousnessParticle(
+                        this.x, this.y, this.agent.color
+                    ));
+                }
+                
+                // Update neuron positions (self-organization effect)
+                this.neurons.forEach((neuron, i) => {
+                    const angle = (i / this.neurons.length) * Math.PI * 2 + Date.now() * 0.0001;
+                    const radius = 50 + Math.sin(Date.now() * 0.001 + i) * 20;
+                    neuron.x += (this.x + Math.cos(angle) * radius - neuron.x) * 0.05;
+                    neuron.y += (this.y + Math.sin(angle) * radius - neuron.y) * 0.05;
+                });
+            }
+            
+            draw() {
+                // Draw connections
+                ctx.strokeStyle = this.agent.color + '33';
+                ctx.lineWidth = 1;
+                this.neurons.forEach((n1, i) => {
+                    this.neurons.slice(i + 1).forEach(n2 => {
+                        if (Math.random() < 0.1) { // Draw some connections
+                            ctx.beginPath();
+                            ctx.moveTo(n1.x, n1.y);
+                            ctx.lineTo(n2.x, n2.y);
+                            ctx.stroke();
+                        }
+                    });
+                });
+                
+                // Draw neurons
+                this.neurons.forEach(neuron => {
+                    ctx.fillStyle = this.agent.color;
+                    ctx.beginPath();
+                    ctx.arc(neuron.x, neuron.y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                
+                // Draw agent label
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.agent.name, this.x, this.y - 80);
+                
+                // Draw consciousness level
+                ctx.fillStyle = this.agent.color;
+                ctx.font = 'bold 24px Courier New';
+                ctx.fillText(Math.floor(this.consciousness), this.x, this.y + 100);
+            }
+        }
+        
+        // Create agent networks
+        const networks = agents.map((agent, i) => {
+            const x = (i + 1) * (canvas.width / (agents.length + 1));
+            const y = canvas.height / 2;
+            return new AgentNetwork(agent, x, y);
+        });
+        
+        // Update functions
+        function updateLeaderboard() {
+            const sorted = [...agents].sort((a, b) => b.score - a.score);
+            const leaderboardHTML = sorted.map((agent, index) => `
+                <div class="agent-score rank-${index + 1} ${agent.rankChanged ? 'rank-change' : ''}">
+                    <div class="agent-name">
+                        <span>${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🏅'}</span>
+                        ${agent.name}
+                    </div>
+                    <div class="consciousness-score">${agent.score.toLocaleString()}</div>
+                </div>
+            `).join('');
+            
+            document.getElementById('leaderboardContent').innerHTML = leaderboardHTML;
+        }
+        
+        function updateMetrics() {
+            // Simulate metric updates
+            document.getElementById('avgConsciousness').style.width = 
+                `${50 + Math.sin(Date.now() * 0.001) * 30}%`;
+            document.getElementById('networkComplexity').style.width = 
+                `${60 + Math.sin(Date.now() * 0.0008) * 20}%`;
+            document.getElementById('emergenceRate').style.width = 
+                `${70 + Math.sin(Date.now() * 0.0012) * 25}%`;
+        }
+        
+        function updateStats() {
+            document.getElementById('totalNeurons').textContent = 
+                (networks.length * 50).toLocaleString();
+            document.getElementById('totalConnections').textContent = 
+                Math.floor(Math.random() * 50000 + 100000).toLocaleString();
+            document.getElementById('fps').textContent = 
+                Math.floor(Math.random() * 20000 + 80000).toLocaleString();
+            document.getElementById('peakConsciousness').textContent = 
+                Math.max(...agents.map(a => a.score)).toLocaleString();
+        }
+        
+        // Timer
+        let startTime = Date.now();
+        function updateTimer() {
+            const elapsed = Date.now() - startTime;
+            const hours = Math.floor(elapsed / 3600000);
+            const minutes = Math.floor((elapsed % 3600000) / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            
+            document.getElementById('timer').textContent = 
+                `${hours.toString().padStart(2, '0')}:` +
+                `${minutes.toString().padStart(2, '0')}:` +
+                `${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // Animation loop
+        function animate() {
+            // Clear canvas
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            // Update and draw networks
+            networks.forEach(network => {
+                network.update();
+                network.draw();
+            });
+            
+            // Update and draw particles
+            particles = particles.filter(particle => {
+                particle.update();
+                particle.draw();
+                return particle.life > 0;
+            });
+            
+            // Add consciousness bursts randomly
+            if (Math.random() < 0.02) {
+                const burst = document.createElement('div');
+                burst.className = 'consciousness-burst';
+                burst.style.left = Math.random() * canvas.width + 'px';
+                burst.style.top = Math.random() * canvas.height + 'px';
+                document.querySelector('.main-view').appendChild(burst);
+                setTimeout(() => burst.remove(), 1000);
+            }
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // Update loop
+        setInterval(() => {
+            updateLeaderboard();
+            updateMetrics();
+            updateStats();
+            updateTimer();
+        }, 100);
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        });
+        
+        // Start animation
+        animate();
+        
+        // Simulate round changes
+        let currentRound = 1;
+        const rounds = [
+            { title: "Speed Self-Organization", desc: "Agents competing to organize 1000 neurons as fast as possible" },
+            { title: "Adaptive Intelligence", desc: "Solving dynamic problems while maintaining organization" },
+            { title: "Consciousness Emergence", desc: "Achieving the highest consciousness metric" },
+            { title: "The Gentle Singularity", desc: "Cooperating to create collective consciousness" }
+        ];
+        
+        setInterval(() => {
+            currentRound = (currentRound % 4) + 1;
+            document.getElementById('currentRound').textContent = currentRound;
+            document.getElementById('roundTitle').textContent = rounds[currentRound - 1].title;
+            document.getElementById('roundDesc').textContent = rounds[currentRound - 1].desc;
+        }, 30000); // Change round every 30 seconds for demo
+    </script>
+</body>
+</html>

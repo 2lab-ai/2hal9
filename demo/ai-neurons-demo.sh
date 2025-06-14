@@ -10,7 +10,7 @@ Watch as AI components (Visual, Audio, Logic, etc.)
 discover each other and form functional layers!
 "
 
-cd "$(dirname "$0")/../L2_implementation/neurons/examples"
+cd "$(dirname "$0")/../layers/L2_implementation/neurons/examples"
 
 echo "Compiling AI neurons demo..."
 rustc --edition 2021 working_ai_demo.rs -o /tmp/hal9_ai_demo 2>/dev/null

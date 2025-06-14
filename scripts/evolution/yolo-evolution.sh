@@ -163,7 +163,7 @@ Update all relevant documents.\""
     # Phase 2: L4-L1 Update (Architecture to Implementation)
     echo -e "${YELLOW}🔧 Phase 2: L4-L1 Update (Architecture → Implementation)${NC}"
     cmd="$CLAUDE \"Execute L3-L1 Operational Update cycle. \
-Check L5_strategic/architecture/TODO.md for approved items. \
+Check layers/L5_strategic/architecture/TODO.md for approved items. \
 Implement any approved architecture changes in code. \
 Update implementation based on architecture improvements. \
 Fix any issues found during implementation. \

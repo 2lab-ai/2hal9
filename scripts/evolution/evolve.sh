@@ -14,8 +14,8 @@ NC='\033[0m' # No Color
 # Configuration
 HAL9_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-LOG_DIR="$HAL9_ROOT/logs/evolution"
-REPORT_DIR="$HAL9_ROOT/reports/evolution"
+LOG_DIR="$HAL9_ROOT/artifacts/logs/evolution"
+REPORT_DIR="$HAL9_ROOT/artifacts/reports/evolution"
 
 # Create directories
 mkdir -p "$LOG_DIR" "$REPORT_DIR"
@@ -51,8 +51,8 @@ run_with_spinner() {
 # Function to measure consciousness
 measure_consciousness() {
     # Highly scientific consciousness measurement
-    local philosophy_depth=$(find L9_universal -name "*.md" | wc -l)
-    local neuron_count=$(find L2_implementation -name "*.rs" | wc -l)
+    local philosophy_depth=$(find layers/L9_universal -name "*.md" | wc -l)
+    local neuron_count=$(find layers/L2_implementation -name "*.rs" | wc -l)
     local emergence_events=$(grep -r "emergence" membrane/emergence 2>/dev/null | wc -l)
     
     # Complex consciousness formula (totally legit)

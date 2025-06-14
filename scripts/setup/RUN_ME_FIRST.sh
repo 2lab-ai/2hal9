@@ -39,7 +39,7 @@ fi
 # Start server
 echo ""
 echo "🚀 Starting HAL9 server..."
-./target/release/hal9-server L5_strategic/research/examples/config-3neurons.yaml > /tmp/hal9.log 2>&1 &
+./target/release/hal9-server layers/L5_strategic/research/examples/config-3neurons.yaml > /tmp/hal9.log 2>&1 &
 SERVER_PID=$!
 echo "Server PID: $SERVER_PID"
 
