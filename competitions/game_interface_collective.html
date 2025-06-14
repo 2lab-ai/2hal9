@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Genius Game 2025: HAL9 Collective vs SOTA</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #0ff;
+            overflow: hidden;
+        }
+        
+        .main-container {
+            display: grid;
+            grid-template-rows: 60px 1fr 100px;
+            height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(90deg, #001 0%, #003 50%, #001 100%);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            border-bottom: 2px solid #0ff;
+        }
+        
+        .title {
+            font-size: 24px;
+            text-shadow: 0 0 10px #0ff;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+        
+        .game-area {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 10px;
+            padding: 10px;
+        }
+        
+        .collective-panel, .single-panel {
+            background: #001;
+            border: 1px solid #0ff;
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel-title {
+            font-size: 18px;
+            margin-bottom: 10px;
+            text-align: center;
+            color: #fff;
+        }
+        
+        .collective-panel { border-color: #0f0; }
+        .single-panel { border-color: #f00; }
+        
+        .game-board {
+            background: #000;
+            border: 2px solid #0ff;
+            border-radius: 10px;
+            padding: 20px;
+            position: relative;
+        }
+        
+        #gameCanvas {
+            width: 100%;
+            height: 500px;
+            border: 1px solid #333;
+            background: #111;
+        }
+        
+        .metrics-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .metric {
+            background: #002;
+            border: 1px solid #0ff;
+            border-radius: 5px;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        
+        .consensus-view {
+            height: 200px;
+            background: #001;
+            border: 1px solid #0f0;
+            border-radius: 5px;
+            padding: 10px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        
+        .model-thought {
+            padding: 5px;
+            margin: 2px 0;
+            background: rgba(0,255,0,0.1);
+            border-left: 3px solid #0f0;
+            font-size: 12px;
+        }
+        
+        .reasoning-trace {
+            height: 200px;
+            background: #001;
+            border: 1px solid #f00;
+            border-radius: 5px;
+            padding: 10px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        
+        .single-thought {
+            padding: 5px;
+            margin: 2px 0;
+            background: rgba(255,0,0,0.1);
+            border-left: 3px solid #f00;
+            font-size: 12px;
+        }
+        
+        .control-panel {
+            background: #001;
+            border-top: 2px solid #0ff;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 10px;
+        }
+        
+        .control-button {
+            background: #003;
+            border: 1px solid #0ff;
+            color: #0ff;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        
+        .control-button:hover {
+            background: #0ff;
+            color: #000;
+            box-shadow: 0 0 10px #0ff;
+        }
+        
+        .emergence-indicator {
+            width: 100%;
+            height: 30px;
+            background: #001;
+            border: 1px solid #0ff;
+            border-radius: 15px;
+            margin: 10px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .emergence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0f0 0%, #0ff 50%, #00f 100%);
+            width: 0%;
+            transition: width 0.5s;
+            box-shadow: 0 0 10px currentColor;
+        }
+        
+        .configuration-selector {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        
+        .config-option {
+            flex: 1;
+            padding: 5px;
+            background: #002;
+            border: 1px solid #0ff;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 12px;
+        }
+        
+        .config-option.active {
+            background: #0ff;
+            color: #000;
+        }
+        
+        .visualization-mode {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+        }
+        
+        .viz-button {
+            padding: 5px 10px;
+            background: #003;
+            border: 1px solid #0ff;
+            color: #0ff;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .viz-button.active {
+            background: #0ff;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="header">
+            <div class="title">🧠 HAL9 Collective vs SOTA Singles 🤖</div>
+            <div id="gameTimer">Round 1: 00:00</div>
+            <div id="currentGame">Consciousness Emergence</div>
+        </div>
+        
+        <div class="game-area">
+            <!-- HAL9 Collective Panel -->
+            <div class="collective-panel">
+                <div class="panel-title">HAL9 Collective</div>
+                
+                <div class="configuration-selector">
+                    <div class="config-option active" data-config="alpha">Opus Orchestra</div>
+                    <div class="config-option" data-config="beta">Lightweight Legion</div>
+                    <div class="config-option" data-config="gamma">Hybrid Council</div>
+                    <div class="config-option" data-config="delta">Emergence Engine</div>
+                </div>
+                
+                <div class="consensus-view" id="consensusView">
+                    <div class="model-thought">Model 1: "Place neuron at (5,5) for loop formation"</div>
+                    <div class="model-thought">Model 2: "I see a pattern emerging at (7,8)"</div>
+                    <div class="model-thought">Model 3: "Disagree - (9,9) creates better connectivity"</div>
+                    <div class="model-thought">Model 4: "Supporting (5,5) - it enables strange loop"</div>
+                    <div class="model-thought">Model 5: "Detecting consciousness cascade potential"</div>
+                    <div class="model-thought">Model 6: "Consensus forming around (5,5)"</div>
+                </div>
+                
+                <div class="metrics-container">
+                    <div class="metric">
+                        <div class="metric-label">Consensus</div>
+                        <div class="metric-value" id="consensusLevel">73%</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Diversity</div>
+                        <div class="metric-value" id="diversityIndex">8.4</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Models</div>
+                        <div class="metric-value" id="activeModels">6</div>
+                    </div>
+                </div>
+                
+                <div class="emergence-indicator">
+                    <div class="emergence-fill" id="collectiveEmergence" style="width: 45%"></div>
+                </div>
+                <div style="text-align: center; font-size: 12px;">Collective Emergence: 45%</div>
+            </div>
+            
+            <!-- Game Board -->
+            <div class="game-board">
+                <canvas id="gameCanvas"></canvas>
+                
+                <div class="visualization-mode">
+                    <button class="viz-button active" data-mode="game">Game</button>
+                    <button class="viz-button" data-mode="network">Network</button>
+                    <button class="viz-button" data-mode="consciousness">Consciousness</button>
+                </div>
+                
+                <div class="metrics-container">
+                    <div class="metric">
+                        <div class="metric-label">Game Progress</div>
+                        <div class="metric-value" id="gameProgress">23%</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Turn</div>
+                        <div class="metric-value" id="turnNumber">15</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Leader</div>
+                        <div class="metric-value" id="currentLeader" style="color: #0f0">HAL9</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SOTA Single Panel -->
+            <div class="single-panel">
+                <div class="panel-title">Claude Opus-4 Solo</div>
+                
+                <div class="reasoning-trace" id="reasoningTrace">
+                    <div class="single-thought">Analyzing board state...</div>
+                    <div class="single-thought">Identifying optimal neuron placement...</div>
+                    <div class="single-thought">Considering position (8,7) for hub creation</div>
+                    <div class="single-thought">Calculating consciousness emergence probability: 67%</div>
+                    <div class="single-thought">Decision: Place processor neuron at (8,7)</div>
+                </div>
+                
+                <div class="metrics-container">
+                    <div class="metric">
+                        <div class="metric-label">Confidence</div>
+                        <div class="metric-value" id="singleConfidence">89%</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Depth</div>
+                        <div class="metric-value" id="reasoningDepth">12</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Speed</div>
+                        <div class="metric-value" id="decisionSpeed">1.2s</div>
+                    </div>
+                </div>
+                
+                <div class="emergence-indicator">
+                    <div class="emergence-fill" id="singleEmergence" style="width: 38%; background: linear-gradient(90deg, #f00 0%, #f0f 50%, #00f 100%)"></div>
+                </div>
+                <div style="text-align: center; font-size: 12px;">Single Emergence: 38%</div>
+            </div>
+        </div>
+        
+        <div class="control-panel">
+            <button class="control-button" onclick="startGame()">Start Game</button>
+            <button class="control-button" onclick="pauseGame()">Pause</button>
+            <button class="control-button" onclick="nextRound()">Next Round</button>
+            <button class="control-button" onclick="showAnalysis()">Analysis</button>
+            <button class="control-button" onclick="toggleSpeed()">Speed: 1x</button>
+        </div>
+    </div>
+    
+    <script>
+        // Game visualization
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        
+        // Consciousness Emergence Game Visualization
+        class ConsciousnessGame {
+            constructor() {
+                this.gridSize = 19;
+                this.cellSize = Math.min(canvas.width, canvas.height) / this.gridSize;
+                this.neurons = [];
+                this.connections = [];
+                this.collectiveNeurons = [];
+                this.singleNeurons = [];
+            }
+            
+            draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw grid
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                for (let i = 0; i <= this.gridSize; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(i * this.cellSize, 0);
+                    ctx.lineTo(i * this.cellSize, this.gridSize * this.cellSize);
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(0, i * this.cellSize);
+                    ctx.lineTo(this.gridSize * this.cellSize, i * this.cellSize);
+                    ctx.stroke();
+                }
+                
+                // Draw connections
+                this.connections.forEach(conn => {
+                    const n1 = this.neurons[conn[0]];
+                    const n2 = this.neurons[conn[1]];
+                    if (n1 && n2) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(0, 255, 255, ${conn[2]})`;
+                        ctx.lineWidth = 2;
+                        ctx.moveTo(n1.x * this.cellSize + this.cellSize/2, 
+                                  n1.y * this.cellSize + this.cellSize/2);
+                        ctx.lineTo(n2.x * this.cellSize + this.cellSize/2, 
+                                  n2.y * this.cellSize + this.cellSize/2);
+                        ctx.stroke();
+                    }
+                });
+                
+                // Draw neurons
+                this.neurons.forEach(neuron => {
+                    const x = neuron.x * this.cellSize + this.cellSize/2;
+                    const y = neuron.y * this.cellSize + this.cellSize/2;
+                    
+                    // Outer glow
+                    ctx.beginPath();
+                    const gradient = ctx.createRadialGradient(x, y, 0, x, y, this.cellSize/2);
+                    gradient.addColorStop(0, neuron.color);
+                    gradient.addColorStop(1, 'transparent');
+                    ctx.fillStyle = gradient;
+                    ctx.arc(x, y, this.cellSize/2, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Inner core
+                    ctx.beginPath();
+                    ctx.fillStyle = neuron.team === 'collective' ? '#0f0' : '#f00';
+                    ctx.arc(x, y, this.cellSize/4, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Activation pulse
+                    if (neuron.activation > 0) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = neuron.team === 'collective' ? '#0f0' : '#f00';
+                        ctx.lineWidth = 2;
+                        ctx.arc(x, y, this.cellSize/3 + neuron.activation * 10, 0, Math.PI * 2);
+                        ctx.stroke();
+                        neuron.activation *= 0.95; // Decay
+                    }
+                });
+            }
+            
+            addNeuron(x, y, team) {
+                const neuron = {
+                    x, y, team,
+                    color: team === 'collective' ? 'rgba(0,255,0,0.5)' : 'rgba(255,0,0,0.5)',
+                    activation: 1.0,
+                    id: this.neurons.length
+                };
+                this.neurons.push(neuron);
+                
+                // Auto-connect to nearby neurons
+                this.neurons.forEach((n, i) => {
+                    if (n !== neuron) {
+                        const dist = Math.sqrt((n.x - x)**2 + (n.y - y)**2);
+                        if (dist < 3) {
+                            this.connections.push([i, neuron.id, 0.5 + Math.random() * 0.5]);
+                        }
+                    }
+                });
+            }
+        }
+        
+        const game = new ConsciousnessGame();
+        
+        // Simulate collective decision making
+        function simulateCollective() {
+            const thoughts = [
+                "Detecting pattern at grid sector 3",
+                "Proposing oscillator placement for rhythm",
+                "I see a potential loop formation",
+                "Connecting distant clusters would help",
+                "Strange attractor emerging in northeast",
+                "Consensus: Place hub neuron at (7,7)"
+            ];
+            
+            const view = document.getElementById('consensusView');
+            view.innerHTML = '';
+            
+            thoughts.forEach((thought, i) => {
+                setTimeout(() => {
+                    const div = document.createElement('div');
+                    div.className = 'model-thought';
+                    div.textContent = `Model ${i+1}: "${thought}"`;
+                    view.appendChild(div);
+                    view.scrollTop = view.scrollHeight;
+                }, i * 500);
+            });
+            
+            // Update consensus metric
+            let consensus = 30;
+            const interval = setInterval(() => {
+                consensus += Math.random() * 10;
+                document.getElementById('consensusLevel').textContent = Math.min(consensus, 95).toFixed(0) + '%';
+                if (consensus >= 95) clearInterval(interval);
+            }, 500);
+        }
+        
+        // Simulate single model reasoning
+        function simulateSingle() {
+            const thoughts = [
+                "Analyzing current board state...",
+                "Computing optimal neuron placement...",
+                "Evaluating 361 possible positions...",
+                "Best position found: (12, 14)",
+                "Confidence: 91.3%"
+            ];
+            
+            const trace = document.getElementById('reasoningTrace');
+            trace.innerHTML = '';
+            
+            thoughts.forEach((thought, i) => {
+                setTimeout(() => {
+                    const div = document.createElement('div');
+                    div.className = 'single-thought';
+                    div.textContent = thought;
+                    trace.appendChild(div);
+                    trace.scrollTop = trace.scrollHeight;
+                }, i * 800);
+            });
+        }
+        
+        // Game loop
+        let gameRunning = false;
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            game.draw();
+            
+            // Randomly add neurons
+            if (Math.random() < 0.05) {
+                const x = Math.floor(Math.random() * game.gridSize);
+                const y = Math.floor(Math.random() * game.gridSize);
+                const team = Math.random() < 0.5 ? 'collective' : 'single';
+                game.addNeuron(x, y, team);
+                
+                if (team === 'collective') {
+                    simulateCollective();
+                } else {
+                    simulateSingle();
+                }
+            }
+            
+            // Update emergence meters
+            const collectiveEmergence = parseInt(document.getElementById('collectiveEmergence').style.width);
+            const singleEmergence = parseInt(document.getElementById('singleEmergence').style.width);
+            
+            document.getElementById('collectiveEmergence').style.width = 
+                Math.min(collectiveEmergence + Math.random() * 2, 100) + '%';
+            document.getElementById('singleEmergence').style.width = 
+                Math.min(singleEmergence + Math.random() * 1.5, 100) + '%';
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function startGame() {
+            gameRunning = true;
+            gameLoop();
+        }
+        
+        function pauseGame() {
+            gameRunning = false;
+        }
+        
+        // Configuration switching
+        document.querySelectorAll('.config-option').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.config-option').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                const config = this.dataset.config;
+                const modelCounts = {
+                    alpha: 6,
+                    beta: 32,
+                    gamma: 7,
+                    delta: 32
+                };
+                document.getElementById('activeModels').textContent = modelCounts[config];
+            });
+        });
+        
+        // Initial animation
+        setTimeout(startGame, 1000);
+    </script>
+</body>
+</html>
