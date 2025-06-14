@@ -4,6 +4,9 @@ pub mod collective_maze;
 pub mod recursive_reasoning;
 pub mod swarm_optimization;
 
+#[cfg(test)]
+mod tests;
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;

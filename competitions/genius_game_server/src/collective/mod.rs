@@ -5,6 +5,9 @@ use uuid::Uuid;
 use anyhow::Result;
 use rand;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CollectiveConfig {
     pub name: String,
@@ -14,7 +17,7 @@ pub struct CollectiveConfig {
     pub cost_per_hour: f32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum CollectiveType {
     OpusOrchestra,      // 6x Claude Opus 4
     SwarmIntelligence,  // 32x lightweight models

@@ -2,6 +2,9 @@ use serde::{Deserialize, Serialize};
 use anyhow::Result;
 use uuid::Uuid;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SOTAConfig {
     pub model_name: String,
@@ -13,7 +16,7 @@ pub struct SOTAConfig {
     pub cost_per_hour: f32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ThinkingTime {
     Standard,
     Extended,
