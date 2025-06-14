@@ -2789,6 +2789,7 @@ dependencies = [
  "async-trait",
  "axum 0.7.9",
  "chrono",
+ "colored",
  "criterion",
  "dashmap 5.5.3",
  "futures",
