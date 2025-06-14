@@ -51,3 +51,7 @@ path = "src/bin/demo.rs"
 [[bin]]
 name = "demo_ollama"
 path = "src/bin/demo_ollama.rs"
+
+[[bin]]
+name = "death_game_demo"
+path = "src/bin/death_game_demo.rs"
