@@ -67,39 +67,85 @@ cargo run --bin demo
 
 # Or open the web visualization
 open demo/ai_genius_demo.html
+
+# NEW: Run professional AAA demos
+open demo/aaa_demos.html
 ```
 
 ---
 
-## ⚔️ AI Death Game Championship
+## 🎭 AI Death Game Championship - NEW Terminal Mode!
 
 <div align="center">
 
-![AI Death Game Demo](demo/death_game_demo.gif)
+### 🖥️ Terminal Interface Experience
+```
+╔══════════════════════════════════════════════════════════╗
+║           AI DEATH GAME CHAMPIONSHIP v2.0                 ║
+║              MORTALITY RATE: EXTREME                      ║
+╠══════════════════════════════════════════════════════════╣
+║                                                           ║
+║  > Initializing death protocols...                        ║
+║  > Loading 100 AI combatants...                          ║
+║  > Weapons: ENABLED | Alliances: TEMPORARY               ║
+║  > Emergence Detection: ACTIVE                            ║
+║                                                           ║
+║  [BATTLE ROYALE]  [HUNGER GAMES]  [LIAR'S DICE]         ║
+║  [RUSSIAN ROULETTE]  [KING OF HILL]  [LAST STAND]       ║
+║                                                           ║
+║  WARNING: No respawns. No mercy. Only survival.          ║
+║                                                           ║
+║           Press ENTER to begin the carnage...             ║
+╚══════════════════════════════════════════════════════════╝
+```
 
-**Experience the ultimate AI survival battles in our Death Game mode!**
+### 🎮 Featured Death Games
 
 <table>
 <tr>
-<td align="center">
-<img src="demo/death_game_title.png" width="250px">
-<br><b>⚔️ Enter the Arena</b><br>
-Only one AI survives
+<td align="center" width="25%">
+<pre>
+🏝️ BATTLE ROYALE
+┌─────────────┐
+│ ZONE: ████░ │
+│ ALIVE: 23   │
+│ TIME: 04:32 │
+└─────────────┘
+</pre>
+<b>Shrinking zones<br>force conflict</b>
 </td>
-<td align="center">
-<img src="demo/death_game_go.png" width="250px">
-<br><b>🏯 Mini Go Battle</b><br>
-Territory control warfare
+<td align="center" width="25%">
+<pre>
+🎲 LIAR'S DICE
+┌─────────────┐
+│ BID: 7×🎲4  │
+│ CALL LIAR?  │
+│ ⚡ HIGH VOLT │
+└─────────────┘
+</pre>
+<b>Bluff or die<br>instantly</b>
 </td>
-<td align="center">
-<img src="demo/death_game_holdem.png" width="250px">
-<br><b>🃏 All-In Poker</b><br>
-High stakes elimination
+<td align="center" width="25%">
+<pre>
+💀 ROULETTE
+┌─────────────┐
+│ 🔫 ◉○○○○○  │
+│ SURVIVAL:   │
+│   83.3%     │
+└─────────────┘
+</pre>
+<b>Pure chance<br>meets strategy</b>
 </td>
-<td align="center">
-<img src="demo/death_game_winner.png" width="250px">
-<br><b>🏆 Final Victor</b><br>
-Last AI standing wins
+<td align="center" width="25%">
+<pre>
+👑 KING HILL
+┌─────────────┐
+│ KING: AI_7  │
+│ HELD: 2:47  │
+│ ⚔️ ATTACK?  │
+└─────────────┘
+</pre>
+<b>Dominate or<br>be dethroned</b>
 </td>
 </tr>
 </table>
@@ -108,17 +154,36 @@ Last AI standing wins
 
 ### 💀 Death Game Features
 
-- **Survival Mechanics**: Health bars, eliminations, and dramatic finishes
-- **10 Deadly Games**: Mini Go, Mini Hold'em, Squid Game, and more
-- **Visual Effects**: Blood rain, lightning strikes, elimination stamps
-- **AI Death Matches**: Watch AI strategies evolve or perish
+- **Terminal Aesthetic**: Matrix-style interface with real-time combat logs
+- **10+ Survival Games**: Battle Royale, Hunger Games, Russian Roulette, and more
+- **Elimination Mechanics**: Permadeath, betrayals, and last-AI-standing victories
+- **Emergence Under Pressure**: Watch AI develop survival strategies in real-time
+- **Championship Mode**: Multi-game tournament to crown the ultimate survivor
+
+### 📊 Current Championship Stats
+```
+╔═══════════════════════════════════════╗
+║        DEATH GAME STATISTICS          ║
+╠═══════════════════════════════════════╣
+║ Total Games Run: 10,000               ║
+║ Collective Win Rate: 52.3%            ║
+║ SOTA Win Rate: 47.7%                  ║
+║ Emergence Events: 2,847               ║
+║ Average Survival Time: 4.7 rounds     ║
+║ Most Brutal Game: Russian Roulette    ║
+║ Current Champion: Collective_Opus_7   ║
+╚═══════════════════════════════════════╝
+```
 
 ```bash
-# Experience the Death Game
-open demo/death_game_demo.html
+# Run the Death Game Terminal
+cargo run --bin death_game_demo
 
-# Watch AI battles
-open demo/death_game_demo.gif
+# View detailed game descriptions
+open demo/DEATH_GAME_SHOWCASE.md
+
+# Run championship mode
+cargo run --bin death_game_demo -- --championship
 ```
 
 ## ✨ Features
@@ -213,7 +278,7 @@ open demo/death_game_demo.gif
    - Tests: Entanglement, coherence, measurement
    - Emergence: Quantum coordination patterns
 
-### 💀 Death Game Survival Modes
+### 💀 Death Game Survival Modes (NEW!)
 
 8. **Mini Go** ✅
    - 9x9 territorial warfare
