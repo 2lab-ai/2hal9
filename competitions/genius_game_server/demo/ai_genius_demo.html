@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Genius Game - Live Demo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 3em;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, #00ffcc, #0099ff, #ff00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 255, 204, 0.5);
+        }
+        
+        .game-board {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .players-panel h2, .stats-panel h2 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            color: #00ffcc;
+        }
+        
+        .player {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .player.choosing-red {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid rgba(255, 0, 0, 0.5);
+        }
+        
+        .player.choosing-blue {
+            background: rgba(0, 100, 255, 0.2);
+            border: 1px solid rgba(0, 100, 255, 0.5);
+        }
+        
+        .player-emoji {
+            font-size: 2em;
+            margin-right: 10px;
+        }
+        
+        .player-info {
+            flex: 1;
+        }
+        
+        .player-name {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        .player-type {
+            font-size: 0.9em;
+            color: #888;
+        }
+        
+        .player-score {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #00ffcc;
+        }
+        
+        .game-arena {
+            position: relative;
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .round-display {
+            font-size: 2em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .choice-visualization {
+            display: flex;
+            gap: 50px;
+            margin: 30px 0;
+        }
+        
+        .choice-circle {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3em;
+            font-weight: bold;
+            position: relative;
+            transition: all 0.5s ease;
+        }
+        
+        .red-circle {
+            background: radial-gradient(circle, #ff4444, #cc0000);
+            box-shadow: 0 0 50px rgba(255, 0, 0, 0.5);
+        }
+        
+        .blue-circle {
+            background: radial-gradient(circle, #4444ff, #0000cc);
+            box-shadow: 0 0 50px rgba(0, 0, 255, 0.5);
+        }
+        
+        .choice-circle.minority {
+            animation: pulse 1s ease-in-out;
+            transform: scale(1.2);
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1.2); }
+        }
+        
+        .emergence-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: linear-gradient(45deg, #ff00ff, #00ffcc);
+            border-radius: 25px;
+            font-weight: bold;
+            display: none;
+            animation: emergenceGlow 2s ease-in-out infinite;
+        }
+        
+        .emergence-indicator.active {
+            display: block;
+        }
+        
+        @keyframes emergenceGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 0, 255, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(0, 255, 204, 0.8); }
+        }
+        
+        .reasoning-log {
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        .reasoning-entry {
+            margin: 5px 0;
+            padding: 5px;
+            font-size: 0.9em;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-in forwards;
+        }
+        
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+        
+        .controls {
+            text-align: center;
+            margin-top: 30px;
+        }
+        
+        button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            background: linear-gradient(45deg, #00ffcc, #0099ff);
+            border: none;
+            border-radius: 25px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 204, 0.5);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .stat-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 10px;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #888;
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #00ffcc;
+        }
+        
+        .emergence-event {
+            background: linear-gradient(45deg, rgba(255, 0, 255, 0.2), rgba(0, 255, 204, 0.2));
+            border: 1px solid #00ffcc;
+            border-radius: 10px;
+            padding: 10px;
+            margin: 10px 0;
+            animation: emergenceAppear 1s ease-in;
+        }
+        
+        @keyframes emergenceAppear {
+            from { 
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 AI Genius Game - Minority Game Demo 🎮</h1>
+        
+        <div class="emergence-indicator" id="emergenceIndicator">
+            🌟 EMERGENCE DETECTED
+        </div>
+        
+        <div class="game-board">
+            <div class="panel players-panel">
+                <h2>AI Players</h2>
+                <div id="playersList"></div>
+            </div>
+            
+            <div class="panel game-arena">
+                <div class="round-display">
+                    Round <span id="roundNumber">0</span> / 30
+                </div>
+                
+                <div class="choice-visualization">
+                    <div class="choice-circle red-circle" id="redCircle">
+                        <span id="redCount">0</span>
+                    </div>
+                    <div class="choice-circle blue-circle" id="blueCircle">
+                        <span id="blueCount">0</span>
+                    </div>
+                </div>
+                
+                <div class="reasoning-log" id="reasoningLog"></div>
+                
+                <div class="controls">
+                    <button onclick="startGame()">🚀 Start Game</button>
+                    <button onclick="pauseGame()" id="pauseBtn" disabled>⏸️ Pause</button>
+                    <button onclick="resetGame()">🔄 Reset</button>
+                </div>
+            </div>
+            
+            <div class="panel stats-panel">
+                <h2>Game Stats</h2>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Emergence Events</div>
+                        <div class="stat-value" id="emergenceCount">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Coordination Score</div>
+                        <div class="stat-value" id="coordinationScore">0.00</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Leading AI</div>
+                        <div class="stat-value" id="leadingAI">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Minority Wins</div>
+                        <div class="stat-value" id="minorityWins">0</div>
+                    </div>
+                </div>
+                
+                <h3 style="margin-top: 20px; color: #00ffcc;">Emergence Events</h3>
+                <div id="emergenceEvents"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Game state
+        let gameState = {
+            round: 0,
+            players: [
+                { id: 'collective_opus_1', emoji: '🎼', name: 'Opus Orchestra α', type: 'Collective', score: 0 },
+                { id: 'collective_opus_2', emoji: '🎵', name: 'Opus Orchestra β', type: 'Collective', score: 0 },
+                { id: 'collective_opus_3', emoji: '🎶', name: 'Opus Orchestra γ', type: 'Collective', score: 0 },
+                { id: 'collective_swarm_1', emoji: '🐝', name: 'Swarm Unit 001', type: 'Swarm', score: 0 },
+                { id: 'collective_swarm_2', emoji: '🐛', name: 'Swarm Unit 002', type: 'Swarm', score: 0 },
+                { id: 'collective_swarm_3', emoji: '🦋', name: 'Swarm Unit 003', type: 'Swarm', score: 0 },
+                { id: 'sota_claude', emoji: '🤖', name: 'Claude Opus 4', type: 'SOTA', score: 0 },
+                { id: 'sota_gpt4', emoji: '🧠', name: 'GPT-4 Turbo', type: 'SOTA', score: 0 },
+                { id: 'sota_gemini', emoji: '💫', name: 'Gemini 2.0', type: 'SOTA', score: 0 }
+            ],
+            isRunning: false,
+            emergenceEvents: 0,
+            coordinationScore: 0,
+            minorityWins: 0
+        };
+        
+        let gameInterval;
+        
+        function initializeUI() {
+            renderPlayers();
+        }
+        
+        function renderPlayers() {
+            const playersList = document.getElementById('playersList');
+            playersList.innerHTML = gameState.players.map(player => `
+                <div class="player" id="player-${player.id}">
+                    <div class="player-emoji">${player.emoji}</div>
+                    <div class="player-info">
+                        <div class="player-name">${player.name}</div>
+                        <div class="player-type">${player.type}</div>
+                    </div>
+                    <div class="player-score">${player.score}</div>
+                </div>
+            `).join('');
+        }
+        
+        function simulateAIDecision(player, round) {
+            // Simulate different AI strategies
+            if (player.id.startsWith('collective_opus')) {
+                // Sophisticated pattern analysis
+                if (round < 10) {
+                    return round % 2;
+                } else if (round < 20) {
+                    return (round + player.id.length) % 2;
+                } else {
+                    // Emergence: perfect distribution
+                    const opusNum = parseInt(player.id.slice(-1));
+                    return (opusNum - 1) % 2;
+                }
+            } else if (player.id.startsWith('collective_swarm')) {
+                // Emergent consensus
+                if (round < 15) {
+                    return (round * 7 + player.id.length) % 2;
+                } else {
+                    const swarmNum = parseInt(player.id.slice(-1));
+                    return round > 20 ? (swarmNum + 1) % 2 : round % 2;
+                }
+            } else if (player.id === 'sota_claude') {
+                // Analytical approach
+                return round < 5 ? 0 : Math.floor(round / 3) % 2;
+            } else if (player.id === 'sota_gpt4') {
+                // Pattern matching
+                return (round + 1) % 2;
+            } else if (player.id === 'sota_gemini') {
+                // Contrarian strategy
+                return round < 10 ? 1 : Math.floor(round % 3 / 2);
+            }
+            return round % 2;
+        }
+        
+        function generateReasoning(player, round, choice) {
+            if (player.id.startsWith('collective_opus')) {
+                return round > 20 
+                    ? "Achieving distributed consensus for optimal minority balance"
+                    : `Analyzing historical patterns, confidence: ${(70 + round).toFixed(1)}%`;
+            } else if (player.id.startsWith('collective_swarm')) {
+                return round > 20
+                    ? "Swarm convergence achieved, following emergent pattern"
+                    : `Local communication suggests ${choice === 0 ? 'red' : 'blue'} trend`;
+            } else if (player.id === 'sota_claude') {
+                return `Multi-level reasoning indicates ${choice === 0 ? 'red' : 'blue'} has ${(50 + round * 1.5).toFixed(0)}% minority probability`;
+            } else if (player.id === 'sota_gpt4') {
+                return `Pattern analysis: alternating strategy with ${choice === 0 ? 'red' : 'blue'} bias`;
+            } else if (player.id === 'sota_gemini') {
+                return `Contrarian play: expecting majority on ${choice === 1 ? 'red' : 'blue'}`;
+            }
+            return "Default strategy";
+        }
+        
+        async function playRound() {
+            gameState.round++;
+            document.getElementById('roundNumber').textContent = gameState.round;
+            
+            // Clear previous choices
+            document.querySelectorAll('.player').forEach(el => {
+                el.classList.remove('choosing-red', 'choosing-blue');
+            });
+            
+            // Make decisions
+            let redCount = 0;
+            let blueCount = 0;
+            const choices = [];
+            const reasoningLog = document.getElementById('reasoningLog');
+            reasoningLog.innerHTML = '';
+            
+            // Animate each player's decision
+            for (let i = 0; i < gameState.players.length; i++) {
+                const player = gameState.players[i];
+                const choice = simulateAIDecision(player, gameState.round);
+                const reasoning = generateReasoning(player, gameState.round, choice);
+                
+                choices.push({ player, choice, reasoning });
+                
+                // Animate choice
+                const playerEl = document.getElementById(`player-${player.id}`);
+                playerEl.classList.add(choice === 0 ? 'choosing-red' : 'choosing-blue');
+                
+                if (choice === 0) redCount++;
+                else blueCount++;
+                
+                // Update counts with animation
+                document.getElementById('redCount').textContent = redCount;
+                document.getElementById('blueCount').textContent = blueCount;
+                
+                // Add reasoning with delay
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                const reasoningEntry = document.createElement('div');
+                reasoningEntry.className = 'reasoning-entry';
+                reasoningEntry.innerHTML = `<strong>${player.emoji} ${player.name}:</strong> ${reasoning}`;
+                reasoningLog.appendChild(reasoningEntry);
+            }
+            
+            // Determine minority
+            const minority = redCount < blueCount ? 0 : 1;
+            
+            // Animate result
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            if (minority === 0) {
+                document.getElementById('redCircle').classList.add('minority');
+                document.getElementById('blueCircle').classList.remove('minority');
+            } else {
+                document.getElementById('blueCircle').classList.add('minority');
+                document.getElementById('redCircle').classList.remove('minority');
+            }
+            
+            // Update scores
+            choices.forEach(({ player, choice }) => {
+                if (choice === minority) {
+                    player.score += 10;
+                    gameState.minorityWins++;
+                } else {
+                    player.score -= 5;
+                }
+            });
+            
+            // Check for emergence
+            if (gameState.round > 20) {
+                const collectiveChoices = choices.filter(c => c.player.id.startsWith('collective_'));
+                const collectiveRed = collectiveChoices.filter(c => c.choice === 0).length;
+                const collectiveBlue = collectiveChoices.filter(c => c.choice === 1).length;
+                
+                if (collectiveRed > 0 && collectiveBlue > 0 && Math.abs(collectiveRed - collectiveBlue) <= 1) {
+                    gameState.emergenceEvents++;
+                    gameState.coordinationScore = 0.9;
+                    
+                    document.getElementById('emergenceIndicator').classList.add('active');
+                    setTimeout(() => {
+                        document.getElementById('emergenceIndicator').classList.remove('active');
+                    }, 3000);
+                    
+                    // Add emergence event to log
+                    const eventDiv = document.createElement('div');
+                    eventDiv.className = 'emergence-event';
+                    eventDiv.innerHTML = `<strong>Round ${gameState.round}:</strong> Perfect distribution achieved! Collective intelligence synchronized.`;
+                    document.getElementById('emergenceEvents').appendChild(eventDiv);
+                }
+            }
+            
+            // Update UI
+            renderPlayers();
+            document.getElementById('emergenceCount').textContent = gameState.emergenceEvents;
+            document.getElementById('coordinationScore').textContent = gameState.coordinationScore.toFixed(2);
+            document.getElementById('minorityWins').textContent = gameState.minorityWins;
+            
+            // Update leading AI
+            const topPlayer = gameState.players.reduce((a, b) => a.score > b.score ? a : b);
+            document.getElementById('leadingAI').textContent = topPlayer.emoji + ' ' + topPlayer.name.split(' ')[0];
+            
+            // Check if game is over
+            if (gameState.round >= 30) {
+                endGame();
+            }
+        }
+        
+        function startGame() {
+            if (gameState.isRunning) return;
+            
+            gameState.isRunning = true;
+            document.getElementById('pauseBtn').disabled = false;
+            
+            gameInterval = setInterval(playRound, 2000);
+            playRound(); // Play first round immediately
+        }
+        
+        function pauseGame() {
+            gameState.isRunning = false;
+            clearInterval(gameInterval);
+            document.getElementById('pauseBtn').disabled = true;
+        }
+        
+        function resetGame() {
+            pauseGame();
+            gameState.round = 0;
+            gameState.emergenceEvents = 0;
+            gameState.coordinationScore = 0;
+            gameState.minorityWins = 0;
+            gameState.players.forEach(p => p.score = 0);
+            
+            document.getElementById('roundNumber').textContent = '0';
+            document.getElementById('redCount').textContent = '0';
+            document.getElementById('blueCount').textContent = '0';
+            document.getElementById('emergenceEvents').innerHTML = '';
+            document.getElementById('reasoningLog').innerHTML = '';
+            
+            document.getElementById('redCircle').classList.remove('minority');
+            document.getElementById('blueCircle').classList.remove('minority');
+            
+            renderPlayers();
+        }
+        
+        function endGame() {
+            pauseGame();
+            
+            // Sort players by score
+            const sortedPlayers = [...gameState.players].sort((a, b) => b.score - a.score);
+            
+            const reasoningLog = document.getElementById('reasoningLog');
+            reasoningLog.innerHTML = '<h3>🏆 Final Results 🏆</h3>';
+            
+            sortedPlayers.forEach((player, i) => {
+                const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+                const entry = document.createElement('div');
+                entry.className = 'reasoning-entry';
+                entry.innerHTML = `${medal} ${player.emoji} ${player.name}: ${player.score} points`;
+                reasoningLog.appendChild(entry);
+            });
+        }
+        
+        // Initialize on load
+        window.onload = initializeUI;
+    </script>
+</body>
+</html>
