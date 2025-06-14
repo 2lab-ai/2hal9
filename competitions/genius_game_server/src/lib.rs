@@ -9,3 +9,8 @@ pub use server::GeniusGameServer;
 pub use games::{Game, GameEngine, GameResult};
 pub use collective::CollectiveIntelligence;
 pub use sota::SOTAManager;
+
+#[cfg(test)]
+mod tests {
+    // Module-level unit tests would go here
+}

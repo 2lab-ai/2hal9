@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 use anyhow::Result;
+use rand;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CollectiveConfig {
@@ -134,13 +135,15 @@ impl CollectiveIntelligence {
         // Hierarchical democracy with master strategist
         let final_decision = self.hierarchical_consensus(&individual_decisions, "master_strategist").await?;
         
+        let dissent_rate = self.calculate_dissent_rate(&individual_decisions);
+        
         Ok(CollectiveDecision {
             decision_id: Uuid::new_v4(),
             timestamp: chrono::Utc::now(),
             individual_decisions,
             final_decision,
             consensus_method: "hierarchical_democracy".to_string(),
-            dissent_rate: self.calculate_dissent_rate(&individual_decisions),
+            dissent_rate,
             emergence_detected: false,
         })
     }
@@ -165,6 +168,7 @@ impl CollectiveIntelligence {
         
         // Check for emergence
         let emergence_detected = self.detect_swarm_emergence(&individual_decisions);
+        let dissent_rate = self.calculate_dissent_rate(&individual_decisions);
         
         Ok(CollectiveDecision {
             decision_id: Uuid::new_v4(),
@@ -172,7 +176,7 @@ impl CollectiveIntelligence {
             individual_decisions,
             final_decision,
             consensus_method: "emergent_consensus".to_string(),
-            dissent_rate: self.calculate_dissent_rate(&individual_decisions),
+            dissent_rate,
             emergence_detected,
         })
     }
@@ -204,6 +208,7 @@ impl CollectiveIntelligence {
         }
         
         let final_decision = self.specialist_democracy(&individual_decisions).await?;
+        let dissent_rate = self.calculate_dissent_rate(&individual_decisions);
         
         Ok(CollectiveDecision {
             decision_id: Uuid::new_v4(),
@@ -211,7 +216,7 @@ impl CollectiveIntelligence {
             individual_decisions,
             final_decision,
             consensus_method: "specialist_democracy".to_string(),
-            dissent_rate: self.calculate_dissent_rate(&individual_decisions),
+            dissent_rate,
             emergence_detected: false,
         })
     }
@@ -232,6 +237,7 @@ impl CollectiveIntelligence {
         
         // Pure majority vote
         let final_decision = self.majority_vote(&individual_decisions)?;
+        let dissent_rate = self.calculate_dissent_rate(&individual_decisions);
         
         Ok(CollectiveDecision {
             decision_id: Uuid::new_v4(),
@@ -239,7 +245,7 @@ impl CollectiveIntelligence {
             individual_decisions,
             final_decision,
             consensus_method: "majority_emergence".to_string(),
-            dissent_rate: self.calculate_dissent_rate(&individual_decisions),
+            dissent_rate,
             emergence_detected: true, // Chaos always has emergence
         })
     }

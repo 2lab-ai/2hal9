@@ -142,13 +142,14 @@ async fn process_turn(
             if let Some(collective) = collective_players.get_mut(player_id) {
                 match collective.make_decision(action_context.clone()).await {
                     Ok(decision) => {
-                        all_actions.insert(player_id.clone(), Action {
+                        let action = Action {
                             player_id: player_id.clone(),
                             action_type: "decision".to_string(),
-                            data: decision.final_decision,
+                            data: decision.final_decision.clone(),
                             reasoning: Some(format!("Consensus: {}", decision.consensus_method)),
                             confidence: Some(1.0 - decision.dissent_rate),
-                        });
+                        };
+                        all_actions.insert(player_id.clone(), action);
                         
                         // Stream collective internals
                         server.streaming_engine.update_collective_state(
@@ -170,13 +171,14 @@ async fn process_turn(
             if let Some(sota) = sota_players.get_mut(player_id) {
                 match sota.make_decision(action_context.clone()).await {
                     Ok(decision) => {
-                        all_actions.insert(player_id.clone(), Action {
+                        let action = Action {
                             player_id: player_id.clone(),
                             action_type: "decision".to_string(),
-                            data: decision.decision,
+                            data: decision.decision.clone(),
                             reasoning: Some(decision.reasoning_chain.join(" -> ")),
                             confidence: Some(decision.confidence),
-                        });
+                        };
+                        all_actions.insert(player_id.clone(), action);
                         
                         // Stream SOTA reasoning
                         server.streaming_engine.update_sota_state(
