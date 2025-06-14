@@ -97,7 +97,7 @@ impl Game for MinorityGame {
         
         // Calculate score changes
         let mut scores_delta = HashMap::new();
-        for (player_id, choice) in &choices {
+        for (player_id, _choice) in &choices {
             if winners.contains(player_id) {
                 scores_delta.insert(player_id.clone(), 10);
             } else if winning_choice != -1 {
@@ -175,6 +175,8 @@ impl Game for MinorityGame {
         let avg_collective = collective_scores.iter().sum::<i32>() as f32 / collective_scores.len().max(1) as f32;
         let avg_single = single_scores.iter().sum::<i32>() as f32 / single_scores.len().max(1) as f32;
         
+        let emergence_frequency = emergence_events.len() as f32 / state.round.max(1) as f32;
+        
         GameResult {
             game_id: state.game_id,
             winner,
@@ -185,7 +187,7 @@ impl Game for MinorityGame {
                 collective_coordination_score: 0.0, // TODO: Calculate from history
                 decision_diversity_index: 0.0, // TODO: Calculate diversity
                 strategic_depth: state.round as f32 / 100.0,
-                emergence_frequency: emergence_events.len() as f32 / state.round.max(1) as f32,
+                emergence_frequency,
                 performance_differential: avg_collective - avg_single,
             },
         }

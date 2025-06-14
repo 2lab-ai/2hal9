@@ -119,12 +119,12 @@ impl SOTAManager {
         
         let confidence = 0.85 + (rand::random::<f32>() * 0.1);
         
-        (
+        Ok((
             serde_json::json!({"choice": choice}),
             reasoning,
             confidence,
             "deep_recursive_reasoning".to_string()
-        )
+        ))
     }
     
     async fn simulate_gpt4_decision(&mut self, context: serde_json::Value) -> Result<(serde_json::Value, Vec<String>, f32, String)> {
@@ -151,12 +151,12 @@ impl SOTAManager {
         
         reasoning.push(format!("Calculated optimal choice: {}", choice));
         
-        (
+        Ok((
             serde_json::json!({"choice": choice}),
             reasoning,
             0.82,
             "analytical_optimization".to_string()
-        )
+        ))
     }
     
     async fn simulate_gemini_decision(&mut self, context: serde_json::Value) -> Result<(serde_json::Value, Vec<String>, f32, String)> {
@@ -170,24 +170,24 @@ impl SOTAManager {
         // Gemini might use different strategy
         let choice = if rand::random::<f32>() > 0.5 { 0 } else { 1 };
         
-        (
+        Ok((
             serde_json::json!({"choice": choice}),
             reasoning,
             0.79,
             "multimodal_analysis".to_string()
-        )
+        ))
     }
     
     async fn simulate_generic_decision(&mut self, context: serde_json::Value) -> Result<(serde_json::Value, Vec<String>, f32, String)> {
         let reasoning = vec!["Generic analysis complete.".to_string()];
         let choice = if rand::random::<bool>() { 0 } else { 1 };
         
-        (
+        Ok((
             serde_json::json!({"choice": choice}),
             reasoning,
             0.7,
             "standard".to_string()
-        )
+        ))
     }
     
     pub fn get_reasoning_chain(&self) -> Vec<String> {
