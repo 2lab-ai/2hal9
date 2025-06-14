@@ -16,6 +16,12 @@ pub struct SwarmOptimization {
     global_best_fitness: f64,
 }
 
+impl Default for SwarmOptimization {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SwarmOptimization {
     pub fn new() -> Self {
         Self {

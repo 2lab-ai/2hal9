@@ -10,13 +10,19 @@ pub struct ByzantineGenerals {
     traitor_ids: HashSet<String>,
 }
 
-impl ByzantineGenerals {
-    pub fn new() -> Self {
+impl Default for ByzantineGenerals {
+    fn default() -> Self {
         Self {
             n_generals: 7,
             n_traitors: 2,
             traitor_ids: HashSet::new(),
         }
+    }
+}
+
+impl ByzantineGenerals {
+    pub fn new() -> Self {
+        Self::default()
     }
     
     fn initialize_traitors(&mut self, players: &[String]) {
@@ -65,7 +71,7 @@ impl ByzantineGenerals {
         }
         
         let honest_generals = self.n_generals - self.n_traitors;
-        let consensus_threshold = (honest_generals + 1) / 2;
+        let consensus_threshold = honest_generals.div_ceil(2);
         
         ConsensusResult {
             consensus_reached: attack_votes >= consensus_threshold || retreat_votes >= consensus_threshold,

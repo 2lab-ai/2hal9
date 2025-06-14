@@ -26,8 +26,8 @@ pub struct GeniusGameServer {
     analytics_engine: Arc<AnalyticsEngine>,
 }
 
-impl GeniusGameServer {
-    pub fn new() -> Self {
+impl Default for GeniusGameServer {
+    fn default() -> Self {
         Self {
             game_engine: Arc::new(GameEngine::new()),
             collective_players: Arc::new(RwLock::new(HashMap::new())),
@@ -35,6 +35,12 @@ impl GeniusGameServer {
             streaming_engine: Arc::new(StreamingEngine::new()),
             analytics_engine: Arc::new(AnalyticsEngine::new()),
         }
+    }
+}
+
+impl GeniusGameServer {
+    pub fn new() -> Self {
+        Self::default()
     }
     
     pub async fn run(self, addr: &str) -> anyhow::Result<()> {
@@ -96,8 +102,8 @@ async fn create_game(
     match server.game_engine.create_game(config).await {
         Ok(game_id) => {
             // Initialize players for this game
-            let collective_players = server.collective_players.read().await;
-            let sota_players = server.sota_players.read().await;
+            let _collective_players = server.collective_players.read().await;
+            let _sota_players = server.sota_players.read().await;
             
             // Notify streaming engine
             server.streaming_engine.game_started(game_id, 
@@ -127,7 +133,7 @@ async fn process_turn(
     Json(req): Json<ProcessTurnRequest>,
 ) -> impl IntoResponse {
     // Get game state
-    let game_state = match server.game_engine.get_game_state(game_id).await {
+    let _game_state = match server.game_engine.get_game_state(game_id).await {
         Some(state) => state,
         None => return Json(serde_json::json!({"error": "Game not found"})),
     };

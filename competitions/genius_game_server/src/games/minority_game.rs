@@ -7,31 +7,41 @@ pub struct MinorityGame {
     history_window: usize,
 }
 
-impl MinorityGame {
-    pub fn new() -> Self {
+impl Default for MinorityGame {
+    fn default() -> Self {
         Self {
             history_window: 10,
         }
+    }
+}
+
+impl MinorityGame {
+    pub fn new() -> Self {
+        Self::default()
     }
     
     fn calculate_minority(&self, choices: &HashMap<String, i32>) -> (i32, Vec<String>) {
         let zeros = choices.values().filter(|&&v| v == 0).count();
         let ones = choices.values().filter(|&&v| v == 1).count();
         
-        if zeros < ones {
-            let winners = choices.iter()
-                .filter(|(_, &v)| v == 0)
-                .map(|(k, _)| k.clone())
-                .collect();
-            (0, winners)
-        } else if ones < zeros {
-            let winners = choices.iter()
-                .filter(|(_, &v)| v == 1)
-                .map(|(k, _)| k.clone())
-                .collect();
-            (1, winners)
-        } else {
-            (-1, vec![]) // Tie
+        match zeros.cmp(&ones) {
+            std::cmp::Ordering::Less => {
+                let winners = choices.iter()
+                    .filter(|(_, &v)| v == 0)
+                    .map(|(k, _)| k.clone())
+                    .collect();
+                (0, winners)
+            },
+            std::cmp::Ordering::Greater => {
+                let winners = choices.iter()
+                    .filter(|(_, &v)| v == 1)
+                    .map(|(k, _)| k.clone())
+                    .collect();
+                (1, winners)
+            },
+            std::cmp::Ordering::Equal => {
+                (-1, vec![]) // Tie
+            }
         }
     }
     
@@ -97,7 +107,7 @@ impl Game for MinorityGame {
         
         // Calculate score changes
         let mut scores_delta = HashMap::new();
-        for (player_id, _choice) in &choices {
+        for player_id in choices.keys() {
             if winners.contains(player_id) {
                 scores_delta.insert(player_id.clone(), 10);
             } else if winning_choice != -1 {

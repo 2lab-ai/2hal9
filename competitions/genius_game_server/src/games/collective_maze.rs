@@ -34,6 +34,12 @@ struct LocalView {
     my_position: Position,
 }
 
+impl Default for CollectiveMaze {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CollectiveMaze {
     pub fn new() -> Self {
         Self {

@@ -116,6 +116,12 @@ pub struct GameEngine {
     active_games: dashmap::DashMap<Uuid, (GameState, Box<dyn Game>)>,
 }
 
+impl Default for GameEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GameEngine {
     pub fn new() -> Self {
         Self {

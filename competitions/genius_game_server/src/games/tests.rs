@@ -130,7 +130,7 @@ mod game_tests {
         
         let result = game.process_round(&state, actions).await.unwrap();
         assert!(!result.scores_delta.is_empty());
-        assert!(result.outcome.winners.len() > 0);
+        assert!(!result.outcome.winners.is_empty());
     }
 
     #[tokio::test]
@@ -231,7 +231,7 @@ mod game_tests {
         }
         
         let final_result = game.calculate_final_result(&state).await;
-        assert!(final_result.emergence_events.len() > 0);
+        assert!(!final_result.emergence_events.is_empty());
         assert!(final_result.analytics.emergence_frequency > 0.0);
     }
 

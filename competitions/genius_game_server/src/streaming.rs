@@ -73,6 +73,12 @@ pub struct StreamingEngine {
     active_connections: Arc<RwLock<u32>>,
 }
 
+impl Default for StreamingEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StreamingEngine {
     pub fn new() -> Self {
         let (tx, _) = broadcast::channel(1000);

@@ -33,7 +33,7 @@ impl OllamaProvider {
         };
         
         let response = self.client
-            .post(&format!("{}/api/generate", self.endpoint))
+            .post(format!("{}/api/generate", self.endpoint))
             .json(&request)
             .send()
             .await?;

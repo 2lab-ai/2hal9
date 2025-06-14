@@ -60,11 +60,17 @@ pub struct AnalyticsEngine {
     game_analytics: DashMap<Uuid, GameAnalyticsData>,
 }
 
-impl AnalyticsEngine {
-    pub fn new() -> Self {
+impl Default for AnalyticsEngine {
+    fn default() -> Self {
         Self {
             game_analytics: DashMap::new(),
         }
+    }
+}
+
+impl AnalyticsEngine {
+    pub fn new() -> Self {
+        Self::default()
     }
     
     pub async fn process_round(&self, game_id: Uuid, round_result: &RoundResult) {
@@ -125,7 +131,7 @@ impl AnalyticsEngine {
         }
         
         // Detect critical moments
-        if round_result.outcome.special_events.len() > 0 {
+        if !round_result.outcome.special_events.is_empty() {
             analytics.performance_comparison.critical_moments.push(CriticalMoment {
                 round: round_result.round,
                 description: round_result.outcome.special_events.join(", "),

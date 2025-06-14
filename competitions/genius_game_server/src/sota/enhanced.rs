@@ -47,7 +47,7 @@ impl EnhancedSOTAManager {
         // Call the actual AI provider
         let decision = self.provider.make_decision(game_type, game_state.clone()).await?;
         
-        let thinking_time_ms = start_time.elapsed().as_millis() as u64;
+        let _thinking_time_ms = start_time.elapsed().as_millis() as u64;
         
         let sota_decision = SOTADecision {
             decision_id: Uuid::new_v4(),

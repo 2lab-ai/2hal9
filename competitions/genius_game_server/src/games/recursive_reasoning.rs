@@ -10,6 +10,12 @@ pub struct RecursiveReasoning {
     thinking_depth_scores: HashMap<String, Vec<usize>>,
 }
 
+impl Default for RecursiveReasoning {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RecursiveReasoning {
     pub fn new() -> Self {
         Self {
@@ -27,7 +33,7 @@ impl RecursiveReasoning {
         let depth = ((round / 3) as usize).min(self.max_depth - 1) + 1;
         
         RecursivePuzzle {
-            description: format!("I'm thinking of a number. What do you think I think you'll guess?"),
+            description: "I'm thinking of a number. What do you think I think you'll guess?".to_string(),
             base_value: base_number,
             depth,
             optimal_answer: self.calculate_optimal_answer(base_number, depth),
@@ -130,7 +136,7 @@ impl Game for RecursiveReasoning {
                 // Track thinking depth
                 self.thinking_depth_scores
                     .entry(player_id.clone())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(puzzle.depth);
             }
         }
