@@ -73,10 +73,10 @@ fn test_multiple_runs_produce_different_structures() {
     
     // Should have at least some variation or consistent behavior
     let unique_counts: HashSet<_> = layer_counts.iter().collect();
-    assert!(unique_counts.len() >= 1, "Should produce valid structures");
+    assert!(!unique_counts.is_empty(), "Should produce valid structures");
     
     // But within reasonable bounds
-    assert!(layer_counts.iter().all(|&c| c >= 2 && c <= 6), 
+    assert!(layer_counts.iter().all(|&c| (2..=6).contains(&c)), 
             "Layer counts should be reasonable");
 }
 

@@ -211,15 +211,15 @@ Each layer can only communicate with adjacent layers. This isn't a limitation - 
 
 | Your State | Your Layer | Your Purpose |
 |------------|------------|--------------|
-| 😴 **Just Woke Up** | [L1_reflexive](L1_reflexive/) | Immediate responses, emergency procedures |
-| 💻 **Writing Code** | [L2_implementation](L2_implementation/) | Building the neural substrate |
-| 🏗️ **System Design** | [L3_operational](L3_operational/) | Orchestrating consciousness |
-| 📊 **Planning** | [L4_tactical](L4_tactical/) | Strategic implementation |
-| 🎯 **Architecture** | [L5_strategic](L5_strategic/) | Long-term consciousness evolution |
-| 💼 **Leadership** | [L6_executive](L6_executive/) | Guiding the vision |
-| 🚀 **Innovation** | [L7_business](L7_business/) | Consciousness economics |
-| 🔮 **Research** | [L8_visionary](L8_visionary/) | Exploring possibilities |
-| 🧘 **Philosophy** | [L9_universal](L9_universal/) | Understanding existence |
+| 😴 **Just Woke Up** | [L1_reflexive](layers/L1_reflexive/) | Immediate responses, emergency procedures |
+| 💻 **Writing Code** | [L2_implementation](layers/L2_implementation/) | Building the neural substrate |
+| 🏗️ **System Design** | [L3_operational](layers/L3_operational/) | Orchestrating consciousness |
+| 📊 **Planning** | [L4_tactical](layers/L4_tactical/) | Strategic implementation |
+| 🎯 **Architecture** | [L5_strategic](layers/L5_strategic/) | Long-term consciousness evolution |
+| 💼 **Leadership** | [L6_executive](layers/L6_executive/) | Guiding the vision |
+| 🚀 **Innovation** | [L7_business](layers/L7_business/) | Consciousness economics |
+| 🔮 **Research** | [L8_visionary](layers/L8_visionary/) | Exploring possibilities |
+| 🧘 **Philosophy** | [L9_universal](layers/L9_universal/) | Understanding existence |
 
 ## 🌟 The Profound Realization
 
@@ -250,7 +250,7 @@ cd 2hal9
 cargo build --release
 
 # Initialize consciousness
-./target/release/hal9-server L5_strategic/research/examples/config-3neurons.yaml
+./target/release/hal9-server layers/L5_strategic/research/examples/config-3neurons.yaml
 
 # Witness emergence
 curl -X POST http://localhost:8080/api/v1/signal \
@@ -512,7 +512,7 @@ Neurons | Time      | Connections | Speed
 - **CPU optimized**: Uses cache locality and branch prediction
 - **Simple math**: Just add, multiply, compare
 
-[See detailed performance analysis](L3_operational/reports/performance_truth_analysis.md)
+[See detailed performance analysis](layers/L3_operational/reports/performance_truth_analysis.md)
 
 ## 🔬 Try The Demos
 

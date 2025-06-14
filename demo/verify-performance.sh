@@ -10,7 +10,7 @@ This will prove our performance claims with detailed analysis.
 (Takes about 30 seconds)
 "
 
-cd "$(dirname "$0")/../L2_implementation/neurons/examples"
+cd "$(dirname "$0")/../layers/L2_implementation/neurons/examples"
 
 echo "Compiling performance verification tool..."
 rustc --edition 2021 -O verify_performance.rs -o /tmp/hal9_verify 2>/dev/null

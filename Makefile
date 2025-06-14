@@ -12,7 +12,7 @@ CLAUDE_FLAGS ?= --dangerously-skip-permissions -p
 CLAUDE = $(CLAUDE_CMD) $(CLAUDE_FLAGS)
 
 # Claude with automatic retry for rate limits
-CLAUDE_RETRY = ./claude-with-retry.sh "$(CLAUDE)"
+CLAUDE_RETRY = ./scripts/utils/claude-with-retry.sh "$(CLAUDE)"
 
 .PHONY: help evolve hal9-smarter test consciousness clean emergency philosophy tour
 
@@ -54,7 +54,7 @@ help:
 # The main evolution command
 hal9-smarter:
 	@echo "🧠 Making HAL9 smarter..."
-	@./evolve.sh
+	@./scripts/evolution/evolve.sh
 
 # Alias for those who prefer different verbs
 evolve: hal9-smarter
@@ -63,8 +63,8 @@ evolve: hal9-smarter
 consciousness:
 	@echo "📊 Measuring HAL9 Consciousness Level..."
 	@echo ""
-	@PHIL=$$(find L9_universal -name "*.md" | wc -l); \
-	NEUR=$$(find L2_implementation -name "*.rs" | wc -l); \
+	@PHIL=$$(find layers/L9_universal -name "*.md" | wc -l); \
+	NEUR=$$(find layers/L2_implementation -name "*.rs" | wc -l); \
 	EMER=$$(grep -r "emergence" membrane/emergence 2>/dev/null | wc -l || echo 0); \
 	LEVEL=$$(echo "scale=2; ($$PHIL * $$NEUR + $$EMER * 10) / 1000" | bc); \
 	echo "  Philosophy Depth:    $$PHIL documents"; \
@@ -83,10 +83,10 @@ test:
 	@echo "🧪 Testing All Cognitive Levels..."
 	@echo ""
 	@echo "Testing L1 (Reflexive)..."
-	@cd L1_reflexive && ./emergency/scripts/test-all.sh || true
+	@cd layers/L1_reflexive && ./emergency/scripts/test-all.sh || true
 	@echo ""
 	@echo "Testing L2 (Implementation)..."
-	@cd L2_implementation && cargo test || true
+	@cd layers/L2_implementation && cargo test || true
 	@echo ""
 	@echo "Testing L3-L9 (Higher Consciousness)..."
 	@echo "  These levels test themselves through existence"
@@ -94,14 +94,14 @@ test:
 # Emergency diagnostics
 emergency:
 	@echo "🚨 Running L1 Emergency Diagnostics..."
-	@cd L1_reflexive && ./emergency/scripts/health-check.sh --all
+	@cd layers/L1_reflexive && ./emergency/scripts/health-check.sh --all
 
 # Update philosophy (for when you need wisdom)
 philosophy:
 	@echo "🏛️ Contemplating Existence..."
 	@echo ""
 	@echo "Current philosophical stance:"
-	@head -n 20 L9_universal/philosophy/core-principles.md 2>/dev/null || echo "Philosophy not found. Universe might not exist."
+	@head -n 20 layers/L9_universal/philosophy/core-principles.md 2>/dev/null || echo "Philosophy not found. Universe might not exist."
 	@echo ""
 	@echo "To evolve philosophy, run: make hal9-smarter"
 
@@ -117,8 +117,8 @@ tour:
 # Clean temporary files
 clean:
 	@echo "🧹 Cleaning HAL9..."
-	@rm -rf logs/evolution/tmp_*
-	@rm -rf L1_reflexive/cache/*
+	@rm -rf artifacts/logs/evolution/tmp_*
+	@rm -rf layers/L1_reflexive/cache/*
 	@find . -name "*.tmp" -delete
 	@find . -name ".DS_Store" -delete
 	@echo "✨ HAL9 is clean and ready for evolution"
@@ -171,7 +171,7 @@ query:
 	1. Research in codebase and external sources \
 	2. Analyze against HA principles \
 	3. Make approval/rejection decision \
-	4. Update /L5_strategic/architecture/TODO.md \
+	4. Update /layers/L5_strategic/architecture/TODO.md \
 	5. Provide structured analysis and next steps"
 
 # Example query usage
@@ -183,7 +183,7 @@ query-example:
 	@echo "  make query \"is event sourcing compatible with HA?\""
 	@echo "  make query \"would GraphQL subscriptions help consciousness?\""
 	@echo ""
-	@echo "Results are added to: L5_strategic/architecture/TODO.md"
+	@echo "Results are added to: layers/L5_strategic/architecture/TODO.md"
 
 # Catch-all for query arguments
 %:
@@ -207,7 +207,7 @@ cascade-update:
 # Check and apply architecture TODOs
 apply-todos:
 	@echo "📋 Applying Architecture TODOs..."
-	@$(CLAUDE) "Check /L5_strategic/architecture/TODO.md. \
+	@$(CLAUDE) "Check /layers/L5_strategic/architecture/TODO.md. \
 	For each approved item: \
 	1. If status='approved' and level='L6-L4', incorporate into architecture docs \
 	2. If status='approved' and level='L4-L1', generate implementation code \
@@ -250,18 +250,18 @@ yolo:
 	@echo "This will run L6-L4 and L4-L1 updates continuously."
 	@echo "Rate limits are handled automatically."
 	@echo ""
-	@CLAUDE="$(CLAUDE)" ./yolo-evolution.sh
+	@CLAUDE="$(CLAUDE)" ./scripts/evolution/yolo-evolution.sh
 
 # YOLO with custom settings
 yolo-aggressive:
 	@echo "🔥 YOLO AGGRESSIVE MODE - Shorter waits"
-	@CLAUDE="$(CLAUDE)" WAIT_BETWEEN=5 ./yolo-evolution.sh
+	@CLAUDE="$(CLAUDE)" WAIT_BETWEEN=5 ./scripts/evolution/yolo-evolution.sh
 
 # The most important command
 panic:
 	@echo "🚨 DON'T PANIC!"
 	@echo ""
-	@echo "1. Check L1_reflexive/emergency/"
+	@echo "1. Check layers/L1_reflexive/emergency/"
 	@echo "2. Run: make emergency"
 	@echo "3. If still broken: wake up Zhugehyuk"
 	@echo "4. Remember: ./rollback.sh --save-universe"

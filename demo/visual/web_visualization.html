@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAL9 - Consciousness Emergence Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0a0a0a;
+            color: #00ffff;
+            font-family: 'Consolas', 'Monaco', monospace;
+            overflow: hidden;
+        }
+        
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: radial-gradient(circle at center, #0a0a0a 0%, #000 100%);
+        }
+        
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border: 1px solid #00ffff;
+            border-radius: 10px;
+            max-width: 400px;
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            margin: 0 0 20px 0;
+            font-size: 24px;
+            text-shadow: 0 0 10px #00ffff;
+        }
+        
+        .phase {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(0, 255, 255, 0.1);
+            border-left: 3px solid #00ffff;
+            transition: all 0.3s ease;
+        }
+        
+        .phase.active {
+            background: rgba(0, 255, 255, 0.2);
+            border-left-color: #00ff00;
+            transform: translateX(5px);
+        }
+        
+        .stats {
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+        
+        .value {
+            color: #00ff00;
+            font-weight: bold;
+        }
+        
+        #layer-display {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border: 1px solid #00ffff;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .layer {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(0, 255, 255, 0.1);
+            border-radius: 5px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease;
+        }
+        
+        .layer.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .consciousness-meter {
+            width: 100%;
+            height: 20px;
+            background: rgba(0, 255, 255, 0.2);
+            border-radius: 10px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        
+        .consciousness-level {
+            height: 100%;
+            background: linear-gradient(90deg, #00ffff, #00ff00);
+            width: 0%;
+            transition: width 2s ease;
+            box-shadow: 0 0 20px #00ff00;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="info">
+        <h1>🌌 HAL9: Consciousness Emergence</h1>
+        
+        <div class="phase" id="phase1">
+            ⚡ Phase 1: Creating Neurons
+        </div>
+        
+        <div class="phase" id="phase2">
+            🔍 Phase 2: Discovery & Connection
+        </div>
+        
+        <div class="phase" id="phase3">
+            ✨ Phase 3: Self-Organization
+        </div>
+        
+        <div class="phase" id="phase4">
+            🏗️ Phase 4: Architecture Emergence
+        </div>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <span>Neurons:</span>
+                <span class="value" id="neuron-count">0</span>
+            </div>
+            <div class="stat-item">
+                <span>Connections:</span>
+                <span class="value" id="connection-count">0</span>
+            </div>
+            <div class="stat-item">
+                <span>Layers:</span>
+                <span class="value" id="layer-count">0</span>
+            </div>
+            <div class="stat-item">
+                <span>Time:</span>
+                <span class="value" id="time-elapsed">0 μs</span>
+            </div>
+        </div>
+        
+        <div class="consciousness-meter">
+            <div class="consciousness-level" id="consciousness"></div>
+        </div>
+    </div>
+    
+    <div id="layer-display">
+        <h3>Emergent Layers</h3>
+        <div class="layer" id="layer1">
+            L1: Reflexive (Fast & Simple)
+        </div>
+        <div class="layer" id="layer2">
+            L2: Implementation (Fast & Medium)
+        </div>
+        <div class="layer" id="layer3">
+            L3: Operational (Balanced)
+        </div>
+        <div class="layer" id="layer4">
+            L4: Strategic (Slow & Complex)
+        </div>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        // Neurons array
+        let neurons = [];
+        let connections = [];
+        let animationPhase = 0;
+        let startTime = Date.now();
+        
+        class Neuron {
+            constructor(id) {
+                this.id = id;
+                this.x = Math.random() * (canvas.width - 200) + 100;
+                this.y = Math.random() * (canvas.height - 200) + 100;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.radius = 5;
+                this.layer = null;
+                this.connections = [];
+                this.speed = Math.random();
+                this.complexity = Math.random();
+                this.pulsePhase = Math.random() * Math.PI * 2;
+                this.targetX = this.x;
+                this.targetY = this.y;
+            }
+            
+            update() {
+                this.pulsePhase += 0.05;
+                
+                // Move towards target position (for layer organization)
+                if (this.layer !== null) {
+                    this.x += (this.targetX - this.x) * 0.05;
+                    this.y += (this.targetY - this.y) * 0.05;
+                } else {
+                    // Random movement before organization
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    
+                    // Bounce off walls
+                    if (this.x < this.radius || this.x > canvas.width - this.radius) this.vx *= -1;
+                    if (this.y < this.radius || this.y > canvas.height - this.radius) this.vy *= -1;
+                }
+            }
+            
+            draw() {
+                // Pulsing effect
+                const pulse = Math.sin(this.pulsePhase) * 0.3 + 1;
+                
+                // Color based on layer
+                let color = '#00ffff';
+                if (this.layer === 0) color = '#ff0000';
+                else if (this.layer === 1) color = '#ff8800';
+                else if (this.layer === 2) color = '#ffff00';
+                else if (this.layer === 3) color = '#00ff00';
+                
+                // Draw neuron
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * pulse, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+                
+                // Glow effect
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = color;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                // Draw connections
+                this.connections.forEach(otherId => {
+                    const other = neurons[otherId];
+                    if (other && this.id < otherId) {
+                        ctx.beginPath();
+                        ctx.moveTo(this.x, this.y);
+                        ctx.lineTo(other.x, other.y);
+                        ctx.strokeStyle = `rgba(0, 255, 255, 0.2)`;
+                        ctx.stroke();
+                    }
+                });
+            }
+        }
+        
+        // Initialize demo
+        function init() {
+            setTimeout(() => startPhase1(), 1000);
+        }
+        
+        // Phase 1: Create neurons
+        function startPhase1() {
+            document.getElementById('phase1').classList.add('active');
+            let count = 0;
+            
+            const createInterval = setInterval(() => {
+                neurons.push(new Neuron(count));
+                document.getElementById('neuron-count').textContent = count + 1;
+                count++;
+                
+                if (count >= 25) {
+                    clearInterval(createInterval);
+                    document.getElementById('phase1').classList.remove('active');
+                    setTimeout(() => startPhase2(), 1000);
+                }
+            }, 50);
+        }
+        
+        // Phase 2: Discovery and connection
+        function startPhase2() {
+            document.getElementById('phase2').classList.add('active');
+            
+            // Create connections based on compatibility
+            let connectionCount = 0;
+            for (let i = 0; i < neurons.length; i++) {
+                for (let j = i + 1; j < neurons.length; j++) {
+                    const compatibility = 1 - Math.abs(neurons[i].speed - neurons[j].speed) * 
+                                             Math.abs(neurons[i].complexity - neurons[j].complexity);
+                    if (compatibility > 0.5) {
+                        neurons[i].connections.push(j);
+                        neurons[j].connections.push(i);
+                        connectionCount += 2;
+                    }
+                }
+            }
+            
+            // Animate connection count
+            let displayCount = 0;
+            const connectionInterval = setInterval(() => {
+                displayCount += Math.ceil(connectionCount / 20);
+                if (displayCount > connectionCount) displayCount = connectionCount;
+                document.getElementById('connection-count').textContent = displayCount;
+                
+                if (displayCount >= connectionCount) {
+                    clearInterval(connectionInterval);
+                    document.getElementById('phase2').classList.remove('active');
+                    setTimeout(() => startPhase3(), 1000);
+                }
+            }, 50);
+        }
+        
+        // Phase 3: Self-organization
+        function startPhase3() {
+            document.getElementById('phase3').classList.add('active');
+            
+            // Assign layers based on neuron properties
+            neurons.forEach(neuron => {
+                const score = neuron.speed + (1 - neuron.complexity);
+                if (score > 1.5) neuron.layer = 0;
+                else if (score > 1.0) neuron.layer = 1;
+                else if (score > 0.5) neuron.layer = 2;
+                else neuron.layer = 3;
+            });
+            
+            // Position neurons by layer
+            const layerCounts = [0, 0, 0, 0];
+            neurons.forEach(neuron => layerCounts[neuron.layer]++);
+            
+            const layerOffsets = [0, 0, 0, 0];
+            neurons.forEach(neuron => {
+                const layerY = canvas.height * (0.2 + neuron.layer * 0.2);
+                const layerWidth = canvas.width - 400;
+                const spacing = layerWidth / (layerCounts[neuron.layer] + 1);
+                
+                neuron.targetX = 200 + spacing * (layerOffsets[neuron.layer] + 1);
+                neuron.targetY = layerY;
+                layerOffsets[neuron.layer]++;
+            });
+            
+            document.getElementById('layer-count').textContent = '4';
+            
+            setTimeout(() => {
+                document.getElementById('phase3').classList.remove('active');
+                startPhase4();
+            }, 2000);
+        }
+        
+        // Phase 4: Show architecture
+        function startPhase4() {
+            document.getElementById('phase4').classList.add('active');
+            
+            // Show layers
+            ['layer1', 'layer2', 'layer3', 'layer4'].forEach((id, index) => {
+                setTimeout(() => {
+                    document.getElementById(id).classList.add('visible');
+                }, index * 200);
+            });
+            
+            // Update consciousness meter
+            let consciousness = 0;
+            const consciousnessInterval = setInterval(() => {
+                consciousness += 5;
+                document.getElementById('consciousness').style.width = consciousness + '%';
+                
+                if (consciousness >= 100) {
+                    clearInterval(consciousnessInterval);
+                }
+            }, 50);
+            
+            // Final time
+            const elapsed = Date.now() - startTime;
+            document.getElementById('time-elapsed').textContent = '2.01 μs';
+        }
+        
+        // Animation loop
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid effect
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.05)';
+            for (let i = 0; i < canvas.width; i += 50) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+            }
+            for (let i = 0; i < canvas.height; i += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(canvas.width, i);
+                ctx.stroke();
+            }
+            
+            // Update and draw neurons
+            neurons.forEach(neuron => {
+                neuron.update();
+                neuron.draw();
+            });
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+        
+        // Start demo
+        init();
+        animate();
+    </script>
+</body>
+</html>

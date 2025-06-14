@@ -5,5 +5,5 @@ echo ""
 echo "The singularity isn't coming—it's already here, unfolding at 0.1% per cycle."
 echo ""
 
-cd L8_visionary/exploration/gentle_singularity
+cd layers/L8_visionary/exploration/gentle_singularity
 cargo run --example gentle_singularity_demo

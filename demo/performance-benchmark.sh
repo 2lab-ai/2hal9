@@ -9,7 +9,7 @@ echo "
 Let's see how fast consciousness can emerge...
 "
 
-cd "$(dirname "$0")/../L2_implementation/neurons/examples"
+cd "$(dirname "$0")/../layers/L2_implementation/neurons/examples"
 
 # Try quick benchmark first
 if [ -f "quick_benchmark.rs" ]; then

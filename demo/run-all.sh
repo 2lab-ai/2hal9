@@ -22,7 +22,7 @@ NC='\033[0m' # No Color
 # Base directory
 DEMO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$DEMO_DIR")"
-EXAMPLES_DIR="$PROJECT_ROOT/L2_implementation/neurons/examples"
+EXAMPLES_DIR="$PROJECT_ROOT/layers/L2_implementation/neurons/examples"
 
 # Function to run a demo
 run_demo() {
