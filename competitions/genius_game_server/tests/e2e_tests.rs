@@ -11,10 +11,10 @@ mod e2e_tests {
     #[tokio::test]
     async fn test_full_minority_game_simulation() {
         // Create server components
-        let server = GeniusGameServer::new();
+        let _server = GeniusGameServer::new();
         
         // Create collective players
-        let opus_config = CollectiveConfig {
+        let _opus_config = CollectiveConfig {
             name: "Opus Orchestra".to_string(),
             config_type: CollectiveType::OpusOrchestra,
             models: vec![],
@@ -24,7 +24,7 @@ mod e2e_tests {
             cost_per_hour: 120.0,
         };
         
-        let swarm_config = CollectiveConfig {
+        let _swarm_config = CollectiveConfig {
             name: "Swarm Intelligence".to_string(),
             config_type: CollectiveType::SwarmIntelligence,
             models: vec![],
@@ -35,7 +35,7 @@ mod e2e_tests {
         };
         
         // Create SOTA players
-        let claude_config = SOTAConfig {
+        let _claude_config = SOTAConfig {
             model_name: "claude-opus-4".to_string(),
             api_key: "test_key".to_string(),
             context_window: 100000,
@@ -45,7 +45,7 @@ mod e2e_tests {
             cost_per_hour: 25.0,
         };
         
-        let gpt4_config = SOTAConfig {
+        let _gpt4_config = SOTAConfig {
             model_name: "gpt-4-turbo".to_string(),
             api_key: "test_key".to_string(),
             context_window: 100000,
@@ -115,7 +115,7 @@ mod e2e_tests {
             // Finalize game
             let final_result = engine.finalize_game(game_id).await.unwrap();
             assert_eq!(final_result.total_rounds, 10);
-            assert!(final_result.final_scores.len() > 0);
+            assert!(!final_result.final_scores.is_empty());
             
             final_result
         }).await;
@@ -124,7 +124,7 @@ mod e2e_tests {
         let game_result = result.unwrap();
         
         // Verify game completed properly
-        assert!(game_result.winner.len() > 0);
+        assert!(!game_result.winner.is_empty());
         assert!(game_result.analytics.strategic_depth > 0.0);
     }
 
@@ -239,7 +239,7 @@ mod e2e_tests {
         let final_result = engine.finalize_game(game_id).await.unwrap();
         
         assert!(emergence_detected, "Emergence should be detected with coordinated collective behavior");
-        assert!(final_result.emergence_events.len() > 0, "Final result should contain emergence events");
+        assert!(!final_result.emergence_events.is_empty(), "Final result should contain emergence events");
         assert!(final_result.analytics.emergence_frequency > 0.0, "Emergence frequency should be positive");
     }
 
@@ -279,7 +279,7 @@ mod e2e_tests {
 
     #[tokio::test]
     async fn test_concurrent_games() {
-        let engine = GameEngine::new();
+        let _engine = GameEngine::new();
         
         // Create multiple games concurrently
         let mut game_handles = vec![];

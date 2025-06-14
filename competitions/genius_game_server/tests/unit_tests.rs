@@ -55,7 +55,7 @@ mod game_engine_tests {
         
         let result = engine.process_turn(game_id, actions).await.unwrap();
         assert_eq!(result.round, 1);
-        assert!(result.scores_delta.len() > 0);
+        assert!(!result.scores_delta.is_empty());
     }
 
     #[tokio::test]
@@ -237,7 +237,7 @@ mod sota_manager_tests {
 #[cfg(test)]
 mod analytics_engine_tests {
     use genius_game_server::analytics::AnalyticsEngine;
-    use genius_game_server::games::{RoundResult, Outcome, Action};
+    use genius_game_server::games::{RoundResult, Outcome};
     use std::collections::HashMap;
     use uuid::Uuid;
     
@@ -299,7 +299,7 @@ mod analytics_engine_tests {
 #[cfg(test)]
 mod streaming_engine_tests {
     use genius_game_server::streaming::StreamingEngine;
-    use genius_game_server::games::{GameState, GameResult};
+    use genius_game_server::games::GameState;
     use uuid::Uuid;
     use std::collections::HashMap;
     

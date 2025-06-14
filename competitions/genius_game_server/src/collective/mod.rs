@@ -45,6 +45,7 @@ pub enum CoordinationStrategy {
 pub struct CollectiveIntelligence {
     pub id: String,
     pub config: CollectiveConfig,
+    #[allow(dead_code)]
     decision_channel: mpsc::Sender<CollectiveDecision>,
     state: CollectiveState,
 }
@@ -115,7 +116,7 @@ impl CollectiveIntelligence {
         let mut individual_decisions = vec![];
         
         // Simulate 6 Claude Opus instances with different roles
-        let roles = vec![
+        let roles = [
             "master_strategist",
             "pattern_analyzer", 
             "opponent_modeler",
@@ -184,7 +185,7 @@ impl CollectiveIntelligence {
         })
     }
     
-    async fn hybrid_council_decision(&mut self, context: serde_json::Value) -> Result<CollectiveDecision> {
+    async fn hybrid_council_decision(&mut self, _context: serde_json::Value) -> Result<CollectiveDecision> {
         // Mix of different model types
         let mut individual_decisions = vec![];
         
@@ -224,7 +225,7 @@ impl CollectiveIntelligence {
         })
     }
     
-    async fn chaos_engine_decision(&mut self, context: serde_json::Value) -> Result<CollectiveDecision> {
+    async fn chaos_engine_decision(&mut self, _context: serde_json::Value) -> Result<CollectiveDecision> {
         let mut individual_decisions = vec![];
         
         // 32 models with no coordination
@@ -269,7 +270,7 @@ impl CollectiveIntelligence {
         }))
     }
     
-    async fn simulate_lightweight_decision(&self, id: usize, context: &serde_json::Value) -> Result<serde_json::Value> {
+    async fn simulate_lightweight_decision(&self, id: usize, _context: &serde_json::Value) -> Result<serde_json::Value> {
         // Simulate lightweight model with simple heuristics
         let choice = if id % 2 == 0 { 0 } else { 1 };
         Ok(serde_json::json!({"choice": choice}))

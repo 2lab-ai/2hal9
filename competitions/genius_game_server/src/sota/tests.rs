@@ -99,7 +99,7 @@ mod sota_tests {
         let mut sota = SOTAManager::new("test_sota".to_string(), config);
         let context = serde_json::json!({"test": "claude"});
         let decision = sota.make_decision(context).await.unwrap();
-        assert!(decision.strategy.len() > 0);
+        assert!(!decision.strategy.is_empty());
         
         // Test GPT model
         let config = SOTAConfig {
@@ -115,7 +115,7 @@ mod sota_tests {
         let mut sota = SOTAManager::new("test_sota".to_string(), config);
         let context = serde_json::json!({"test": "gpt"});
         let decision = sota.make_decision(context).await.unwrap();
-        assert!(decision.strategy.len() > 0);
+        assert!(!decision.strategy.is_empty());
         
         // Test Gemini model
         let config = SOTAConfig {
@@ -131,7 +131,7 @@ mod sota_tests {
         let mut sota = SOTAManager::new("test_sota".to_string(), config);
         let context = serde_json::json!({"test": "gemini"});
         let decision = sota.make_decision(context).await.unwrap();
-        assert!(decision.strategy.len() > 0);
+        assert!(!decision.strategy.is_empty());
     }
 
     #[tokio::test]
@@ -181,8 +181,8 @@ mod sota_tests {
         let confidence2 = decision2.confidence;
         
         // Both should be valid confidence values
-        assert!(confidence1 >= 0.0 && confidence1 <= 1.0);
-        assert!(confidence2 >= 0.0 && confidence2 <= 1.0);
+        assert!((0.0..=1.0).contains(&confidence1));
+        assert!((0.0..=1.0).contains(&confidence2));
     }
 
     #[tokio::test]

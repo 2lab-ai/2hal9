@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use anyhow::{Result, anyhow};
 use aws_sdk_bedrockruntime::types::{ContentBlock, Message, ConversationRole};
 use aws_sdk_bedrockruntime::Client;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use super::{AIProvider, AIModel, GameDecision};
 use std::time::Instant;
 
@@ -20,7 +20,7 @@ impl BedrockProvider {
     }
     
     pub async fn new_with_config(model: String) -> Result<Self> {
-        let config = aws_config::load_from_env().await;
+        let config = aws_config::load_defaults(aws_config::BehaviorVersion::latest()).await;
         let client = Client::new(&config);
         
         Ok(Self {

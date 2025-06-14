@@ -150,9 +150,7 @@ impl SOTAManager {
                 .sum::<i64>() as i32;
             
             if recent_sum > 2 { 0 } else { 1 }
-        } else {
-            if rand::random::<bool>() { 0 } else { 1 }
-        };
+        } else if rand::random::<bool>() { 0 } else { 1 };
         
         reasoning.push(format!("Calculated optimal choice: {}", choice));
         
@@ -164,7 +162,7 @@ impl SOTAManager {
         ))
     }
     
-    async fn simulate_gemini_decision(&mut self, context: serde_json::Value) -> Result<(serde_json::Value, Vec<String>, f32, String)> {
+    async fn simulate_gemini_decision(&mut self, _context: serde_json::Value) -> Result<(serde_json::Value, Vec<String>, f32, String)> {
         // Simulate Gemini's multimodal approach
         let reasoning = vec![
             "Processing multimodal context...".to_string(),
@@ -183,7 +181,7 @@ impl SOTAManager {
         ))
     }
     
-    async fn simulate_generic_decision(&mut self, context: serde_json::Value) -> Result<(serde_json::Value, Vec<String>, f32, String)> {
+    async fn simulate_generic_decision(&mut self, _context: serde_json::Value) -> Result<(serde_json::Value, Vec<String>, f32, String)> {
         let reasoning = vec!["Generic analysis complete.".to_string()];
         let choice = if rand::random::<bool>() { 0 } else { 1 };
         

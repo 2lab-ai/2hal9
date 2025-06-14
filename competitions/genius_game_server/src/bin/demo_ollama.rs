@@ -1,5 +1,4 @@
 use colored::*;
-use genius_game_server::*;
 use std::collections::HashMap;
 use tokio::time::{sleep, Duration};
 
@@ -22,14 +21,12 @@ async fn main() -> anyhow::Result<()> {
     println!();
     
     // Available local models
-    let models = vec![
-        "llama2",
+    let models = ["llama2",
         "mistral",
         "neural-chat",
         "phi",
         "vicuna",
-        "gemma",
-    ];
+        "gemma"];
     
     println!("{}", "🤖 Creating AI Players with Local Models:".bright_yellow());
     let mut players = Vec::new();

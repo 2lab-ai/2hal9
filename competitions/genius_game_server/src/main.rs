@@ -1,5 +1,4 @@
 use genius_game_server::GeniusGameServer;
-use tracing_subscriber;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
