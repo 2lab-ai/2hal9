@@ -32,6 +32,11 @@ colored = "2"
 # AI Integration
 reqwest = { version = "0.11", features = ["json"] }
 async-openai = "0.18"
+# AWS Bedrock support
+aws-config = "1.1"
+aws-sdk-bedrockruntime = "1.13"
+# Local model support
+ollama-rs = "0.1"
 
 # Async traits
 async-trait = "0.1"
@@ -42,3 +47,7 @@ criterion = "0.5"
 [[bin]]
 name = "demo"
 path = "src/bin/demo.rs"
+
+[[bin]]
+name = "demo_ollama"
+path = "src/bin/demo_ollama.rs"

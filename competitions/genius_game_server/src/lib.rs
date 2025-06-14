@@ -4,6 +4,7 @@ pub mod collective;
 pub mod sota;
 pub mod analytics;
 pub mod streaming;
+pub mod ai_providers;
 
 pub use server::GeniusGameServer;
 pub use games::{Game, GameEngine, GameResult};

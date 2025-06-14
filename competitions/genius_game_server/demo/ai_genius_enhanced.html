@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Genius Game - Enhanced Visualization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);
+            color: #fff;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        /* Animated background particles */
+        #particles-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: fadeInDown 1s ease-out;
+        }
+        
+        h1 {
+            font-size: 3em;
+            background: linear-gradient(45deg, #00ffcc, #ff00ff, #00ffcc);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradient 3s ease infinite;
+            margin-bottom: 10px;
+        }
+        
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .game-container {
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .panel {
+            background: rgba(26, 26, 62, 0.8);
+            border: 2px solid rgba(0, 255, 204, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 255, 204, 0.1);
+            animation: fadeIn 1s ease-out;
+        }
+        
+        .player-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .player-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 204, 0.3);
+            border-color: rgba(0, 255, 204, 0.5);
+        }
+        
+        .player-card.choosing-red {
+            background: linear-gradient(90deg, rgba(255, 68, 68, 0.2) 0%, transparent 100%);
+            border-color: rgba(255, 68, 68, 0.5);
+        }
+        
+        .player-card.choosing-blue {
+            background: linear-gradient(90deg, rgba(68, 68, 255, 0.2) 0%, transparent 100%);
+            border-color: rgba(68, 68, 255, 0.5);
+        }
+        
+        .game-arena {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 500px;
+            position: relative;
+        }
+        
+        .decision-visualizer {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            margin: 40px 0;
+        }
+        
+        .choice-orb {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3em;
+            font-weight: bold;
+            position: relative;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .choice-orb.red {
+            background: radial-gradient(circle at 30% 30%, #ff6b6b, #ff4444);
+            box-shadow: 0 0 50px rgba(255, 68, 68, 0.5),
+                        inset 0 0 30px rgba(255, 100, 100, 0.3);
+            animation: pulse-red 2s infinite;
+        }
+        
+        .choice-orb.blue {
+            background: radial-gradient(circle at 30% 30%, #6b6bff, #4444ff);
+            box-shadow: 0 0 50px rgba(68, 68, 255, 0.5),
+                        inset 0 0 30px rgba(100, 100, 255, 0.3);
+            animation: pulse-blue 2s infinite;
+        }
+        
+        @keyframes pulse-red {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 50px rgba(255, 68, 68, 0.5); }
+            50% { transform: scale(1.05); box-shadow: 0 0 80px rgba(255, 68, 68, 0.8); }
+        }
+        
+        @keyframes pulse-blue {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 50px rgba(68, 68, 255, 0.5); }
+            50% { transform: scale(1.05); box-shadow: 0 0 80px rgba(68, 68, 255, 0.8); }
+        }
+        
+        .emergence-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 0, 255, 0) 0%, rgba(255, 0, 255, 0.2) 50%, rgba(255, 0, 255, 0) 100%);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
+        }
+        
+        .emergence-indicator.active {
+            opacity: 1;
+            animation: emergence-pulse 2s ease-out;
+        }
+        
+        @keyframes emergence-pulse {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #00ffcc;
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #00ffcc, #00ccff);
+            border: none;
+            color: #0f0f23;
+            padding: 12px 30px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 204, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .history-timeline {
+            background: rgba(26, 26, 62, 0.8);
+            border: 2px solid rgba(0, 255, 204, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 30px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .timeline-item {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .timeline-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .particle {
+            position: absolute;
+            background: rgba(0, 255, 204, 0.5);
+            width: 2px;
+            height: 2px;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="particles-bg"></canvas>
+    
+    <div class="container">
+        <header>
+            <h1>🧠 AI Genius Game Arena 🎮</h1>
+            <p>Watch as Collective Intelligence emerges from chaos</p>
+        </header>
+        
+        <div class="controls">
+            <button onclick="startGame()">▶️ Start Game</button>
+            <button onclick="pauseGame()">⏸️ Pause</button>
+            <button onclick="resetGame()">🔄 Reset</button>
+            <button onclick="toggleSpeed()">⚡ Speed: <span id="speed">1x</span></button>
+        </div>
+        
+        <div class="game-container">
+            <!-- Left Panel: Collective AI -->
+            <div class="panel">
+                <h2>🎼 Collective AI</h2>
+                <div id="collective-players"></div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div>Coordination</div>
+                        <div class="stat-value" id="coordination">0%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div>Emergence</div>
+                        <div class="stat-value" id="emergence-count">0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Center: Game Arena -->
+            <div class="panel game-arena">
+                <h2>Round <span id="round">0</span> / 30</h2>
+                
+                <div class="decision-visualizer">
+                    <div class="choice-orb red" id="red-orb">
+                        <span id="red-count">0</span>
+                    </div>
+                    
+                    <div style="font-size: 2em; margin: 0 30px;">VS</div>
+                    
+                    <div class="choice-orb blue" id="blue-orb">
+                        <span id="blue-count">0</span>
+                    </div>
+                </div>
+                
+                <div class="emergence-indicator" id="emergence-indicator"></div>
+                
+                <h3 id="round-result" style="margin-top: 20px;">Waiting to start...</h3>
+                
+                <div id="game-messages" style="margin-top: 20px; min-height: 100px;"></div>
+            </div>
+            
+            <!-- Right Panel: SOTA Models -->
+            <div class="panel">
+                <h2>🤖 SOTA Models</h2>
+                <div id="sota-players"></div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div>Best Score</div>
+                        <div class="stat-value" id="sota-best">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div>Strategy</div>
+                        <div class="stat-value" id="sota-strategy">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="history-timeline">
+            <h3>📊 Game History</h3>
+            <div id="timeline"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Game state
+        let gameState = {
+            round: 0,
+            isRunning: false,
+            speed: 1,
+            players: {
+                collective: [
+                    { id: 'opus-alpha', name: '🎼 Opus Orchestra α', score: 0, type: 'collective' },
+                    { id: 'opus-beta', name: '🎵 Opus Orchestra β', score: 0, type: 'collective' },
+                    { id: 'opus-gamma', name: '🎶 Opus Orchestra γ', score: 0, type: 'collective' },
+                    { id: 'swarm-1', name: '🐝 Swarm Unit 001', score: 0, type: 'collective' },
+                    { id: 'swarm-2', name: '🦋 Swarm Unit 002', score: 0, type: 'collective' },
+                ],
+                sota: [
+                    { id: 'claude', name: '🤖 Claude Opus 4', score: 0, type: 'sota' },
+                    { id: 'gpt4', name: '🧠 GPT-4 Turbo', score: 0, type: 'sota' },
+                    { id: 'gemini', name: '💫 Gemini Ultra', score: 0, type: 'sota' },
+                    { id: 'llama', name: '🦙 Llama 3.1', score: 0, type: 'sota' },
+                ]
+            },
+            history: [],
+            emergenceEvents: 0,
+            coordinationScore: 0
+        };
+        
+        // Initialize UI
+        function initializeUI() {
+            renderPlayers();
+            initParticles();
+        }
+        
+        function renderPlayers() {
+            // Render collective players
+            const collectiveDiv = document.getElementById('collective-players');
+            collectiveDiv.innerHTML = gameState.players.collective.map(player => `
+                <div class="player-card" id="player-${player.id}">
+                    <div>${player.name}</div>
+                    <div>Score: <span id="score-${player.id}">${player.score}</span></div>
+                </div>
+            `).join('');
+            
+            // Render SOTA players
+            const sotaDiv = document.getElementById('sota-players');
+            sotaDiv.innerHTML = gameState.players.sota.map(player => `
+                <div class="player-card" id="player-${player.id}">
+                    <div>${player.name}</div>
+                    <div>Score: <span id="score-${player.id}">${player.score}</span></div>
+                </div>
+            `).join('');
+        }
+        
+        function startGame() {
+            if (!gameState.isRunning) {
+                gameState.isRunning = true;
+                gameLoop();
+            }
+        }
+        
+        function pauseGame() {
+            gameState.isRunning = false;
+        }
+        
+        function resetGame() {
+            gameState.round = 0;
+            gameState.isRunning = false;
+            gameState.emergenceEvents = 0;
+            gameState.history = [];
+            
+            // Reset scores
+            [...gameState.players.collective, ...gameState.players.sota].forEach(player => {
+                player.score = 0;
+            });
+            
+            renderPlayers();
+            updateUI();
+            document.getElementById('timeline').innerHTML = '';
+            document.getElementById('game-messages').innerHTML = 'Game reset. Press Start to begin!';
+        }
+        
+        function toggleSpeed() {
+            gameState.speed = gameState.speed === 1 ? 2 : gameState.speed === 2 ? 4 : 1;
+            document.getElementById('speed').textContent = gameState.speed + 'x';
+        }
+        
+        async function gameLoop() {
+            if (!gameState.isRunning || gameState.round >= 30) {
+                if (gameState.round >= 30) {
+                    showFinalResults();
+                }
+                return;
+            }
+            
+            gameState.round++;
+            await playRound();
+            
+            setTimeout(() => gameLoop(), 2000 / gameState.speed);
+        }
+        
+        async function playRound() {
+            updateUI();
+            
+            // Clear previous choices
+            document.querySelectorAll('.player-card').forEach(card => {
+                card.classList.remove('choosing-red', 'choosing-blue');
+            });
+            
+            // Simulate AI decisions
+            const allPlayers = [...gameState.players.collective, ...gameState.players.sota];
+            const decisions = {};
+            let redCount = 0;
+            let blueCount = 0;
+            
+            // Animate decision making
+            for (let i = 0; i < allPlayers.length; i++) {
+                const player = allPlayers[i];
+                const choice = makeDecision(player, gameState.round);
+                decisions[player.id] = choice;
+                
+                // Animate choice
+                setTimeout(() => {
+                    const card = document.getElementById(`player-${player.id}`);
+                    card.classList.add(choice === 'red' ? 'choosing-red' : 'choosing-blue');
+                }, i * 100 / gameState.speed);
+                
+                if (choice === 'red') redCount++;
+                else blueCount++;
+            }
+            
+            // Wait for all animations
+            await new Promise(resolve => setTimeout(resolve, 1000 / gameState.speed));
+            
+            // Update orbs
+            document.getElementById('red-count').textContent = redCount;
+            document.getElementById('blue-count').textContent = blueCount;
+            
+            // Determine minority
+            const minority = redCount < blueCount ? 'red' : blueCount < redCount ? 'blue' : 'tie';
+            
+            // Update scores
+            if (minority !== 'tie') {
+                allPlayers.forEach(player => {
+                    if (decisions[player.id] === minority) {
+                        player.score += 10;
+                        document.getElementById(`score-${player.id}`).textContent = player.score;
+                    }
+                });
+            }
+            
+            // Check for emergence
+            checkEmergence(decisions, redCount, blueCount);
+            
+            // Update result
+            let resultText = minority === 'tie' ? 
+                `🤝 Perfect tie! (${redCount} vs ${blueCount})` :
+                `🏆 Minority wins: ${minority === 'red' ? '🔴 RED' : '🔵 BLUE'} (${Math.min(redCount, blueCount)} players)`;
+            
+            document.getElementById('round-result').innerHTML = resultText;
+            
+            // Add to history
+            addToHistory(redCount, blueCount, minority);
+            
+            // Update stats
+            updateStats();
+        }
+        
+        function makeDecision(player, round) {
+            // Collective AI: Emergent strategy
+            if (player.type === 'collective') {
+                if (round < 5) {
+                    // Early: Random exploration
+                    return Math.random() > 0.5 ? 'red' : 'blue';
+                } else if (round < 15) {
+                    // Mid: Pattern formation
+                    const bias = player.id.includes('opus') ? 0.45 : 0.55;
+                    return Math.random() > bias ? 'red' : 'blue';
+                } else {
+                    // Late: Coordinated strategy
+                    const pattern = (round + player.id.charCodeAt(0)) % 3;
+                    return pattern === 0 ? 'red' : 'blue';
+                }
+            }
+            
+            // SOTA: Individual optimization
+            else {
+                if (player.id === 'gpt4') {
+                    // Pattern analysis
+                    return round % 3 === 0 ? 'red' : 'blue';
+                } else if (player.id === 'claude') {
+                    // Meta reasoning
+                    return Math.random() > 0.48 ? 'red' : 'blue';
+                } else {
+                    // Standard strategy
+                    return Math.random() > 0.5 ? 'red' : 'blue';
+                }
+            }
+        }
+        
+        function checkEmergence(decisions, redCount, blueCount) {
+            const collectiveDecisions = gameState.players.collective.map(p => decisions[p.id]);
+            const collectiveRed = collectiveDecisions.filter(d => d === 'red').length;
+            const collectiveBlue = collectiveDecisions.filter(d => d === 'blue').length;
+            
+            // Perfect distribution among collective
+            if (gameState.round > 15 && Math.abs(collectiveRed - collectiveBlue) <= 1 && 
+                Math.abs(redCount - blueCount) <= 1) {
+                gameState.emergenceEvents++;
+                document.getElementById('emergence-indicator').classList.add('active');
+                
+                document.getElementById('game-messages').innerHTML = 
+                    '<div style="color: #ff00ff; font-size: 1.2em;">🌟 EMERGENCE DETECTED! Collective achieved perfect distribution!</div>';
+                
+                setTimeout(() => {
+                    document.getElementById('emergence-indicator').classList.remove('active');
+                }, 2000);
+            }
+        }
+        
+        function updateUI() {
+            document.getElementById('round').textContent = gameState.round;
+            document.getElementById('emergence-count').textContent = gameState.emergenceEvents;
+            
+            // Calculate coordination score
+            const collectiveScores = gameState.players.collective.map(p => p.score);
+            const avgScore = collectiveScores.reduce((a, b) => a + b, 0) / collectiveScores.length;
+            const variance = collectiveScores.reduce((sum, score) => sum + Math.pow(score - avgScore, 2), 0) / collectiveScores.length;
+            gameState.coordinationScore = Math.max(0, 100 - variance);
+            
+            document.getElementById('coordination').textContent = Math.round(gameState.coordinationScore) + '%';
+            
+            // Update SOTA stats
+            const sotaScores = gameState.players.sota.map(p => p.score);
+            document.getElementById('sota-best').textContent = Math.max(...sotaScores);
+            
+            if (gameState.round < 10) {
+                document.getElementById('sota-strategy').textContent = 'Explore';
+            } else if (gameState.round < 20) {
+                document.getElementById('sota-strategy').textContent = 'Pattern';
+            } else {
+                document.getElementById('sota-strategy').textContent = 'Optimize';
+            }
+        }
+        
+        function updateStats() {
+            // Update various statistics
+        }
+        
+        function addToHistory(red, blue, minority) {
+            const timeline = document.getElementById('timeline');
+            const item = document.createElement('div');
+            item.className = 'timeline-item';
+            item.innerHTML = `
+                <div style="margin-right: 20px;">Round ${gameState.round}</div>
+                <div style="color: #ff4444;">${red} Red</div>
+                <div style="margin: 0 20px;">vs</div>
+                <div style="color: #4444ff;">${blue} Blue</div>
+                <div style="margin-left: 20px;">→ ${minority === 'red' ? '🔴' : minority === 'blue' ? '🔵' : '🤝'}</div>
+            `;
+            timeline.insertBefore(item, timeline.firstChild);
+            
+            // Keep only last 10 items
+            while (timeline.children.length > 10) {
+                timeline.removeChild(timeline.lastChild);
+            }
+        }
+        
+        function showFinalResults() {
+            const collectiveTotal = gameState.players.collective.reduce((sum, p) => sum + p.score, 0);
+            const sotaTotal = gameState.players.sota.reduce((sum, p) => sum + p.score, 0);
+            
+            const winner = collectiveTotal > sotaTotal ? 'Collective Intelligence' : 'Individual SOTA Models';
+            
+            document.getElementById('game-messages').innerHTML = `
+                <div style="text-align: center; font-size: 1.5em;">
+                    <h2>🏁 Game Complete!</h2>
+                    <p>🎼 Collective Total: ${collectiveTotal} points</p>
+                    <p>🤖 SOTA Total: ${sotaTotal} points</p>
+                    <p style="color: #00ffcc; margin-top: 20px;">🏆 Winner: ${winner}!</p>
+                    <p>🌟 Emergence Events: ${gameState.emergenceEvents}</p>
+                </div>
+            `;
+        }
+        
+        // Particle background
+        function initParticles() {
+            const canvas = document.getElementById('particles-bg');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            const particles = [];
+            const particleCount = 100;
+            
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    size: Math.random() * 2 + 1,
+                    opacity: Math.random() * 0.5 + 0.2
+                });
+            }
+            
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                particles.forEach(particle => {
+                    particle.x += particle.vx;
+                    particle.y += particle.vy;
+                    
+                    if (particle.x < 0 || particle.x > canvas.width) particle.vx *= -1;
+                    if (particle.y < 0 || particle.y > canvas.height) particle.vy *= -1;
+                    
+                    ctx.beginPath();
+                    ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(0, 255, 204, ${particle.opacity})`;
+                    ctx.fill();
+                });
+                
+                // Draw connections
+                particles.forEach((p1, i) => {
+                    particles.slice(i + 1).forEach(p2 => {
+                        const distance = Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+                        if (distance < 100) {
+                            ctx.beginPath();
+                            ctx.moveTo(p1.x, p1.y);
+                            ctx.lineTo(p2.x, p2.y);
+                            ctx.strokeStyle = `rgba(0, 255, 204, ${0.1 * (1 - distance / 100)})`;
+                            ctx.stroke();
+                        }
+                    });
+                });
+                
+                requestAnimationFrame(animate);
+            }
+            
+            animate();
+            
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            });
+        }
+        
+        // Initialize on load
+        window.onload = initializeUI;
+    </script>
+</body>
+</html>

@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use anyhow::Result;
 use uuid::Uuid;
 
+pub mod enhanced;
+
 #[cfg(test)]
 mod tests;
 
