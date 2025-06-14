@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collective Maze Navigator - Emergent Pathfinding</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Exo 2', sans-serif;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        /* Cyberpunk grid background */
+        .cyber-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 10s linear infinite;
+            z-index: -2;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        /* Gradient overlay */
+        .gradient-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.8) 100%);
+            z-index: -1;
+        }
+
+        /* Main container */
+        .main-container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        header {
+            padding: 20px 50px;
+            background: linear-gradient(180deg, rgba(0,20,40,0.9) 0%, transparent 100%);
+            text-align: center;
+        }
+
+        .title {
+            font-size: 3em;
+            font-weight: 700;
+            background: linear-gradient(45deg, #00ffff, #ff00ff, #00ff00);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: titleGradient 3s ease infinite;
+            margin-bottom: 10px;
+        }
+
+        @keyframes titleGradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .subtitle {
+            color: #00ffff;
+            font-size: 1.2em;
+            opacity: 0.8;
+        }
+
+        /* Game container */
+        .game-container {
+            flex: 1;
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* Stats panel */
+        .stats-panel {
+            width: 300px;
+            background: rgba(0, 20, 40, 0.8);
+            border: 2px solid #00ffff;
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+        }
+
+        .panel-title {
+            font-size: 1.5em;
+            color: #00ffff;
+            margin-bottom: 20px;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        /* Maze container */
+        .maze-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .maze-wrapper {
+            position: relative;
+            border: 3px solid #00ffff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 
+                0 0 50px rgba(0, 255, 255, 0.5),
+                inset 0 0 50px rgba(0, 255, 255, 0.1);
+        }
+
+        /* Maze canvas */
+        #mazeCanvas {
+            display: block;
+            background: #0a0a0a;
+        }
+
+        /* Agent list */
+        .agent-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .agent-item {
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .agent-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .agent-item:hover::before {
+            left: 100%;
+        }
+
+        .agent-item:hover {
+            transform: translateX(5px);
+            border-color: #00ffff;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+        }
+
+        .agent-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: middle;
+            box-shadow: 0 0 10px currentColor;
+        }
+
+        .agent-name {
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .agent-stats {
+            font-size: 0.9em;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        /* Emergence indicator */
+        .emergence-panel {
+            background: rgba(255, 0, 255, 0.1);
+            border: 2px solid #ff00ff;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .emergence-title {
+            color: #ff00ff;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .emergence-meter {
+            width: 100%;
+            height: 30px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .emergence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff00ff, #00ffff, #00ff00);
+            width: 0%;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
+        }
+
+        .emergence-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .control-btn {
+            flex: 1;
+            padding: 10px 20px;
+            background: linear-gradient(45deg, #00ffff, #00aaff);
+            border: none;
+            border-radius: 25px;
+            color: #000;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 255, 0.4);
+        }
+
+        .control-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Path visualization */
+        .path-trail {
+            position: absolute;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* Performance stats */
+        .perf-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .perf-stat {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .perf-label {
+            font-size: 0.9em;
+            opacity: 0.7;
+        }
+
+        .perf-value {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #00ff00;
+        }
+
+        /* Maze generation status */
+        .maze-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff00;
+            border-radius: 20px;
+            padding: 5px 20px;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #00ff00;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        /* Goal indicator */
+        @keyframes goalPulse {
+            0%, 100% { 
+                box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7);
+            }
+            50% { 
+                box-shadow: 0 0 0 20px rgba(255, 215, 0, 0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background effects -->
+    <div class="cyber-grid"></div>
+    <div class="gradient-overlay"></div>
+
+    <!-- Main container -->
+    <div class="main-container">
+        <header>
+            <h1 class="title">Collective Maze Navigator</h1>
+            <p class="subtitle">Watch AI Swarms Develop Emergent Pathfinding Strategies</p>
+        </header>
+
+        <div class="game-container">
+            <!-- Left panel: Agent stats -->
+            <div class="stats-panel">
+                <h2 class="panel-title">Swarm Agents</h2>
+                <div class="agent-list" id="agentList"></div>
+                
+                <div class="emergence-panel">
+                    <div class="emergence-title">Collective Intelligence</div>
+                    <div class="emergence-meter">
+                        <div class="emergence-fill" id="emergenceFill"></div>
+                        <div class="emergence-value" id="emergenceValue">0%</div>
+                    </div>
+                </div>
+                
+                <div class="controls">
+                    <button class="control-btn" onclick="startSimulation()">Start</button>
+                    <button class="control-btn" onclick="resetMaze()">Reset</button>
+                </div>
+            </div>
+
+            <!-- Center: Maze -->
+            <div class="maze-container">
+                <div class="maze-status">
+                    <div class="status-dot"></div>
+                    <span id="mazeStatus">Maze Ready</span>
+                </div>
+                <div class="maze-wrapper">
+                    <canvas id="mazeCanvas" width="800" height="600"></canvas>
+                </div>
+            </div>
+
+            <!-- Right panel: Performance -->
+            <div class="stats-panel">
+                <h2 class="panel-title">Performance Metrics</h2>
+                
+                <div class="perf-stats">
+                    <div class="perf-stat">
+                        <div class="perf-label">Steps Taken</div>
+                        <div class="perf-value" id="totalSteps">0</div>
+                    </div>
+                    <div class="perf-stat">
+                        <div class="perf-label">Efficiency</div>
+                        <div class="perf-value" id="efficiency">0%</div>
+                    </div>
+                    <div class="perf-stat">
+                        <div class="perf-label">Convergence</div>
+                        <div class="perf-value" id="convergence">0</div>
+                    </div>
+                    <div class="perf-stat">
+                        <div class="perf-label">Swarm IQ</div>
+                        <div class="perf-value" id="swarmIQ">0</div>
+                    </div>
+                </div>
+                
+                <div class="emergence-panel" style="margin-top: 20px;">
+                    <div class="emergence-title">Strategy Evolution</div>
+                    <canvas id="strategyChart" width="250" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('mazeCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Strategy chart
+        const chartCanvas = document.getElementById('strategyChart');
+        const chartCtx = chartCanvas.getContext('2d');
+        
+        // Maze configuration
+        const CELL_SIZE = 20;
+        const MAZE_WIDTH = Math.floor(canvas.width / CELL_SIZE);
+        const MAZE_HEIGHT = Math.floor(canvas.height / CELL_SIZE);
+        
+        // Game state
+        const gameState = {
+            maze: [],
+            agents: [],
+            goal: { x: MAZE_WIDTH - 2, y: MAZE_HEIGHT - 2 },
+            start: { x: 1, y: 1 },
+            isRunning: false,
+            steps: 0,
+            emergenceLevel: 0,
+            strategyHistory: [],
+            pheromoneMap: []
+        };
+        
+        // Agent colors
+        const agentColors = [
+            '#00ffff', '#ff00ff', '#00ff00', '#ffff00', '#ff6600',
+            '#0099ff', '#ff0099', '#99ff00', '#ff9900', '#9900ff'
+        ];
+        
+        // Agent class
+        class Agent {
+            constructor(id, x, y, color) {
+                this.id = id;
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.path = [];
+                this.memory = [];
+                this.strategy = 'explore';
+                this.fitness = 0;
+                this.speed = 0.2 + Math.random() * 0.3;
+                this.targetX = x;
+                this.targetY = y;
+                this.animX = x;
+                this.animY = y;
+            }
+            
+            update() {
+                // Smooth movement animation
+                this.animX += (this.x - this.animX) * this.speed;
+                this.animY += (this.y - this.animY) * this.speed;
+                
+                // Strategy selection based on emergence
+                if (gameState.emergenceLevel > 50) {
+                    this.strategy = 'collaborative';
+                } else if (gameState.emergenceLevel > 25) {
+                    this.strategy = 'pheromone';
+                } else {
+                    this.strategy = 'explore';
+                }
+            }
+            
+            move() {
+                const directions = [
+                    { dx: 0, dy: -1 }, // up
+                    { dx: 1, dy: 0 },  // right
+                    { dx: 0, dy: 1 },  // down
+                    { dx: -1, dy: 0 }  // left
+                ];
+                
+                let bestMove = null;
+                let bestScore = -Infinity;
+                
+                directions.forEach(dir => {
+                    const newX = this.x + dir.dx;
+                    const newY = this.y + dir.dy;
+                    
+                    if (this.canMove(newX, newY)) {
+                        let score = this.evaluateMove(newX, newY);
+                        
+                        // Add pheromone influence
+                        if (gameState.pheromoneMap[newY] && gameState.pheromoneMap[newY][newX]) {
+                            score += gameState.pheromoneMap[newY][newX] * 10;
+                        }
+                        
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMove = { x: newX, y: newY };
+                        }
+                    }
+                });
+                
+                if (bestMove) {
+                    this.x = bestMove.x;
+                    this.y = bestMove.y;
+                    this.path.push({ x: this.x, y: this.y });
+                    this.leavePheromone();
+                }
+            }
+            
+            canMove(x, y) {
+                if (x < 0 || x >= MAZE_WIDTH || y < 0 || y >= MAZE_HEIGHT) {
+                    return false;
+                }
+                return gameState.maze[y][x] === 0;
+            }
+            
+            evaluateMove(x, y) {
+                // Distance to goal
+                const goalDist = Math.abs(x - gameState.goal.x) + Math.abs(y - gameState.goal.y);
+                
+                // Novelty bonus
+                const isNew = !this.memory.some(pos => pos.x === x && pos.y === y);
+                
+                // Collective intelligence bonus
+                let collectiveBonus = 0;
+                gameState.agents.forEach(other => {
+                    if (other.id !== this.id) {
+                        const dist = Math.abs(x - other.x) + Math.abs(y - other.y);
+                        if (dist < 5) {
+                            collectiveBonus += 1 / (dist + 1);
+                        }
+                    }
+                });
+                
+                return -goalDist + (isNew ? 5 : 0) + collectiveBonus * gameState.emergenceLevel / 20;
+            }
+            
+            leavePheromone() {
+                if (!gameState.pheromoneMap[this.y]) {
+                    gameState.pheromoneMap[this.y] = [];
+                }
+                if (!gameState.pheromoneMap[this.y][this.x]) {
+                    gameState.pheromoneMap[this.y][this.x] = 0;
+                }
+                gameState.pheromoneMap[this.y][this.x] = Math.min(1, gameState.pheromoneMap[this.y][this.x] + 0.1);
+            }
+        }
+        
+        // Generate maze using recursive backtracking
+        function generateMaze() {
+            // Initialize maze with walls
+            gameState.maze = Array(MAZE_HEIGHT).fill(null).map(() => Array(MAZE_WIDTH).fill(1));
+            
+            // Carve paths
+            const stack = [];
+            const start = { x: 1, y: 1 };
+            gameState.maze[start.y][start.x] = 0;
+            stack.push(start);
+            
+            while (stack.length > 0) {
+                const current = stack[stack.length - 1];
+                const neighbors = getUnvisitedNeighbors(current);
+                
+                if (neighbors.length > 0) {
+                    const next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                    removeWall(current, next);
+                    gameState.maze[next.y][next.x] = 0;
+                    stack.push(next);
+                } else {
+                    stack.pop();
+                }
+            }
+            
+            // Ensure goal is accessible
+            gameState.maze[gameState.goal.y][gameState.goal.x] = 0;
+            
+            // Add some additional paths for variety
+            for (let i = 0; i < 20; i++) {
+                const x = Math.floor(Math.random() * (MAZE_WIDTH - 2)) + 1;
+                const y = Math.floor(Math.random() * (MAZE_HEIGHT - 2)) + 1;
+                gameState.maze[y][x] = 0;
+            }
+        }
+        
+        function getUnvisitedNeighbors(pos) {
+            const neighbors = [];
+            const directions = [
+                { x: pos.x, y: pos.y - 2 },
+                { x: pos.x + 2, y: pos.y },
+                { x: pos.x, y: pos.y + 2 },
+                { x: pos.x - 2, y: pos.y }
+            ];
+            
+            directions.forEach(dir => {
+                if (dir.x > 0 && dir.x < MAZE_WIDTH - 1 && 
+                    dir.y > 0 && dir.y < MAZE_HEIGHT - 1 && 
+                    gameState.maze[dir.y][dir.x] === 1) {
+                    neighbors.push(dir);
+                }
+            });
+            
+            return neighbors;
+        }
+        
+        function removeWall(from, to) {
+            const wallX = (from.x + to.x) / 2;
+            const wallY = (from.y + to.y) / 2;
+            gameState.maze[wallY][wallX] = 0;
+        }
+        
+        // Initialize agents
+        function initAgents() {
+            gameState.agents = [];
+            
+            for (let i = 0; i < 10; i++) {
+                const agent = new Agent(
+                    i,
+                    gameState.start.x,
+                    gameState.start.y,
+                    agentColors[i % agentColors.length]
+                );
+                gameState.agents.push(agent);
+            }
+            
+            renderAgentList();
+        }
+        
+        // Render agent list
+        function renderAgentList() {
+            const agentList = document.getElementById('agentList');
+            agentList.innerHTML = '';
+            
+            gameState.agents.forEach(agent => {
+                const item = document.createElement('div');
+                item.className = 'agent-item';
+                item.innerHTML = `
+                    <span class="agent-color" style="background: ${agent.color}"></span>
+                    <span class="agent-name">Agent ${agent.id + 1}</span>
+                    <div class="agent-stats">
+                        Strategy: ${agent.strategy} | Steps: ${agent.path.length}
+                    </div>
+                `;
+                agentList.appendChild(item);
+            });
+        }
+        
+        // Draw maze
+        function drawMaze() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw pheromone trails
+            for (let y = 0; y < MAZE_HEIGHT; y++) {
+                for (let x = 0; x < MAZE_WIDTH; x++) {
+                    if (gameState.pheromoneMap[y] && gameState.pheromoneMap[y][x]) {
+                        const intensity = gameState.pheromoneMap[y][x];
+                        ctx.fillStyle = `rgba(255, 0, 255, ${intensity * 0.3})`;
+                        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                    }
+                }
+            }
+            
+            // Draw walls
+            ctx.fillStyle = '#00ffff';
+            for (let y = 0; y < MAZE_HEIGHT; y++) {
+                for (let x = 0; x < MAZE_WIDTH; x++) {
+                    if (gameState.maze[y][x] === 1) {
+                        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                        
+                        // Add glow effect
+                        ctx.shadowBlur = 10;
+                        ctx.shadowColor = '#00ffff';
+                        ctx.fillRect(x * CELL_SIZE + 2, y * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+                        ctx.shadowBlur = 0;
+                    }
+                }
+            }
+            
+            // Draw goal
+            ctx.fillStyle = '#ffd700';
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#ffd700';
+            ctx.beginPath();
+            ctx.arc(
+                gameState.goal.x * CELL_SIZE + CELL_SIZE / 2,
+                gameState.goal.y * CELL_SIZE + CELL_SIZE / 2,
+                CELL_SIZE / 2 - 2,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            // Draw agents
+            gameState.agents.forEach(agent => {
+                // Draw path trail
+                ctx.strokeStyle = agent.color + '40';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                agent.path.forEach((pos, index) => {
+                    if (index === 0) {
+                        ctx.moveTo(pos.x * CELL_SIZE + CELL_SIZE / 2, pos.y * CELL_SIZE + CELL_SIZE / 2);
+                    } else {
+                        ctx.lineTo(pos.x * CELL_SIZE + CELL_SIZE / 2, pos.y * CELL_SIZE + CELL_SIZE / 2);
+                    }
+                });
+                ctx.stroke();
+                
+                // Draw agent
+                ctx.fillStyle = agent.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = agent.color;
+                ctx.beginPath();
+                ctx.arc(
+                    agent.animX * CELL_SIZE + CELL_SIZE / 2,
+                    agent.animY * CELL_SIZE + CELL_SIZE / 2,
+                    CELL_SIZE / 3,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+        }
+        
+        // Update emergence level
+        function updateEmergence() {
+            // Calculate based on agent proximity and shared paths
+            let sharedCells = 0;
+            let totalCells = 0;
+            
+            const visitedCells = new Set();
+            gameState.agents.forEach(agent => {
+                agent.path.forEach(pos => {
+                    const key = `${pos.x},${pos.y}`;
+                    if (visitedCells.has(key)) {
+                        sharedCells++;
+                    }
+                    visitedCells.add(key);
+                    totalCells++;
+                });
+            });
+            
+            const convergence = totalCells > 0 ? (sharedCells / totalCells) * 100 : 0;
+            gameState.emergenceLevel = Math.min(100, gameState.emergenceLevel * 0.95 + convergence * 0.05);
+            
+            document.getElementById('emergenceFill').style.width = gameState.emergenceLevel + '%';
+            document.getElementById('emergenceValue').textContent = Math.round(gameState.emergenceLevel) + '%';
+        }
+        
+        // Update performance metrics
+        function updateMetrics() {
+            gameState.steps++;
+            document.getElementById('totalSteps').textContent = gameState.steps;
+            
+            // Calculate efficiency
+            const optimalSteps = Math.abs(gameState.goal.x - gameState.start.x) + 
+                               Math.abs(gameState.goal.y - gameState.start.y);
+            const avgSteps = gameState.agents.reduce((sum, agent) => sum + agent.path.length, 0) / gameState.agents.length;
+            const efficiency = avgSteps > 0 ? Math.round((optimalSteps / avgSteps) * 100) : 0;
+            document.getElementById('efficiency').textContent = efficiency + '%';
+            
+            // Convergence score
+            const convergence = Math.round(gameState.emergenceLevel);
+            document.getElementById('convergence').textContent = convergence;
+            
+            // Swarm IQ
+            const swarmIQ = Math.round(efficiency * 0.5 + convergence * 0.5);
+            document.getElementById('swarmIQ').textContent = swarmIQ;
+            
+            // Update strategy chart
+            updateStrategyChart();
+        }
+        
+        // Update strategy evolution chart
+        function updateStrategyChart() {
+            gameState.strategyHistory.push(gameState.emergenceLevel);
+            if (gameState.strategyHistory.length > 50) {
+                gameState.strategyHistory.shift();
+            }
+            
+            chartCtx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+            
+            // Draw grid
+            chartCtx.strokeStyle = 'rgba(0, 255, 255, 0.2)';
+            chartCtx.beginPath();
+            for (let i = 0; i <= 5; i++) {
+                const y = (chartCanvas.height / 5) * i;
+                chartCtx.moveTo(0, y);
+                chartCtx.lineTo(chartCanvas.width, y);
+            }
+            chartCtx.stroke();
+            
+            // Draw data
+            chartCtx.strokeStyle = '#00ff00';
+            chartCtx.lineWidth = 2;
+            chartCtx.beginPath();
+            gameState.strategyHistory.forEach((value, index) => {
+                const x = (chartCanvas.width / 50) * index;
+                const y = chartCanvas.height - (value / 100) * chartCanvas.height;
+                
+                if (index === 0) {
+                    chartCtx.moveTo(x, y);
+                } else {
+                    chartCtx.lineTo(x, y);
+                }
+            });
+            chartCtx.stroke();
+        }
+        
+        // Simulation loop
+        function simulate() {
+            if (!gameState.isRunning) return;
+            
+            // Update agents
+            gameState.agents.forEach(agent => {
+                agent.move();
+                agent.update();
+                
+                // Check if reached goal
+                if (agent.x === gameState.goal.x && agent.y === gameState.goal.y) {
+                    agent.fitness = 100;
+                }
+            });
+            
+            // Decay pheromones
+            for (let y = 0; y < MAZE_HEIGHT; y++) {
+                for (let x = 0; x < MAZE_WIDTH; x++) {
+                    if (gameState.pheromoneMap[y] && gameState.pheromoneMap[y][x]) {
+                        gameState.pheromoneMap[y][x] *= 0.99;
+                        if (gameState.pheromoneMap[y][x] < 0.01) {
+                            gameState.pheromoneMap[y][x] = 0;
+                        }
+                    }
+                }
+            }
+            
+            // Update UI
+            renderAgentList();
+            updateEmergence();
+            updateMetrics();
+            drawMaze();
+            
+            // Continue simulation
+            requestAnimationFrame(simulate);
+        }
+        
+        // Start simulation
+        function startSimulation() {
+            if (gameState.isRunning) return;
+            
+            gameState.isRunning = true;
+            document.getElementById('mazeStatus').textContent = 'Simulation Running';
+            simulate();
+        }
+        
+        // Reset maze
+        function resetMaze() {
+            gameState.isRunning = false;
+            gameState.steps = 0;
+            gameState.emergenceLevel = 0;
+            gameState.strategyHistory = [];
+            gameState.pheromoneMap = [];
+            
+            document.getElementById('mazeStatus').textContent = 'Generating New Maze...';
+            
+            setTimeout(() => {
+                generateMaze();
+                initAgents();
+                drawMaze();
+                updateMetrics();
+                document.getElementById('mazeStatus').textContent = 'Maze Ready';
+            }, 500);
+        }
+        
+        // Initialize
+        window.addEventListener('load', () => {
+            generateMaze();
+            initAgents();
+            drawMaze();
+            updateMetrics();
+        });
+    </script>
+</body>
+</html>
