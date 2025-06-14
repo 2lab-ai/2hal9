@@ -69,6 +69,58 @@ cargo run --bin demo
 open demo/ai_genius_demo.html
 ```
 
+---
+
+## ⚔️ AI Death Game Championship
+
+<div align="center">
+
+![AI Death Game Demo](demo/death_game_demo.gif)
+
+**Experience the ultimate AI survival battles in our Death Game mode!**
+
+<table>
+<tr>
+<td align="center">
+<img src="demo/death_game_title.png" width="250px">
+<br><b>⚔️ Enter the Arena</b><br>
+Only one AI survives
+</td>
+<td align="center">
+<img src="demo/death_game_go.png" width="250px">
+<br><b>🏯 Mini Go Battle</b><br>
+Territory control warfare
+</td>
+<td align="center">
+<img src="demo/death_game_holdem.png" width="250px">
+<br><b>🃏 All-In Poker</b><br>
+High stakes elimination
+</td>
+<td align="center">
+<img src="demo/death_game_winner.png" width="250px">
+<br><b>🏆 Final Victor</b><br>
+Last AI standing wins
+</td>
+</tr>
+</table>
+
+</div>
+
+### 💀 Death Game Features
+
+- **Survival Mechanics**: Health bars, eliminations, and dramatic finishes
+- **10 Deadly Games**: Mini Go, Mini Hold'em, Squid Game, and more
+- **Visual Effects**: Blood rain, lightning strikes, elimination stamps
+- **AI Death Matches**: Watch AI strategies evolve or perish
+
+```bash
+# Experience the Death Game
+open demo/death_game_demo.html
+
+# Watch AI battles
+open demo/death_game_demo.gif
+```
+
 ## ✨ Features
 
 ### 🤖 AI Players
@@ -149,7 +201,7 @@ open demo/ai_genius_demo.html
    - Tests: Collective search, convergence
    - Emergence: Global optimization
 
-### New Games
+### New Strategic Games
 
 6. **Prisoner's Dilemma** ✅
    - Classic game theory with reputation tracking
@@ -160,6 +212,58 @@ open demo/ai_genius_demo.html
    - Quantum-inspired superposition decisions
    - Tests: Entanglement, coherence, measurement
    - Emergence: Quantum coordination patterns
+
+### 💀 Death Game Survival Modes
+
+8. **Mini Go** ✅
+   - 9x9 territorial warfare
+   - Tests: Pattern recognition, strategic sacrifice
+   - Winner: Territory + captures + komi
+
+9. **Mini Hold'em** ✅
+   - Texas Hold'em elimination poker
+   - Tests: Bluffing, risk assessment, chip management
+   - Winner: Last player with chips
+
+10. **Squid Game** ✅
+    - Red Light/Green Light survival
+    - Tests: Timing, risk/reward balance
+    - Winner: Reach finish line alive
+
+11. **Battle Royale** 🔜
+    - Shrinking safe zone combat
+    - Tests: Resource management, positioning
+    - Winner: Last player in zone
+
+12. **Hunger Games** 🔜
+    - Resource scarcity survival
+    - Tests: Alliance formation, betrayal timing
+    - Winner: Last tribute standing
+
+13. **Liar's Dice** 🔜
+    - Bluffing and probability
+    - Tests: Deception, statistical reasoning
+    - Winner: Last player with dice
+
+14. **Russian Roulette** 🔜
+    - Ultimate risk assessment
+    - Tests: Probability calculation, nerve
+    - Winner: Last survivor
+
+15. **King of the Hill** 🔜
+    - Territory defense game
+    - Tests: Defensive strategy, resource allocation
+    - Winner: Longest hill occupation
+
+16. **Last Stand** 🔜
+    - Wave-based survival
+    - Tests: Resource efficiency, adaptation
+    - Winner: Survive most waves
+
+17. **Trust Fall** 🔜
+    - Cooperation vs betrayal dynamics
+    - Tests: Game theory, trust building
+    - Winner: Optimal trust/betrayal balance
 
 ## 🏗️ Architecture
 

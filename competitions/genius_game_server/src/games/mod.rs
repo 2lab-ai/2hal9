@@ -27,11 +27,18 @@ pub enum GameType {
     CollectiveMaze,
     RecursiveReasoning,
     SwarmOptimization,
-    LiarGame,
-    BeautyContest,
-    OraclesCurse,
-    ConsciousnessTuringTest,
-    MetaGameDesign,
+    PrisonersDilemma,
+    QuantumConsensus,
+    MiniGo,
+    MiniHoldem,
+    SquidGame,
+    BattleRoyale,
+    HungerGames,
+    LiarsDice,
+    RussianRoulette,
+    KingOfTheHill,
+    LastStand,
+    TrustFall,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
