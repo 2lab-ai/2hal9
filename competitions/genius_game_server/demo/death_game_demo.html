@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚔️ AI Death Game Championship ⚔️</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Orbitron', monospace;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* Blood rain effect */
+        .blood-rain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .blood-drop {
+            position: absolute;
+            width: 2px;
+            background: linear-gradient(transparent, #ff0000);
+            animation: fall linear infinite;
+        }
+        
+        @keyframes fall {
+            to {
+                transform: translateY(100vh);
+            }
+        }
+        
+        .main-container {
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: radial-gradient(ellipse at center, rgba(40, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.95) 100%);
+        }
+        
+        /* Title with glitch effect */
+        .title {
+            text-align: center;
+            padding: 30px;
+            font-size: 4em;
+            font-weight: 900;
+            text-transform: uppercase;
+            position: relative;
+            animation: flicker 2s infinite;
+            text-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000;
+        }
+        
+        .title::before,
+        .title::after {
+            content: '⚔️ AI DEATH GAME ⚔️';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+        
+        .title::before {
+            animation: glitch-1 0.5s infinite;
+            color: #ff0000;
+            z-index: -1;
+        }
+        
+        .title::after {
+            animation: glitch-2 0.5s infinite;
+            color: #00ffff;
+            z-index: -2;
+        }
+        
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        @keyframes glitch-1 {
+            0%, 100% { clip-path: inset(0 0 0 0); transform: translate(0); }
+            20% { clip-path: inset(20% 0 30% 0); transform: translate(-2px, 2px); }
+            40% { clip-path: inset(50% 0 20% 0); transform: translate(2px, -2px); }
+            60% { clip-path: inset(10% 0 60% 0); transform: translate(-1px, 1px); }
+            80% { clip-path: inset(80% 0 5% 0); transform: translate(1px, -1px); }
+        }
+        
+        @keyframes glitch-2 {
+            0%, 100% { clip-path: inset(0 0 0 0); transform: translate(0); }
+            20% { clip-path: inset(60% 0 10% 0); transform: translate(2px, -2px); }
+            40% { clip-path: inset(10% 0 70% 0); transform: translate(-2px, 2px); }
+            60% { clip-path: inset(40% 0 40% 0); transform: translate(1px, -1px); }
+            80% { clip-path: inset(5% 0 85% 0); transform: translate(-1px, 1px); }
+        }
+        
+        /* Game selection */
+        .game-selector {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 30px 0;
+        }
+        
+        .game-btn {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            background: rgba(255, 0, 0, 0.2);
+            border: 2px solid #ff0000;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .game-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 0, 0, 0.4), transparent);
+            transition: left 0.5s;
+        }
+        
+        .game-btn:hover::before {
+            left: 100%;
+        }
+        
+        .game-btn:hover {
+            background: rgba(255, 0, 0, 0.4);
+            transform: scale(1.05);
+            box-shadow: 0 0 20px #ff0000;
+        }
+        
+        .game-btn.active {
+            background: rgba(255, 0, 0, 0.6);
+            box-shadow: 0 0 30px #ff0000, inset 0 0 20px rgba(255, 0, 0, 0.5);
+        }
+        
+        /* Game arena */
+        .game-arena {
+            flex: 1;
+            display: flex;
+            gap: 20px;
+            padding: 0 20px;
+            margin-bottom: 20px;
+        }
+        
+        /* Player panels */
+        .player-panel {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.8);
+            border: 3px solid #ff0000;
+            border-radius: 10px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .player-panel.eliminated {
+            border-color: #666;
+            opacity: 0.5;
+        }
+        
+        .player-panel.eliminated::after {
+            content: 'ELIMINATED';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 3em;
+            color: #ff0000;
+            text-shadow: 0 0 20px #ff0000;
+            animation: stamp 0.5s ease-out;
+        }
+        
+        @keyframes stamp {
+            0% { scale: 3; opacity: 0; }
+            50% { scale: 1.2; }
+            100% { scale: 1; opacity: 1; }
+        }
+        
+        .player-name {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .player-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            background: rgba(255, 0, 0, 0.2);
+            border: 2px solid #ff0000;
+        }
+        
+        .player-stats {
+            margin-top: 15px;
+        }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 5px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .health-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #666;
+            margin: 10px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ff6666);
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px #ff0000;
+        }
+        
+        /* Go board */
+        .go-board {
+            width: 400px;
+            height: 400px;
+            margin: 20px auto;
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            grid-template-rows: repeat(9, 1fr);
+            gap: 1px;
+            background: #8B4513;
+            padding: 10px;
+            border: 3px solid #ff0000;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
+        }
+        
+        .go-cell {
+            background: #DEB887;
+            border: 1px solid #8B4513;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .go-cell:hover {
+            background: #F0E68C;
+        }
+        
+        .go-stone {
+            position: absolute;
+            width: 80%;
+            height: 80%;
+            border-radius: 50%;
+            top: 10%;
+            left: 10%;
+            transition: all 0.3s ease;
+        }
+        
+        .go-stone.black {
+            background: radial-gradient(circle at 30% 30%, #333, #000);
+            box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .go-stone.white {
+            background: radial-gradient(circle at 30% 30%, #fff, #ddd);
+            box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .go-stone.captured {
+            animation: capture 0.5s ease-out;
+            opacity: 0;
+        }
+        
+        @keyframes capture {
+            0% { scale: 1; opacity: 1; }
+            50% { scale: 1.5; opacity: 0.5; }
+            100% { scale: 0; opacity: 0; }
+        }
+        
+        /* Poker table */
+        .poker-table {
+            width: 600px;
+            height: 300px;
+            margin: 20px auto;
+            background: radial-gradient(ellipse at center, #2d5a2d 0%, #1a3a1a 100%);
+            border: 10px solid #8B4513;
+            border-radius: 150px;
+            position: relative;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8), inset 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .pot-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2em;
+            color: #ffd700;
+            text-shadow: 0 0 20px #ffd700;
+        }
+        
+        .poker-cards {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            gap: 10px;
+        }
+        
+        .card {
+            width: 60px;
+            height: 80px;
+            background: white;
+            border: 2px solid #000;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s;
+        }
+        
+        .card.red {
+            color: #ff0000;
+        }
+        
+        .card.black {
+            color: #000;
+        }
+        
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 2px 12px 10px rgba(0, 0, 0, 0.4);
+        }
+        
+        /* Status messages */
+        .status-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3em;
+            font-weight: bold;
+            text-transform: uppercase;
+            opacity: 0;
+            pointer-events: none;
+            text-shadow: 0 0 20px currentColor;
+            z-index: 100;
+        }
+        
+        .status-message.show {
+            animation: statusPulse 2s ease-out;
+        }
+        
+        @keyframes statusPulse {
+            0% { opacity: 0; scale: 0.5; }
+            20% { opacity: 1; scale: 1.2; }
+            80% { opacity: 1; scale: 1; }
+            100% { opacity: 0; scale: 0.8; }
+        }
+        
+        /* Timer */
+        .timer {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 2em;
+            color: #ff0000;
+            text-shadow: 0 0 10px #ff0000;
+        }
+        
+        .timer.warning {
+            animation: timerWarning 1s infinite;
+        }
+        
+        @keyframes timerWarning {
+            0%, 100% { color: #ff0000; scale: 1; }
+            50% { color: #ff6666; scale: 1.1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="blood-rain" id="bloodRain"></div>
+    
+    <div class="main-container">
+        <h1 class="title">⚔️ AI DEATH GAME ⚔️</h1>
+        
+        <div class="game-selector">
+            <button class="game-btn active" onclick="selectGame('go')">🏯 MINI GO</button>
+            <button class="game-btn" onclick="selectGame('holdem')">🃏 MINI HOLD'EM</button>
+            <button class="game-btn" onclick="selectGame('squid')">🦑 SQUID GAME</button>
+        </div>
+        
+        <div class="timer" id="timer">⏱️ 30s</div>
+        
+        <div class="game-arena">
+            <!-- Player 1 Panel -->
+            <div class="player-panel" id="player1">
+                <div class="player-name">
+                    <div class="player-avatar">🤖</div>
+                    <span>AI GLADIATOR α</span>
+                </div>
+                <div class="health-bar">
+                    <div class="health-fill" id="health1" style="width: 100%"></div>
+                </div>
+                <div class="player-stats">
+                    <div class="stat-row">
+                        <span>Score:</span>
+                        <span id="score1">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>Status:</span>
+                        <span id="status1">ALIVE</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>Strategy:</span>
+                        <span id="strategy1">Calculating...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Game Board -->
+            <div id="gameBoard">
+                <!-- Go Board -->
+                <div id="goGame" style="display: block;">
+                    <div class="go-board" id="goBoard"></div>
+                </div>
+                
+                <!-- Poker Table -->
+                <div id="holdemGame" style="display: none;">
+                    <div class="poker-table">
+                        <div class="pot-display">POT: $<span id="pot">0</span></div>
+                        <div class="poker-cards" id="communityCards"></div>
+                    </div>
+                    <div style="text-align: center; margin-top: 20px;">
+                        <div id="player1Cards" style="display: inline-block; margin: 0 20px;"></div>
+                        <div id="player2Cards" style="display: inline-block; margin: 0 20px;"></div>
+                    </div>
+                </div>
+                
+                <!-- Squid Game -->
+                <div id="squidGame" style="display: none;">
+                    <canvas id="squidCanvas" width="600" height="400"></canvas>
+                </div>
+            </div>
+            
+            <!-- Player 2 Panel -->
+            <div class="player-panel" id="player2">
+                <div class="player-name">
+                    <div class="player-avatar">🎭</div>
+                    <span>AI GLADIATOR β</span>
+                </div>
+                <div class="health-bar">
+                    <div class="health-fill" id="health2" style="width: 100%"></div>
+                </div>
+                <div class="player-stats">
+                    <div class="stat-row">
+                        <span>Score:</span>
+                        <span id="score2">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>Status:</span>
+                        <span id="status2">ALIVE</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>Strategy:</span>
+                        <span id="strategy2">Analyzing...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="status-message" id="statusMessage"></div>
+    
+    <script>
+        // Initialize blood rain effect
+        function createBloodRain() {
+            const bloodRain = document.getElementById('bloodRain');
+            for (let i = 0; i < 50; i++) {
+                const drop = document.createElement('div');
+                drop.className = 'blood-drop';
+                drop.style.left = Math.random() * 100 + '%';
+                drop.style.height = Math.random() * 100 + 50 + 'px';
+                drop.style.animationDuration = Math.random() * 2 + 1 + 's';
+                drop.style.animationDelay = Math.random() * 2 + 's';
+                bloodRain.appendChild(drop);
+            }
+        }
+        
+        // Game state
+        let currentGame = 'go';
+        let gameState = {
+            go: {
+                board: Array(9).fill(null).map(() => Array(9).fill(null)),
+                currentPlayer: 'black',
+                captures: { black: 0, white: 0 },
+                moveCount: 0
+            },
+            holdem: {
+                pot: 0,
+                player1Chips: 1000,
+                player2Chips: 1000,
+                communityCards: [],
+                player1Hand: [],
+                player2Hand: [],
+                round: 'preflop'
+            },
+            squid: {
+                player1Pos: 0,
+                player2Pos: 0,
+                isGreenLight: false,
+                eliminated: []
+            }
+        };
+        
+        // Initialize Go board
+        function initGoBoard() {
+            const board = document.getElementById('goBoard');
+            board.innerHTML = '';
+            for (let i = 0; i < 81; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'go-cell';
+                cell.dataset.index = i;
+                cell.onclick = () => placeStone(Math.floor(i / 9), i % 9);
+                board.appendChild(cell);
+            }
+        }
+        
+        // Place stone on Go board
+        function placeStone(row, col) {
+            if (gameState.go.board[row][col]) return;
+            
+            const color = gameState.go.currentPlayer;
+            gameState.go.board[row][col] = color;
+            gameState.go.moveCount++;
+            
+            const index = row * 9 + col;
+            const cell = document.querySelector(`[data-index="${index}"]`);
+            const stone = document.createElement('div');
+            stone.className = `go-stone ${color}`;
+            cell.appendChild(stone);
+            
+            // Check for captures
+            checkCaptures(row, col, color);
+            
+            // Switch players
+            gameState.go.currentPlayer = color === 'black' ? 'white' : 'black';
+            
+            // Update strategies
+            updateStrategy(1, color === 'black' ? 'Territorial expansion' : 'Corner control');
+            updateStrategy(2, color === 'white' ? 'Aggressive invasion' : 'Defensive formation');
+            
+            // AI move after delay
+            if (gameState.go.moveCount < 30) {
+                setTimeout(aiGoMove, 1000);
+            }
+        }
+        
+        // Simple capture checking
+        function checkCaptures(row, col, color) {
+            const opponent = color === 'black' ? 'white' : 'black';
+            const neighbors = [
+                [row-1, col], [row+1, col], 
+                [row, col-1], [row, col+1]
+            ];
+            
+            neighbors.forEach(([r, c]) => {
+                if (r >= 0 && r < 9 && c >= 0 && c < 9 && 
+                    gameState.go.board[r][c] === opponent) {
+                    // Simplified capture logic
+                    if (Math.random() > 0.7) {
+                        captureStone(r, c);
+                        gameState.go.captures[color]++;
+                        showStatus(`${color.toUpperCase()} CAPTURES!`, '#ff0000');
+                    }
+                }
+            });
+        }
+        
+        function captureStone(row, col) {
+            gameState.go.board[row][col] = null;
+            const index = row * 9 + col;
+            const cell = document.querySelector(`[data-index="${index}"]`);
+            const stone = cell.querySelector('.go-stone');
+            if (stone) {
+                stone.classList.add('captured');
+                setTimeout(() => stone.remove(), 500);
+            }
+        }
+        
+        // AI Go move
+        function aiGoMove() {
+            const empty = [];
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    if (!gameState.go.board[r][c]) {
+                        empty.push([r, c]);
+                    }
+                }
+            }
+            
+            if (empty.length > 0) {
+                const [row, col] = empty[Math.floor(Math.random() * empty.length)];
+                placeStone(row, col);
+            }
+        }
+        
+        // Initialize poker game
+        function initHoldem() {
+            dealCards();
+            updatePot();
+        }
+        
+        function dealCards() {
+            const suits = ['♠', '♥', '♦', '♣'];
+            const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+            
+            // Deal hole cards
+            gameState.holdem.player1Hand = [
+                { rank: ranks[Math.floor(Math.random() * 13)], suit: suits[Math.floor(Math.random() * 4)] },
+                { rank: ranks[Math.floor(Math.random() * 13)], suit: suits[Math.floor(Math.random() * 4)] }
+            ];
+            
+            gameState.holdem.player2Hand = [
+                { rank: ranks[Math.floor(Math.random() * 13)], suit: suits[Math.floor(Math.random() * 4)] },
+                { rank: ranks[Math.floor(Math.random() * 13)], suit: suits[Math.floor(Math.random() * 4)] }
+            ];
+            
+            // Deal community cards
+            gameState.holdem.communityCards = [];
+            for (let i = 0; i < 5; i++) {
+                gameState.holdem.communityCards.push({
+                    rank: ranks[Math.floor(Math.random() * 13)],
+                    suit: suits[Math.floor(Math.random() * 4)]
+                });
+            }
+            
+            displayCards();
+        }
+        
+        function displayCards() {
+            // Player 1 cards
+            const p1Cards = document.getElementById('player1Cards');
+            p1Cards.innerHTML = '<h3 style="color: #ff0000;">Player 1</h3>';
+            gameState.holdem.player1Hand.forEach(card => {
+                const cardDiv = createCard(card);
+                p1Cards.appendChild(cardDiv);
+            });
+            
+            // Player 2 cards
+            const p2Cards = document.getElementById('player2Cards');
+            p2Cards.innerHTML = '<h3 style="color: #00ffff;">Player 2</h3>';
+            gameState.holdem.player2Hand.forEach(card => {
+                const cardDiv = createCard(card);
+                p2Cards.appendChild(cardDiv);
+            });
+            
+            // Community cards (reveal progressively)
+            const community = document.getElementById('communityCards');
+            community.innerHTML = '';
+            
+            let cardsToShow = 0;
+            if (gameState.holdem.round === 'flop') cardsToShow = 3;
+            else if (gameState.holdem.round === 'turn') cardsToShow = 4;
+            else if (gameState.holdem.round === 'river') cardsToShow = 5;
+            
+            for (let i = 0; i < cardsToShow; i++) {
+                const cardDiv = createCard(gameState.holdem.communityCards[i]);
+                community.appendChild(cardDiv);
+            }
+        }
+        
+        function createCard(card) {
+            const div = document.createElement('div');
+            div.className = 'card';
+            if (card.suit === '♥' || card.suit === '♦') {
+                div.classList.add('red');
+            } else {
+                div.classList.add('black');
+            }
+            div.textContent = card.rank + card.suit;
+            return div;
+        }
+        
+        function updatePot() {
+            document.getElementById('pot').textContent = gameState.holdem.pot;
+        }
+        
+        // Betting simulation
+        function simulateBetting() {
+            const actions = ['fold', 'call', 'raise', 'all-in'];
+            const p1Action = actions[Math.floor(Math.random() * actions.length)];
+            const p2Action = actions[Math.floor(Math.random() * actions.length)];
+            
+            if (p1Action === 'raise') {
+                gameState.holdem.pot += 100;
+                gameState.holdem.player1Chips -= 100;
+                updateStrategy(1, 'Aggressive bluff');
+            } else if (p1Action === 'all-in') {
+                showStatus('PLAYER 1 ALL IN!', '#ff0000');
+                updateStrategy(1, 'Maximum pressure');
+            }
+            
+            if (p2Action === 'call') {
+                updateStrategy(2, 'Cautious call');
+            } else if (p2Action === 'fold') {
+                showStatus('PLAYER 2 FOLDS!', '#00ffff');
+                updateStrategy(2, 'Strategic retreat');
+            }
+            
+            updatePot();
+            updateHealth();
+        }
+        
+        // Update functions
+        function updateStrategy(player, strategy) {
+            document.getElementById(`strategy${player}`).textContent = strategy;
+        }
+        
+        function updateHealth() {
+            const health1 = (gameState.holdem.player1Chips / 1000) * 100;
+            const health2 = (gameState.holdem.player2Chips / 1000) * 100;
+            
+            document.getElementById('health1').style.width = health1 + '%';
+            document.getElementById('health2').style.width = health2 + '%';
+            
+            document.getElementById('score1').textContent = gameState.holdem.player1Chips;
+            document.getElementById('score2').textContent = gameState.holdem.player2Chips;
+            
+            if (health1 <= 0) {
+                eliminatePlayer(1);
+            }
+            if (health2 <= 0) {
+                eliminatePlayer(2);
+            }
+        }
+        
+        function eliminatePlayer(player) {
+            document.getElementById(`player${player}`).classList.add('eliminated');
+            document.getElementById(`status${player}`).textContent = 'ELIMINATED';
+            showStatus(`PLAYER ${player} ELIMINATED!`, '#ff0000');
+        }
+        
+        function showStatus(message, color) {
+            const status = document.getElementById('statusMessage');
+            status.textContent = message;
+            status.style.color = color;
+            status.classList.add('show');
+            setTimeout(() => status.classList.remove('show'), 2000);
+        }
+        
+        // Game selection
+        function selectGame(game) {
+            currentGame = game;
+            
+            // Update buttons
+            document.querySelectorAll('.game-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Hide all games
+            document.getElementById('goGame').style.display = 'none';
+            document.getElementById('holdemGame').style.display = 'none';
+            document.getElementById('squidGame').style.display = 'none';
+            
+            // Show selected game
+            if (game === 'go') {
+                document.getElementById('goGame').style.display = 'block';
+                initGoBoard();
+            } else if (game === 'holdem') {
+                document.getElementById('holdemGame').style.display = 'block';
+                initHoldem();
+                startHoldemRound();
+            } else if (game === 'squid') {
+                document.getElementById('squidGame').style.display = 'block';
+                initSquidGame();
+            }
+        }
+        
+        // Holdem round progression
+        function startHoldemRound() {
+            const rounds = ['preflop', 'flop', 'turn', 'river'];
+            let currentRoundIndex = 0;
+            
+            const interval = setInterval(() => {
+                if (currentRoundIndex < rounds.length) {
+                    gameState.holdem.round = rounds[currentRoundIndex];
+                    displayCards();
+                    simulateBetting();
+                    currentRoundIndex++;
+                } else {
+                    clearInterval(interval);
+                    // Determine winner
+                    if (Math.random() > 0.5) {
+                        showStatus('PLAYER 1 WINS!', '#ff0000');
+                        gameState.holdem.player1Chips += gameState.holdem.pot;
+                    } else {
+                        showStatus('PLAYER 2 WINS!', '#00ffff');
+                        gameState.holdem.player2Chips += gameState.holdem.pot;
+                    }
+                    gameState.holdem.pot = 0;
+                    updatePot();
+                    updateHealth();
+                    
+                    // Start new round after delay
+                    setTimeout(() => {
+                        dealCards();
+                        startHoldemRound();
+                    }, 3000);
+                }
+            }, 2000);
+        }
+        
+        // Timer
+        let timeLeft = 30;
+        setInterval(() => {
+            timeLeft--;
+            const timer = document.getElementById('timer');
+            timer.textContent = `⏱️ ${timeLeft}s`;
+            
+            if (timeLeft <= 10) {
+                timer.classList.add('warning');
+            }
+            
+            if (timeLeft <= 0) {
+                showStatus('TIME\'S UP!', '#ff0000');
+                timeLeft = 30;
+                timer.classList.remove('warning');
+            }
+        }, 1000);
+        
+        // Initialize
+        createBloodRain();
+        initGoBoard();
+    </script>
+</body>
+</html>
