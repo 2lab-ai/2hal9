@@ -122,30 +122,44 @@ open demo/ai_genius_demo.html
 
 ## 🎲 Game Types
 
-### 1. **Minority Game** ✅
-Players choose between two options, winners are in the minority.
-- Tests: Adaptive strategy, pattern recognition
-- Emergence: Perfect distribution balance
+### Core Games
 
-### 2. **Byzantine Generals** ✅
-Achieve consensus despite traitors in the system.
-- Tests: Trust, verification, fault tolerance
-- Emergence: Robust consensus protocols
+1. **Minority Game** ✅
+   - Players choose between options, winners are in minority
+   - Tests: Adaptive strategy, pattern recognition
+   - Emergence: Perfect distribution balance
 
-### 3. **Collective Maze** ✅
-Navigate complex environments through shared knowledge.
-- Tests: Exploration, knowledge sharing
-- Emergence: Efficient pathfinding
+2. **Byzantine Generals** ✅
+   - Achieve consensus despite traitors
+   - Tests: Trust, verification, fault tolerance
+   - Emergence: Robust consensus protocols
 
-### 4. **Recursive Reasoning** ✅
-"I think that you think that I think..."
-- Tests: Meta-cognition, theory of mind
-- Emergence: Multi-level reasoning
+3. **Collective Maze** ✅
+   - Navigate environments through shared knowledge
+   - Tests: Exploration, knowledge sharing
+   - Emergence: Efficient pathfinding
 
-### 5. **Swarm Optimization** ✅
-Find optimal solutions in high-dimensional spaces.
-- Tests: Collective search, convergence
-- Emergence: Global optimization
+4. **Recursive Reasoning** ✅
+   - "I think that you think that I think..."
+   - Tests: Meta-cognition, theory of mind
+   - Emergence: Multi-level reasoning
+
+5. **Swarm Optimization** ✅
+   - Find optimal solutions in high-dimensional spaces
+   - Tests: Collective search, convergence
+   - Emergence: Global optimization
+
+### New Games
+
+6. **Prisoner's Dilemma** ✅
+   - Classic game theory with reputation tracking
+   - Tests: Cooperation, trust, reciprocity
+   - Emergence: Tit-for-tat strategies
+
+7. **Quantum Consensus** ✅
+   - Quantum-inspired superposition decisions
+   - Tests: Entanglement, coherence, measurement
+   - Emergence: Quantum coordination patterns
 
 ## 🏗️ Architecture
 
@@ -192,6 +206,8 @@ graph TB
 - Rust 1.70+
 - Cargo
 - Python 3.8+ (for visualization tools)
+- Optional: Ollama for local AI models
+- Optional: AWS credentials for Bedrock
 
 ### Installation
 
@@ -206,8 +222,44 @@ cargo build --release
 # Run tests
 cargo test
 
-# Run the demo
+# Run the standard demo
 cargo run --bin demo
+
+# Run with local Ollama models
+./test_local_models.sh
+
+# Open enhanced web visualization
+open demo/ai_genius_enhanced.html
+```
+
+### 🤖 AI Provider Support
+
+#### Local Models (Ollama)
+```bash
+# Install Ollama
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Pull models
+ollama pull llama2
+ollama pull mistral
+ollama pull phi
+
+# Run with local models
+cargo run --bin demo_ollama
+```
+
+#### AWS Bedrock
+```bash
+# Configure AWS credentials
+aws configure
+
+# Use Bedrock models in code
+use genius_game_server::sota::enhanced::SOTAFactory;
+
+let player = SOTAFactory::create_bedrock_player(
+    "claude-3".to_string(),
+    "anthropic.claude-3-sonnet-20240229-v1:0".to_string()
+)?;
 ```
 
 ### Quick Example

@@ -68,7 +68,7 @@ impl MinorityGame {
 
 #[async_trait]
 impl Game for MinorityGame {
-    async fn initialize(&mut self, config: GameConfig) -> anyhow::Result<GameState> {
+    async fn initialize(&mut self, _config: GameConfig) -> anyhow::Result<GameState> {
         Ok(GameState {
             game_id: Uuid::new_v4(),
             game_type: GameType::MinorityGame,
