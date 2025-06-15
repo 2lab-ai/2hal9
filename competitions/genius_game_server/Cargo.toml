@@ -60,9 +60,9 @@ path = "src/bin/death_game_demo.rs"
 name = "death_game_ultimate_demo"
 path = "src/bin/death_game_ultimate_demo.rs"
 
-[[bin]]
-name = "ollama_swarm_test"
-path = "src/bin/ollama_swarm_test.rs"
+# [[bin]]
+# name = "ollama_swarm_test"
+# path = "src/bin/ollama_swarm_test.rs"
 
 [[bin]]
 name = "ollama_16_agents_test"
