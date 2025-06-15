@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+target/
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+docs/
+demo/
+
+# Kubernetes configs
+k8s/
+docker-compose.yml
+
+# Local config
+.env
+.env.local
+secrets.yaml
+
+# Test data
+tests/
+benches/
+examples/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Temporary files
+*.tmp
+*.log
+*.pid

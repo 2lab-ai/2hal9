@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
-use super::{Game, GameConfig, GameState, GameType, Action, RoundResult, Outcome, GameResult, EmergenceEvent, GameAnalytics};
+use super::{Game, GameConfig, GameState, GameType, Action, RoundResult, Outcome, GameResult, GameAnalytics};
 
 const INITIAL_DICE: usize = 5;
 const CHALLENGE_PENALTY: i32 = 10;

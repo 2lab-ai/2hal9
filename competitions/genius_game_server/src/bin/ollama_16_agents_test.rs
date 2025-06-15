@@ -155,7 +155,7 @@ async fn test_swarm_consensus(metrics: Arc<Mutex<SwarmMetrics>>) -> Result<()> {
     
     // Create agents
     let agents: Vec<_> = (0..NUM_AGENTS)
-        .map(|i| {
+        .map(|_i| {
             Arc::new(OllamaProvider::new(
                 MODEL_NAME.to_string(),
                 OLLAMA_ENDPOINT.to_string()
@@ -260,7 +260,7 @@ async fn test_game_performance(metrics: Arc<Mutex<SwarmMetrics>>) -> Result<()> 
     Ok(())
 }
 
-async fn test_scaling_behavior(metrics: Arc<Mutex<SwarmMetrics>>) -> Result<()> {
+async fn test_scaling_behavior(_metrics: Arc<Mutex<SwarmMetrics>>) -> Result<()> {
     println!("Testing scaling behavior with different swarm sizes...");
     
     let sizes = vec![2, 4, 8, 16];
@@ -274,7 +274,7 @@ async fn test_scaling_behavior(metrics: Arc<Mutex<SwarmMetrics>>) -> Result<()> 
         
         // Create decision tasks
         let tasks: Vec<_> = (0..size)
-            .map(|i| {
+            .map(|_i| {
                 let provider = Arc::new(OllamaProvider::new(
                     MODEL_NAME.to_string(),
                     OLLAMA_ENDPOINT.to_string()
@@ -387,7 +387,7 @@ async fn make_swarm_decision(
     
     // Create parallel decision tasks
     let tasks: Vec<_> = (0..num_agents)
-        .map(|i| {
+        .map(|_i| {
             let provider = Arc::new(OllamaProvider::new(
                 MODEL_NAME.to_string(),
                 OLLAMA_ENDPOINT.to_string()

@@ -1,0 +1,66 @@
+{
+  "name": "@2lab/genius-games-sdk",
+  "version": "1.0.0",
+  "description": "JavaScript/TypeScript SDK for Genius Game Server - AI collective intelligence gaming platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "module": "dist/index.esm.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write 'src/**/*.ts'",
+    "prepublishOnly": "npm run build && npm test",
+    "docs": "typedoc --out docs src/index.ts"
+  },
+  "keywords": [
+    "ai",
+    "games",
+    "collective-intelligence",
+    "websocket",
+    "game-theory",
+    "multiplayer"
+  ],
+  "author": "2Lab.ai",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/2lab-ai/2hal9.git",
+    "directory": "sdk/genius-games-js"
+  },
+  "homepage": "https://github.com/2lab-ai/2hal9#readme",
+  "dependencies": {
+    "eventemitter3": "^5.0.1",
+    "isomorphic-ws": "^5.0.0",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.6",
+    "@types/jest": "^29.5.11",
+    "@types/node": "^20.11.5",
+    "@types/ws": "^8.5.10",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.2.4",
+    "rollup": "^4.9.6",
+    "ts-jest": "^29.1.2",
+    "tslib": "^2.6.2",
+    "typedoc": "^0.25.7",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

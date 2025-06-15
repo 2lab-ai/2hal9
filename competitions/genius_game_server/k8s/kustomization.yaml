@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: genius-games
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - hpa.yaml
+
+# Uncomment when you have created secrets.yaml
+# - secrets.yaml
+
+images:
+  - name: ghcr.io/2lab-ai/genius-game-server
+    newTag: latest
+
+replicas:
+  - name: genius-game-server
+    count: 3
+
+commonLabels:
+  app: genius-game-server
+  version: v1
+  managed-by: kustomize
+
+configMapGenerator:
+  - name: genius-game-env
+    literals:
+      - RUST_LOG=info
+      - ENABLE_METRICS=true
+      - ENABLE_TRACING=true

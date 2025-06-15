@@ -58,7 +58,7 @@ async fn main() -> Result<()> {
 }
 
 async fn run_squid_game_demo() -> Result<()> {
-    print_game_header("SQUID GAME", "Red Light, Green Light - Move or Die!");
+    print_game_header("SQUID GAME", "Red Light, Green Light - Move or Die!").await;
     
     let engine = GameEngine::new();
     let config = GameConfig {
@@ -112,13 +112,13 @@ async fn run_squid_game_demo() -> Result<()> {
     }
     
     let final_result = engine.finalize_game(game_id).await?;
-    print_game_result("SQUID GAME", &final_result.winner);
+    print_game_result("SQUID GAME", &final_result.winner).await;
     
     Ok(())
 }
 
 async fn run_mini_go_demo() -> Result<()> {
-    print_game_header("MINI GO", "9x9 Strategic Battle");
+    print_game_header("MINI GO", "9x9 Strategic Battle").await;
     
     let engine = GameEngine::new();
     let config = GameConfig {
@@ -161,13 +161,13 @@ async fn run_mini_go_demo() -> Result<()> {
     }
     
     let final_result = engine.finalize_game(game_id).await?;
-    print_game_result("MINI GO", &final_result.winner);
+    print_game_result("MINI GO", &final_result.winner).await;
     
     Ok(())
 }
 
 async fn run_mini_holdem_demo() -> Result<()> {
-    print_game_header("MINI HOLD'EM", "High Stakes Poker");
+    print_game_header("MINI HOLD'EM", "High Stakes Poker").await;
     
     let engine = GameEngine::new();
     let config = GameConfig {
@@ -219,13 +219,13 @@ async fn run_mini_holdem_demo() -> Result<()> {
     }
     
     let final_result = engine.finalize_game(game_id).await?;
-    print_game_result("MINI HOLD'EM", &final_result.winner);
+    print_game_result("MINI HOLD'EM", &final_result.winner).await;
     
     Ok(())
 }
 
 async fn run_battle_royale_demo() -> Result<()> {
-    print_game_header("BATTLE ROYALE", "100 Players Drop - 1 Survives");
+    print_game_header("BATTLE ROYALE", "100 Players Drop - 1 Survives").await;
     
     let engine = GameEngine::new();
     let config = GameConfig {
@@ -289,13 +289,13 @@ async fn run_battle_royale_demo() -> Result<()> {
     }
     
     let final_result = engine.finalize_game(game_id).await?;
-    print_game_result("BATTLE ROYALE", &final_result.winner);
+    print_game_result("BATTLE ROYALE", &final_result.winner).await;
     
     Ok(())
 }
 
 async fn run_hunger_games_demo() -> Result<()> {
-    print_game_header("HUNGER GAMES", "May the Odds Be Ever in Your Favor");
+    print_game_header("HUNGER GAMES", "May the Odds Be Ever in Your Favor").await;
     
     let engine = GameEngine::new();
     let config = GameConfig {
@@ -355,13 +355,13 @@ async fn run_hunger_games_demo() -> Result<()> {
     }
     
     let final_result = engine.finalize_game(game_id).await?;
-    print_game_result("HUNGER GAMES", &final_result.winner);
+    print_game_result("HUNGER GAMES", &final_result.winner).await;
     
     Ok(())
 }
 
 async fn run_liars_dice_demo() -> Result<()> {
-    print_game_header("LIAR'S DICE", "Bluff or Call - Risk it All");
+    print_game_header("LIAR'S DICE", "Bluff or Call - Risk it All").await;
     
     let engine = GameEngine::new();
     let config = GameConfig {
@@ -415,13 +415,13 @@ async fn run_liars_dice_demo() -> Result<()> {
     }
     
     let final_result = engine.finalize_game(game_id).await?;
-    print_game_result("LIAR'S DICE", &final_result.winner);
+    print_game_result("LIAR'S DICE", &final_result.winner).await;
     
     Ok(())
 }
 
 async fn run_russian_roulette_demo() -> Result<()> {
-    print_game_header("RUSSIAN ROULETTE", "One Bullet. Six Chambers. Pure Luck.");
+    print_game_header("RUSSIAN ROULETTE", "One Bullet. Six Chambers. Pure Luck.").await;
     
     let engine = GameEngine::new();
     let config = GameConfig {
@@ -473,13 +473,13 @@ async fn run_russian_roulette_demo() -> Result<()> {
     }
     
     let final_result = engine.finalize_game(game_id).await?;
-    print_game_result("RUSSIAN ROULETTE", &final_result.winner);
+    print_game_result("RUSSIAN ROULETTE", &final_result.winner).await;
     
     Ok(())
 }
 
 async fn run_king_of_the_hill_demo() -> Result<()> {
-    print_game_header("KING OF THE HILL", "Control the Center - Defend Your Crown");
+    print_game_header("KING OF THE HILL", "Control the Center - Defend Your Crown").await;
     
     let engine = GameEngine::new();
     let config = GameConfig {
@@ -532,13 +532,13 @@ async fn run_king_of_the_hill_demo() -> Result<()> {
     }
     
     let final_result = engine.finalize_game(game_id).await?;
-    print_game_result("KING OF THE HILL", &final_result.winner);
+    print_game_result("KING OF THE HILL", &final_result.winner).await;
     
     Ok(())
 }
 
 async fn run_last_stand_demo() -> Result<()> {
-    print_game_header("LAST STAND", "Survive the Endless Waves");
+    print_game_header("LAST STAND", "Survive the Endless Waves").await;
     
     let engine = GameEngine::new();
     let config = GameConfig {
@@ -594,13 +594,13 @@ async fn run_last_stand_demo() -> Result<()> {
     }
     
     let final_result = engine.finalize_game(game_id).await?;
-    print_game_result("LAST STAND", &final_result.winner);
+    print_game_result("LAST STAND", &final_result.winner).await;
     
     Ok(())
 }
 
 async fn run_trust_fall_demo() -> Result<()> {
-    print_game_header("TRUST FALL", "Trust or Betray - The Ultimate Test");
+    print_game_header("TRUST FALL", "Trust or Betray - The Ultimate Test").await;
     
     let engine = GameEngine::new();
     let config = GameConfig {
@@ -653,25 +653,25 @@ async fn run_trust_fall_demo() -> Result<()> {
     }
     
     let final_result = engine.finalize_game(game_id).await?;
-    print_game_result("TRUST FALL", &final_result.winner);
+    print_game_result("TRUST FALL", &final_result.winner).await;
     
     Ok(())
 }
 
-fn print_game_header(name: &str, subtitle: &str) {
+async fn print_game_header(name: &str, subtitle: &str) {
     println!("\n{}", "═".repeat(80).bright_cyan());
     println!("{}", name.bright_cyan().bold());
     println!("{}", subtitle.bright_yellow());
     println!("{}", "═".repeat(80).bright_cyan());
-    sleep(Duration::from_millis(500));
+    sleep(Duration::from_millis(500)).await;
 }
 
-fn print_game_result(game: &str, winner: &str) {
+async fn print_game_result(game: &str, winner: &str) {
     println!("\n{}", "─".repeat(60).bright_green());
     println!("{} {}", game.bright_green(), "COMPLETE!".bright_green().bold());
     println!("🏆 Winner: {}", winner.bright_yellow().bold());
     println!("{}", "─".repeat(60).bright_green());
-    sleep(Duration::from_millis(1000));
+    sleep(Duration::from_millis(1000)).await;
 }
 
 async fn animate_action(text: &str) {
