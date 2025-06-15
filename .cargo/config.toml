@@ -1,0 +1,65 @@
+# Cargo build configuration for optimized builds
+
+[build]
+# Use all 16 CPU cores for parallel compilation
+jobs = 16
+# Enable incremental compilation for faster rebuilds
+incremental = true
+
+[target.x86_64-apple-darwin]
+# macOS Intel configuration
+rustflags = [
+    "-C", "target-cpu=native",  # Optimize for current CPU
+    "-C", "opt-level=1",        # Balance between compile time and runtime performance
+    "-C", "debuginfo=1",        # Minimal debug info
+]
+
+[target.aarch64-apple-darwin]
+# For Apple Silicon Macs
+rustflags = [
+    "-C", "target-cpu=native",
+    "-C", "opt-level=1",
+    "-C", "debuginfo=1",
+]
+
+# Profile settings for different build types
+[profile.dev]
+# Faster compilation for development
+opt-level = 0
+debug = 1  # Reduced debug info for faster builds
+incremental = true
+# Enable parallel frontend compilation
+split-debuginfo = "packed"
+
+[profile.dev.package."*"]
+# Dependencies get some optimization
+opt-level = 2
+
+[profile.release]
+opt-level = 3
+lto = "thin"  # Thin LTO for better performance without huge compile time cost
+codegen-units = 1  # Better optimization at cost of parallel compilation
+
+[profile.bench]
+inherits = "release"
+
+[profile.test]
+inherits = "dev"
+opt-level = 1  # Some optimization for tests
+
+# Network configuration for faster downloads
+[net]
+retry = 2
+git-fetch-with-cli = true
+
+# Registry configuration
+[registries.crates-io]
+protocol = "sparse"  # Use sparse registry protocol (faster)
+
+# Alias for common commands
+[alias]
+b = "build --all-targets"
+c = "check --all-targets"
+t = "test --all"
+r = "run"
+br = "build --release --all-targets"

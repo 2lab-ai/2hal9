@@ -101,3 +101,6 @@ config = "0.13"
 bb8 = "0.8"
 bb8-redis = "0.13"
 metrics = "0.22"
+
+# External foundation library
+gradient-core = { path = "../gradient-core" }
