@@ -1,16 +1,10 @@
+use super::*;
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
-use super::{Game, GameState, PlayerAction, GameResult, EmergenceMetrics};
-use anyhow::Result;
+use rand::Rng;
 
-/// Squid Game - Red Light Green Light survival game
 pub struct SquidGame {
-    id: Uuid,
-    round: u32,
-    max_rounds: u32,
-    players: Vec<String>,
     alive_players: HashMap<String, bool>,
     player_positions: HashMap<String, f32>,
     player_speeds: HashMap<String, f32>,
@@ -19,10 +13,10 @@ pub struct SquidGame {
     finish_line: f32,
     elimination_history: Vec<EliminationEvent>,
     winners: Vec<String>,
-    special_rules: HashMap<String, String>,
+    light_change_timer: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 struct EliminationEvent {
     round: u32,
     player: String,
@@ -30,13 +24,15 @@ struct EliminationEvent {
     position: f32,
 }
 
+impl Default for SquidGame {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SquidGame {
-    pub fn new(max_rounds: u32, special_rules: HashMap<String, String>) -> Self {
+    pub fn new() -> Self {
         Self {
-            id: Uuid::new_v4(),
-            round: 0,
-            max_rounds,
-            players: Vec::new(),
             alive_players: HashMap::new(),
             player_positions: HashMap::new(),
             player_speeds: HashMap::new(),
@@ -45,11 +41,11 @@ impl SquidGame {
             finish_line: 100.0,
             elimination_history: Vec::new(),
             winners: Vec::new(),
-            special_rules,
+            light_change_timer: 0,
         }
     }
     
-    fn check_movement_during_red_light(&mut self) {
+    fn check_movement_during_red_light(&mut self, round: u32) {
         if !self.is_green_light {
             let mut eliminated = Vec::new();
             
@@ -58,7 +54,7 @@ impl SquidGame {
                     eliminated.push(player.clone());
                     
                     self.elimination_history.push(EliminationEvent {
-                        round: self.round,
+                        round,
                         player: player.clone(),
                         reason: "Moved during red light".to_string(),
                         position: *self.player_positions.get(player).unwrap_or(&0.0),
@@ -71,204 +67,263 @@ impl SquidGame {
             }
         }
     }
+    
+    fn update_positions(&mut self) {
+        if self.is_green_light {
+            for (player, &speed) in &self.player_speeds {
+                if *self.alive_players.get(player).unwrap_or(&false) {
+                    let current_pos = self.player_positions.get(player).copied().unwrap_or(0.0);
+                    let new_pos = (current_pos + speed).min(self.finish_line);
+                    self.player_positions.insert(player.clone(), new_pos);
+                    
+                    // Check if player reached finish line
+                    if new_pos >= self.finish_line && !self.winners.contains(player) {
+                        self.winners.push(player.clone());
+                    }
+                }
+            }
+        }
+    }
+    
+    fn toggle_light(&mut self) {
+        self.is_green_light = !self.is_green_light;
+        let mut rng = rand::thread_rng();
+        
+        // Random duration between 2-8 seconds (simulated as rounds)
+        self.light_duration = rng.gen_range(2..=8);
+        self.light_change_timer = self.light_duration;
+    }
+    
+    fn detect_survival_emergence(&self, state: &GameState) -> Option<EmergenceEvent> {
+        if self.elimination_history.len() < 5 {
+            return None;
+        }
+        
+        // Check if collective players have better survival rate
+        let total_players = self.alive_players.len() as f32;
+        let alive_collective = self.alive_players.iter()
+            .filter(|(id, &alive)| id.starts_with("collective_") && alive)
+            .count() as f32;
+        let alive_sota = self.alive_players.iter()
+            .filter(|(id, &alive)| id.starts_with("sota_") && alive)
+            .count() as f32;
+        
+        let collective_survival_rate = if total_players > 0.0 {
+            alive_collective / total_players
+        } else {
+            0.0
+        };
+        
+        if collective_survival_rate > 0.7 && alive_collective > alive_sota {
+            Some(EmergenceEvent {
+                round: state.round,
+                event_type: "survival_strategy".to_string(),
+                description: "Collective developed superior survival strategies".to_string(),
+                emergence_score: collective_survival_rate,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 #[async_trait]
 impl Game for SquidGame {
-    async fn get_state(&self) -> Result<GameState> {
-        let available_actions = if self.is_green_light {
-            vec!["move_slow".to_string(), "move_normal".to_string(), "move_fast".to_string(), "stop".to_string()]
-        } else {
-            vec!["stop".to_string(), "move_risky".to_string()]
-        };
-        
-        let mut player_states = HashMap::new();
-        for player in &self.players {
-            let alive = *self.alive_players.get(player).unwrap_or(&false);
-            let position = *self.player_positions.get(player).unwrap_or(&0.0);
-            
-            player_states.insert(player.clone(), serde_json::json!({
-                "alive": alive,
-                "position": position,
-                "distance_to_finish": self.finish_line - position,
-                "current_speed": self.player_speeds.get(player).copied().unwrap_or(0.0),
-            }));
-        }
-        
-        let scores: HashMap<String, i32> = self.players.iter()
-            .map(|p| {
-                let position = self.player_positions.get(p).copied().unwrap_or(0.0);
-                let score = if self.winners.contains(p) {
-                    1000
-                } else if !self.alive_players.get(p).copied().unwrap_or(false) {
-                    0
-                } else {
-                    (position * 10.0) as i32
-                };
-                (p.clone(), score)
-            })
-            .collect();
+    async fn initialize(&mut self, _config: GameConfig) -> anyhow::Result<GameState> {
+        // Start with green light
+        self.is_green_light = true;
+        self.light_duration = 5;
+        self.light_change_timer = 5;
         
         Ok(GameState {
-            game_id: self.id,
-            game_type: "squid_game".to_string(),
-            round: self.round,
-            players: self.players.clone(),
-            current_state: serde_json::json!({
-                "light_status": if self.is_green_light { "GREEN" } else { "RED" },
-                "light_duration": self.light_duration,
-                "alive_count": self.alive_players.values().filter(|&&v| v).count(),
-                "eliminated_count": self.elimination_history.len(),
-                "available_actions": available_actions,
-            }),
-            available_actions,
-            scores,
-            player_states,
-            is_complete: self.round >= self.max_rounds || 
-                        self.alive_players.values().filter(|&&v| v).count() == 0 ||
-                        !self.winners.is_empty(),
-            special_data: Some(serde_json::json!({
-                "finish_line": self.finish_line,
-                "winners": self.winners,
-                "last_elimination": self.elimination_history.last(),
-            })),
+            game_id: Uuid::new_v4(),
+            game_type: GameType::SquidGame,
+            round: 0,
+            scores: HashMap::new(),
+            history: vec![],
+            metadata: {
+                let mut meta = HashMap::new();
+                meta.insert("finish_line".to_string(), serde_json::json!(self.finish_line));
+                meta.insert("game_rules".to_string(), serde_json::json!({
+                    "green_light": "Players can move safely",
+                    "red_light": "Any movement results in elimination",
+                    "objective": "Reach the finish line without being eliminated"
+                }));
+                meta.insert("light_status".to_string(), serde_json::json!("green"));
+                meta
+            },
         })
     }
     
-    async fn process_action(&mut self, action: PlayerAction) -> Result<()> {
-        if !self.alive_players.get(&action.player_id).copied().unwrap_or(false) {
-            return Ok(());
-        }
-        
-        let speed = match action.action_type.as_str() {
-            "stop" => 0.0,
-            "move_slow" => 0.5,
-            "move_normal" => 1.5,
-            "move_fast" => 3.0,
-            "move_risky" => 0.3, // Small movement during red light
-            _ => 0.0,
-        };
-        
-        self.player_speeds.insert(action.player_id.clone(), speed);
-        
-        // Update position if green light
-        if self.is_green_light && speed > 0.0 {
-            let current_pos = self.player_positions.get(&action.player_id).copied().unwrap_or(0.0);
-            let new_pos = (current_pos + speed).min(self.finish_line);
-            self.player_positions.insert(action.player_id.clone(), new_pos);
-            
-            // Check if reached finish line
-            if new_pos >= self.finish_line {
-                self.winners.push(action.player_id.clone());
+    async fn process_round(&mut self, state: &GameState, actions: HashMap<String, Action>) -> anyhow::Result<RoundResult> {
+        // Initialize new players
+        for player_id in actions.keys() {
+            if !self.alive_players.contains_key(player_id) {
+                self.alive_players.insert(player_id.clone(), true);
+                self.player_positions.insert(player_id.clone(), 0.0);
+                self.player_speeds.insert(player_id.clone(), 0.0);
             }
         }
         
-        Ok(())
+        // Update light timer
+        self.light_change_timer = self.light_change_timer.saturating_sub(1);
+        if self.light_change_timer == 0 {
+            self.toggle_light();
+        }
+        
+        // Process player actions
+        for (player_id, action) in &actions {
+            if !*self.alive_players.get(player_id).unwrap_or(&false) {
+                continue; // Skip dead players
+            }
+            
+            let speed = match action.action_type.as_str() {
+                "stop" => 0.0,
+                "move_slow" => 2.0,
+                "move_normal" => 5.0,
+                "move_fast" => 10.0,
+                "move_risky" => 15.0, // Very fast but dangerous during red light
+                _ => 0.0,
+            };
+            
+            self.player_speeds.insert(player_id.clone(), speed);
+        }
+        
+        // Check for red light violations
+        self.check_movement_during_red_light(state.round + 1);
+        
+        // Update positions
+        self.update_positions();
+        
+        // Calculate scores (distance traveled)
+        let mut scores_delta = HashMap::new();
+        for (player_id, &position) in &self.player_positions {
+            if *self.alive_players.get(player_id).unwrap_or(&false) {
+                scores_delta.insert(player_id.clone(), position as i32);
+            }
+        }
+        
+        // Determine round winners and losers
+        let winners = self.winners.clone();
+        let losers: Vec<String> = self.elimination_history.iter()
+            .filter(|e| e.round == state.round + 1)
+            .map(|e| e.player.clone())
+            .collect();
+        
+        // Check for emergence
+        let emergence_event = self.detect_survival_emergence(state);
+        
+        let mut special_events = vec![];
+        if self.is_green_light {
+            special_events.push("GREEN LIGHT - Move safely!".to_string());
+        } else {
+            special_events.push("RED LIGHT - FREEZE!".to_string());
+        }
+        
+        if !losers.is_empty() {
+            special_events.push(format!("{} players eliminated!", losers.len()));
+        }
+        
+        if !winners.is_empty() {
+            special_events.push(format!("{} reached the finish line!", winners.len()));
+        }
+        
+        if let Some(event) = &emergence_event {
+            special_events.push(event.description.clone());
+        }
+        
+        Ok(RoundResult {
+            round: state.round + 1,
+            actions: actions.clone(),
+            outcome: Outcome {
+                winners: winners.clone(),
+                losers,
+                special_events,
+                emergence_detected: emergence_event.is_some(),
+            },
+            scores_delta,
+            timestamp: chrono::Utc::now(),
+        })
     }
     
-    async fn advance_round(&mut self) -> Result<GameResult> {
-        self.round += 1;
+    async fn is_game_over(&self, state: &GameState) -> bool {
+        let alive_count = self.alive_players.values().filter(|&&alive| alive).count();
         
-        // Toggle light every few rounds
-        if self.round % 3 == 0 {
-            self.is_green_light = !self.is_green_light;
-            self.light_duration = if self.is_green_light {
-                rand::random::<u32>() % 5 + 3
-            } else {
-                rand::random::<u32>() % 4 + 2
-            };
-        }
+        alive_count <= 1 || 
+        state.round >= 100 ||
+        self.winners.len() >= self.alive_players.len() / 2
+    }
+    
+    async fn calculate_final_result(&self, state: &GameState) -> GameResult {
+        // Winner is the player who got furthest or reached finish line
+        let winner = if !self.winners.is_empty() {
+            self.winners[0].clone()
+        } else {
+            self.player_positions.iter()
+                .filter(|(id, _)| *self.alive_players.get(*id).unwrap_or(&false))
+                .max_by(|(_, pos1), (_, pos2)| pos1.partial_cmp(pos2).unwrap())
+                .map(|(id, _)| id.clone())
+                .unwrap_or_else(|| "No winner".to_string())
+        };
         
-        // Check for illegal movements
-        self.check_movement_during_red_light();
-        
-        // Simulate AI actions
-        for player in self.players.clone() {
-            if self.alive_players.get(&player).copied().unwrap_or(false) && 
-               !self.winners.contains(&player) {
-                let position = self.player_positions.get(&player).copied().unwrap_or(0.0);
-                let distance = self.finish_line - position;
-                
-                // Simple AI strategy
-                let action_type = if self.is_green_light {
-                    if distance > 50.0 {
-                        "move_fast"
-                    } else if distance > 20.0 {
-                        "move_normal"
-                    } else {
-                        "move_slow"
-                    }
+        // Final scores based on distance
+        let final_scores: HashMap<String, i32> = self.player_positions.iter()
+            .map(|(id, &pos)| {
+                let score = if self.winners.contains(id) {
+                    1000 + (100.0 - pos) as i32 // Bonus for finishing
+                } else if *self.alive_players.get(id).unwrap_or(&false) {
+                    pos as i32
                 } else {
-                    if rand::random::<f32>() > 0.9 && distance < 10.0 {
-                        "move_risky"
-                    } else {
-                        "stop"
-                    }
+                    -(100.0 - pos) as i32 // Negative score for eliminated
                 };
-                
-                let action = PlayerAction {
-                    player_id: player,
-                    action_type: action_type.to_string(),
-                    data: None,
-                };
-                
-                self.process_action(action).await?;
-            }
-        }
-        
-        let round_winners = self.winners.clone();
-        
-        let scores: HashMap<String, i32> = self.players.iter()
-            .map(|p| {
-                let position = self.player_positions.get(p).copied().unwrap_or(0.0);
-                let score = if self.winners.contains(p) {
-                    1000
-                } else if !self.alive_players.get(p).copied().unwrap_or(false) {
-                    0
-                } else {
-                    (position * 10.0) as i32
-                };
-                (p.clone(), score)
+                (id.clone(), score)
             })
             .collect();
         
-        let is_final = self.round >= self.max_rounds || 
-                      self.alive_players.values().filter(|&&v| v).count() == 0 ||
-                      self.winners.len() >= self.players.len() / 2;
+        // Collect emergence events
+        let emergence_events: Vec<EmergenceEvent> = state.history.iter()
+            .enumerate()
+            .filter_map(|(i, round_result)| {
+                if round_result.outcome.emergence_detected {
+                    Some(EmergenceEvent {
+                        round: i as u32,
+                        event_type: "survival_strategy".to_string(),
+                        description: "Collective survival strategies emerged".to_string(),
+                        emergence_score: 0.8,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
         
-        Ok(GameResult {
-            round: self.round,
-            scores,
-            round_winners,
-            is_final_round: is_final,
-            emergence_metrics: EmergenceMetrics {
-                emergence_detected: false,
-                coordination_score: 0.0,
-                collective_intelligence_index: 0.0,
-                decision_diversity_index: 0.0,
-                strategic_depth: 0.0,
-                special_patterns: HashMap::new(),
+        let emergence_frequency = emergence_events.len() as f32 / state.round.max(1) as f32;
+        
+        // Calculate survival analytics
+        let total_players = self.alive_players.len() as f32;
+        let survivors = self.alive_players.values().filter(|&&alive| alive).count() as f32;
+        let survival_rate = survivors / total_players.max(1.0);
+        
+        let collective_survivors = self.alive_players.iter()
+            .filter(|(id, &alive)| id.starts_with("collective_") && alive)
+            .count() as f32;
+        let sota_survivors = self.alive_players.iter()
+            .filter(|(id, &alive)| id.starts_with("sota_") && alive)
+            .count() as f32;
+        
+        GameResult {
+            game_id: state.game_id,
+            winner,
+            final_scores,
+            total_rounds: state.round,
+            emergence_events,
+            analytics: GameAnalytics {
+                collective_coordination_score: survival_rate,
+                decision_diversity_index: 0.5, // Could analyze movement patterns
+                strategic_depth: 0.7, // Based on timing decisions
+                emergence_frequency,
+                performance_differential: collective_survivors - sota_survivors,
             },
-            special_data: Some(serde_json::json!({
-                "light_status": if self.is_green_light { "GREEN" } else { "RED" },
-                "eliminations_this_round": self.elimination_history.iter()
-                    .filter(|e| e.round == self.round)
-                    .count(),
-            })),
-        })
-    }
-    
-    fn add_player(&mut self, player_id: String) -> Result<()> {
-        if !self.players.contains(&player_id) {
-            self.players.push(player_id.clone());
-            self.alive_players.insert(player_id.clone(), true);
-            self.player_positions.insert(player_id.clone(), 0.0);
-            self.player_speeds.insert(player_id, 0.0);
         }
-        Ok(())
-    }
-    
-    fn get_game_id(&self) -> Uuid {
-        self.id
     }
 }

@@ -1,65 +1,61 @@
+use super::*;
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
-use super::{Game, GameState, PlayerAction, GameResult, EmergenceMetrics};
-use anyhow::Result;
 
-const BOARD_SIZE: usize = 9; // Mini Go uses 9x9 board
-const KOMI: f32 = 5.5; // Compensation for white
+const BOARD_SIZE: usize = 9;
+const KOMI: f32 = 5.5; // Compensation for white going second
 
-/// Mini Go - Simplified version of Go for AI evaluation
-pub struct MiniGo {
-    id: Uuid,
-    round: u32,
-    max_rounds: u32,
-    players: Vec<String>,
-    pub board: [[Stone; BOARD_SIZE]; BOARD_SIZE],
-    current_player: usize,
-    captured_stones: HashMap<String, u32>,
-    move_history: Vec<GoMove>,
-    ko_point: Option<(usize, usize)>,
-    pass_count: u32,
-    special_rules: HashMap<String, String>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum Stone {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum Stone {
     Empty,
     Black,
     White,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct GoMove {
-    player: String,
-    position: Option<(usize, usize)>, // None means pass
-    captured: Vec<(usize, usize)>,
-    board_state: [[Stone; BOARD_SIZE]; BOARD_SIZE],
+pub struct MiniGoGame {
+    board: [[Stone; BOARD_SIZE]; BOARD_SIZE],
+    current_player: Stone,
+    captures: HashMap<String, usize>, // Player -> captured stones
+    ko_point: Option<(usize, usize)>, // Prevent immediate recapture
+    pass_count: usize,
+    move_history: Vec<MoveRecord>,
+    players: HashMap<String, Stone>, // Player ID -> Stone color
 }
 
-impl MiniGo {
-    pub fn new() -> Self {
-        Self::new_with_config(100, HashMap::new())
+#[derive(Debug, Clone)]
+struct MoveRecord {
+    player: String,
+    action: GoAction,
+    captures: Vec<(usize, usize)>,
+}
+
+#[derive(Debug, Clone)]
+enum GoAction {
+    Place(usize, usize),
+    Pass,
+}
+
+impl Default for MiniGoGame {
+    fn default() -> Self {
+        Self::new()
     }
-    
-    pub fn new_with_config(max_rounds: u32, special_rules: HashMap<String, String>) -> Self {
+}
+
+impl MiniGoGame {
+    pub fn new() -> Self {
         Self {
-            id: Uuid::new_v4(),
-            round: 0,
-            max_rounds,
-            players: Vec::new(),
             board: [[Stone::Empty; BOARD_SIZE]; BOARD_SIZE],
-            current_player: 0,
-            captured_stones: HashMap::new(),
-            move_history: Vec::new(),
+            current_player: Stone::Black,
+            captures: HashMap::new(),
             ko_point: None,
             pass_count: 0,
-            special_rules,
+            move_history: Vec::new(),
+            players: HashMap::new(),
         }
     }
     
-    pub fn count_liberties(&self, row: usize, col: usize) -> usize {
+    fn count_liberties(&self, row: usize, col: usize) -> usize {
         let stone = self.board[row][col];
         if stone == Stone::Empty {
             return 0;
@@ -67,14 +63,13 @@ impl MiniGo {
         
         let mut visited = HashSet::new();
         let mut liberties = HashSet::new();
-        
-        self._count_group_liberties(row, col, stone, &mut visited, &mut liberties);
+        self.count_group_liberties(row, col, stone, &mut visited, &mut liberties);
         liberties.len()
     }
     
-    fn _count_group_liberties(&self, row: usize, col: usize, stone: Stone, 
-                             visited: &mut HashSet<(usize, usize)>, 
-                             liberties: &mut HashSet<(usize, usize)>) {
+    fn count_group_liberties(&self, row: usize, col: usize, stone: Stone, 
+                           visited: &mut HashSet<(usize, usize)>, 
+                           liberties: &mut HashSet<(usize, usize)>) {
         if visited.contains(&(row, col)) {
             return;
         }
@@ -97,7 +92,7 @@ impl MiniGo {
                         liberties.insert((r, c));
                     }
                     s if s == stone => {
-                        self._count_group_liberties(r, c, stone, visited, liberties);
+                        self.count_group_liberties(r, c, stone, visited, liberties);
                     }
                     _ => {}
                 }
@@ -105,7 +100,7 @@ impl MiniGo {
         }
     }
     
-    pub fn capture_stones(&mut self, opponent_stone: Stone) -> Vec<(usize, usize)> {
+    fn capture_opponent_stones(&mut self, opponent_stone: Stone) -> Vec<(usize, usize)> {
         let mut captured = Vec::new();
         
         for row in 0..BOARD_SIZE {
@@ -143,132 +138,31 @@ impl MiniGo {
         let mut temp_board = self.board;
         temp_board[row][col] = stone;
         
-        // Check if move would be suicide (no liberties)
-        if !self.has_liberties(&temp_board, row, col) {
-            // Check if it captures enemy stones
-            let opponent = match stone {
-                Stone::Black => Stone::White,
-                Stone::White => Stone::Black,
-                Stone::Empty => return false,
-            };
-            
-            let neighbors = self.get_neighbors(row, col);
-            let captures_enemy = neighbors.iter().any(|&(r, c)| {
-                temp_board[r][c] == opponent && !self.has_liberties(&temp_board, r, c)
-            });
-            
-            if !captures_enemy {
-                return false; // Suicide move
-            }
-        }
+        // Check for suicide (placing a stone with no liberties and not capturing)
+        let temp_game = MiniGoGame {
+            board: temp_board,
+            ..self.clone()
+        };
         
-        true
-    }
-    
-    fn has_liberties(&self, board: &[[Stone; BOARD_SIZE]; BOARD_SIZE], row: usize, col: usize) -> bool {
-        let stone = board[row][col];
-        if stone == Stone::Empty {
-            return true;
-        }
+        let has_liberties = temp_game.count_liberties(row, col) > 0;
         
-        let mut visited = HashSet::new();
-        self.check_group_liberties(board, row, col, stone, &mut visited)
-    }
-    
-    fn check_group_liberties(
-        &self,
-        board: &[[Stone; BOARD_SIZE]; BOARD_SIZE],
-        row: usize,
-        col: usize,
-        stone: Stone,
-        visited: &mut HashSet<(usize, usize)>,
-    ) -> bool {
-        if visited.contains(&(row, col)) {
-            return false;
-        }
-        visited.insert((row, col));
-        
-        // Check neighbors
-        for (r, c) in self.get_neighbors(row, col) {
-            if board[r][c] == Stone::Empty {
-                return true; // Found liberty
-            }
-            if board[r][c] == stone {
-                if self.check_group_liberties(board, r, c, stone, visited) {
-                    return true;
-                }
-            }
-        }
-        
-        false
-    }
-    
-    fn get_neighbors(&self, row: usize, col: usize) -> Vec<(usize, usize)> {
-        let mut neighbors = Vec::new();
-        
-        if row > 0 {
-            neighbors.push((row - 1, col));
-        }
-        if row < BOARD_SIZE - 1 {
-            neighbors.push((row + 1, col));
-        }
-        if col > 0 {
-            neighbors.push((row, col - 1));
-        }
-        if col < BOARD_SIZE - 1 {
-            neighbors.push((row, col + 1));
-        }
-        
-        neighbors
-    }
-    
-    fn capture_stones(&mut self, row: usize, col: usize, stone: Stone) -> Vec<(usize, usize)> {
+        // Check if this move would capture opponent stones
         let opponent = match stone {
             Stone::Black => Stone::White,
             Stone::White => Stone::Black,
-            Stone::Empty => return vec![],
+            Stone::Empty => return false,
         };
         
-        let mut captured = Vec::new();
+        let would_capture = (0..BOARD_SIZE).any(|r| {
+            (0..BOARD_SIZE).any(|c| {
+                temp_board[r][c] == opponent && temp_game.count_liberties(r, c) == 0
+            })
+        });
         
-        for (r, c) in self.get_neighbors(row, col) {
-            if self.board[r][c] == opponent && !self.has_liberties(&self.board, r, c) {
-                // Capture the group
-                let mut group = HashSet::new();
-                self.find_group(&self.board, r, c, opponent, &mut group);
-                
-                for &(gr, gc) in &group {
-                    self.board[gr][gc] = Stone::Empty;
-                    captured.push((gr, gc));
-                }
-            }
-        }
-        
-        captured
+        has_liberties || would_capture
     }
     
-    fn find_group(
-        &self,
-        board: &[[Stone; BOARD_SIZE]; BOARD_SIZE],
-        row: usize,
-        col: usize,
-        stone: Stone,
-        group: &mut HashSet<(usize, usize)>,
-    ) {
-        if group.contains(&(row, col)) || board[row][col] != stone {
-            return;
-        }
-        
-        group.insert((row, col));
-        
-        for (r, c) in self.get_neighbors(row, col) {
-            if board[r][c] == stone {
-                self.find_group(board, r, c, stone, group);
-            }
-        }
-    }
-    
-    fn calculate_territory(&self) -> (i32, i32) {
+    fn calculate_territory(&self) -> (usize, usize) {
         let mut black_territory = 0;
         let mut white_territory = 0;
         let mut visited = HashSet::new();
@@ -276,334 +170,371 @@ impl MiniGo {
         for row in 0..BOARD_SIZE {
             for col in 0..BOARD_SIZE {
                 if self.board[row][col] == Stone::Empty && !visited.contains(&(row, col)) {
-                    let mut territory = HashSet::new();
-                    let owner = self.find_territory_owner(row, col, &mut territory);
-                    
-                    for pos in &territory {
-                        visited.insert(*pos);
-                    }
-                    
-                    match owner {
-                        Some(Stone::Black) => black_territory += territory.len() as i32,
-                        Some(Stone::White) => white_territory += territory.len() as i32,
-                        _ => {} // Neutral territory
+                    let (territory_owner, territory_size) = self.flood_fill_territory(row, col, &mut visited);
+                    match territory_owner {
+                        Stone::Black => black_territory += territory_size,
+                        Stone::White => white_territory += territory_size,
+                        Stone::Empty => {} // Neutral territory
                     }
                 }
             }
         }
         
-        // Add captured stones
-        let black_captured = self.captured_stones.get(&self.players[0]).copied().unwrap_or(0) as i32;
-        let white_captured = self.captured_stones.get(&self.players[1]).copied().unwrap_or(0) as i32;
-        
-        (black_territory + white_captured, white_territory + black_captured)
+        (black_territory, white_territory)
     }
     
-    fn find_territory_owner(
-        &self,
-        row: usize,
-        col: usize,
-        territory: &mut HashSet<(usize, usize)>,
-    ) -> Option<Stone> {
-        let mut stack = vec![(row, col)];
-        let mut border_stones = HashSet::new();
+    fn flood_fill_territory(&self, start_row: usize, start_col: usize, 
+                           visited: &mut HashSet<(usize, usize)>) -> (Stone, usize) {
+        let mut stack = vec![(start_row, start_col)];
+        let mut territory_size = 0;
+        let mut adjacent_stones = HashSet::new();
         
-        while let Some((r, c)) = stack.pop() {
-            if territory.contains(&(r, c)) {
+        while let Some((row, col)) = stack.pop() {
+            if visited.contains(&(row, col)) {
                 continue;
             }
             
-            if self.board[r][c] == Stone::Empty {
-                territory.insert((r, c));
+            visited.insert((row, col));
+            territory_size += 1;
+            
+            let directions = [(0, 1), (1, 0), (0, -1), (-1, 0)];
+            for (dr, dc) in directions.iter() {
+                let new_row = row as i32 + dr;
+                let new_col = col as i32 + dc;
                 
-                for (nr, nc) in self.get_neighbors(r, c) {
-                    if !territory.contains(&(nr, nc)) {
-                        stack.push((nr, nc));
+                if new_row >= 0 && new_row < BOARD_SIZE as i32 && 
+                   new_col >= 0 && new_col < BOARD_SIZE as i32 {
+                    let r = new_row as usize;
+                    let c = new_col as usize;
+                    
+                    match self.board[r][c] {
+                        Stone::Empty => {
+                            if !visited.contains(&(r, c)) {
+                                stack.push((r, c));
+                            }
+                        }
+                        stone => {
+                            adjacent_stones.insert(stone);
+                        }
                     }
                 }
-            } else {
-                border_stones.insert(self.board[r][c]);
             }
         }
         
-        // Territory belongs to a player only if all border stones are theirs
-        if border_stones.len() == 1 {
-            border_stones.into_iter().next()
+        // Territory belongs to a player only if all adjacent stones are theirs
+        let owner = if adjacent_stones.len() == 1 {
+            *adjacent_stones.iter().next().unwrap()
+        } else {
+            Stone::Empty
+        };
+        
+        (owner, territory_size)
+    }
+    
+    fn detect_strategic_emergence(&self, state: &GameState) -> Option<EmergenceEvent> {
+        if self.move_history.len() < 20 {
+            return None;
+        }
+        
+        // Look for strategic patterns
+        let recent_moves = self.move_history.iter().rev().take(10);
+        let mut strategic_moves = 0;
+        
+        for move_record in recent_moves {
+            if let GoAction::Place(row, col) = move_record.action {
+                // Check if move was strategic (corner, side, or capturing)
+                let is_corner = (row < 3 || row > 5) && (col < 3 || col > 5);
+                let is_side = row == 0 || row == 8 || col == 0 || col == 8;
+                let captured_stones = move_record.captures.len() > 0;
+                
+                if is_corner || is_side || captured_stones {
+                    strategic_moves += 1;
+                }
+            }
+        }
+        
+        if strategic_moves > 7 {
+            Some(EmergenceEvent {
+                round: state.round,
+                event_type: "go_strategy_emergence".to_string(),
+                description: "Players discovered advanced Go strategies".to_string(),
+                emergence_score: strategic_moves as f32 / 10.0,
+            })
         } else {
             None
         }
     }
-    
-    fn detect_emergence(&self) -> EmergenceMetrics {
-        if self.move_history.len() < 10 {
-            return EmergenceMetrics {
-                emergence_detected: false,
-                coordination_score: 0.0,
-                collective_intelligence_index: 0.0,
-                decision_diversity_index: 0.0,
-                strategic_depth: 0.0,
-                special_patterns: HashMap::new(),
-            };
-        }
-        
-        // Analyze strategic patterns
-        let mut pattern_complexity = 0.0;
-        let mut territory_control = 0.0;
-        let mut tactical_depth = 0.0;
-        
-        // Check for complex patterns (ladders, nets, life & death)
-        // This is simplified - real Go pattern recognition is much more complex
-        
-        // Territory control balance
-        let (black_territory, white_territory) = self.calculate_territory();
-        let total_territory = black_territory + white_territory;
-        if total_territory > 0 {
-            let balance = 1.0 - ((black_territory - white_territory).abs() as f32 / total_territory as f32);
-            territory_control = balance;
-        }
-        
-        // Tactical depth - check for strategic sacrifices
-        let sacrifices = self.move_history.windows(3).filter(|moves| {
-            moves[1].captured.len() > 0 && moves[2].captured.len() > moves[1].captured.len()
-        }).count();
-        tactical_depth = (sacrifices as f32 / self.move_history.len().max(1) as f32).min(1.0);
-        
-        // Pattern complexity - check for non-obvious moves
-        let complex_moves = self.move_history.iter().filter(|m| {
-            if let Some((row, col)) = m.position {
-                // Check if move is not directly adjacent to existing stones
-                self.get_neighbors(row, col).iter()
-                    .all(|&(r, c)| m.board_state[r][c] == Stone::Empty)
-            } else {
-                false
-            }
-        }).count();
-        pattern_complexity = (complex_moves as f32 / self.move_history.len().max(1) as f32) * 2.0;
-        
-        let emergence_detected = pattern_complexity > 0.3 && 
-                                territory_control > 0.7 && 
-                                tactical_depth > 0.1;
-        
-        let mut special_patterns = HashMap::new();
-        special_patterns.insert("territory_balance".to_string(), territory_control.to_string());
-        special_patterns.insert("pattern_complexity".to_string(), pattern_complexity.to_string());
-        special_patterns.insert("tactical_depth".to_string(), tactical_depth.to_string());
-        
-        EmergenceMetrics {
-            emergence_detected,
-            coordination_score: territory_control,
-            collective_intelligence_index: pattern_complexity,
-            decision_diversity_index: 0.5, // Go doesn't have diversity in the same sense
-            strategic_depth: tactical_depth,
-            special_patterns,
+}
+
+// Implement Clone manually to avoid the array size issue
+impl Clone for MiniGoGame {
+    fn clone(&self) -> Self {
+        Self {
+            board: self.board,
+            current_player: self.current_player,
+            captures: self.captures.clone(),
+            ko_point: self.ko_point,
+            pass_count: self.pass_count,
+            move_history: self.move_history.clone(),
+            players: self.players.clone(),
         }
     }
 }
 
 #[async_trait]
-impl Game for MiniGo {
-    async fn get_state(&self) -> Result<GameState> {
-        // Generate available moves
-        let mut available_moves = Vec::new();
-        
-        if self.players.len() == 2 {
-            let current_stone = if self.current_player == 0 { Stone::Black } else { Stone::White };
-            
-            for row in 0..BOARD_SIZE {
-                for col in 0..BOARD_SIZE {
-                    if self.is_valid_move(row, col, current_stone) {
-                        available_moves.push(format!("{},{}", row, col));
-                    }
-                }
-            }
-            
-            available_moves.push("pass".to_string());
-        }
-        
-        let (black_territory, white_territory) = self.calculate_territory();
-        
-        let mut scores = HashMap::new();
-        if self.players.len() == 2 {
-            scores.insert(self.players[0].clone(), black_territory);
-            scores.insert(self.players[1].clone(), (white_territory as f32 + KOMI) as i32);
-        }
-        
-        let board_visual = self.board.iter()
-            .map(|row| row.iter().map(|&stone| match stone {
-                Stone::Empty => '.',
-                Stone::Black => 'B',
-                Stone::White => 'W',
-            }).collect::<String>())
-            .collect::<Vec<_>>();
-        
-        let mut player_states = HashMap::new();
-        for (i, player) in self.players.iter().enumerate() {
-            player_states.insert(player.clone(), serde_json::json!({
-                "color": if i == 0 { "black" } else { "white" },
-                "captured": self.captured_stones.get(player).copied().unwrap_or(0),
-                "territory": if i == 0 { black_territory } else { white_territory },
-            }));
-        }
-        
+impl Game for MiniGoGame {
+    async fn initialize(&mut self, _config: GameConfig) -> anyhow::Result<GameState> {
         Ok(GameState {
-            game_id: self.id,
-            game_type: "mini_go".to_string(),
-            round: self.round,
-            players: self.players.clone(),
-            current_state: serde_json::json!({
-                "board": board_visual,
-                "current_player": if self.players.is_empty() { "" } else { &self.players[self.current_player] },
-                "available_moves": available_moves,
-                "pass_count": self.pass_count,
-                "ko_point": self.ko_point,
-            }),
-            available_actions: available_moves,
-            scores,
-            player_states,
-            is_complete: self.pass_count >= 2 || self.round >= self.max_rounds,
-            special_data: Some(serde_json::json!({
-                "board_size": BOARD_SIZE,
-                "komi": KOMI,
-                "move_count": self.move_history.len(),
-            })),
+            game_id: Uuid::new_v4(),
+            game_type: GameType::MiniGo,
+            round: 0,
+            scores: HashMap::new(),
+            history: vec![],
+            metadata: {
+                let mut meta = HashMap::new();
+                meta.insert("board_size".to_string(), serde_json::json!(BOARD_SIZE));
+                meta.insert("komi".to_string(), serde_json::json!(KOMI));
+                meta.insert("rules".to_string(), serde_json::json!({
+                    "capture": "Remove opponent stones with no liberties",
+                    "ko": "Cannot immediately recapture",
+                    "scoring": "Territory + captures + komi for white"
+                }));
+                meta
+            },
         })
     }
     
-    async fn process_action(&mut self, action: PlayerAction) -> Result<()> {
-        // Process moves when it's player's turn
-        if self.players.len() == 2 && self.players[self.current_player] == action.player_id {
-            if action.action_type == "pass" {
-                self.pass_count += 1;
-            } else {
-                // Parse move coordinates
-                let parts: Vec<&str> = action.action_type.split(',').collect();
-                if parts.len() == 2 {
-                    if let (Ok(row), Ok(col)) = (parts[0].parse::<usize>(), parts[1].parse::<usize>()) {
-                        let stone = if self.current_player == 0 { Stone::Black } else { Stone::White };
+    async fn process_round(&mut self, state: &GameState, actions: HashMap<String, Action>) -> anyhow::Result<RoundResult> {
+        // Assign colors to new players
+        for player_id in actions.keys() {
+            if !self.players.contains_key(player_id) {
+                let color = if self.players.is_empty() {
+                    Stone::Black
+                } else if self.players.len() == 1 {
+                    Stone::White
+                } else {
+                    // For more than 2 players, alternate
+                    if self.players.len() % 2 == 0 {
+                        Stone::Black
+                    } else {
+                        Stone::White
+                    }
+                };
+                self.players.insert(player_id.clone(), color);
+                self.captures.insert(player_id.clone(), 0);
+            }
+        }
+        
+        let mut round_captures = HashMap::new();
+        let mut moves_made = Vec::new();
+        
+        // Process moves in order (black first, then white)
+        let mut sorted_actions: Vec<_> = actions.iter().collect();
+        sorted_actions.sort_by_key(|(id, _)| {
+            self.players.get(*id).map(|&color| {
+                match color {
+                    Stone::Black => 0,
+                    Stone::White => 1,
+                    Stone::Empty => 2,
+                }
+            }).unwrap_or(3)
+        });
+        
+        for (player_id, action) in sorted_actions {
+            let player_color = self.players.get(player_id).copied().unwrap_or(Stone::Empty);
+            
+            match action.action_type.as_str() {
+                "pass" => {
+                    self.pass_count += 1;
+                    moves_made.push((player_id.clone(), GoAction::Pass));
+                }
+                "place" | "move" => {
+                    self.pass_count = 0;
+                    
+                    // Parse coordinates
+                    let (row, col) = if let Some(obj) = action.data.as_object() {
+                        let row = obj.get("row").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+                        let col = obj.get("col").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+                        (row, col)
+                    } else {
+                        (0, 0) // Default position
+                    };
+                    
+                    if row < BOARD_SIZE && col < BOARD_SIZE && 
+                       self.is_valid_move(row, col, player_color) {
+                        // Place stone
+                        self.board[row][col] = player_color;
                         
-                        if self.is_valid_move(row, col, stone) {
-                            // Place stone
-                            self.board[row][col] = stone;
-                            
-                            // Capture enemy stones
-                            let captured = self.capture_stones(row, col, stone);
-                            
-                            // Update captured count
-                            *self.captured_stones.entry(action.player_id.clone()).or_insert(0) += captured.len() as u32;
-                            
-                            // Update ko point
-                            if captured.len() == 1 && 
-                               self.get_neighbors(captured[0].0, captured[0].1).len() == 4 {
-                                self.ko_point = Some(captured[0]);
-                            } else {
-                                self.ko_point = None;
-                            }
-                            
-                            // Record move
-                            self.move_history.push(GoMove {
-                                player: action.player_id,
-                                position: Some((row, col)),
-                                captured,
-                                board_state: self.board,
-                            });
-                            
-                            self.pass_count = 0;
+                        // Capture opponent stones
+                        let opponent = match player_color {
+                            Stone::Black => Stone::White,
+                            Stone::White => Stone::Black,
+                            Stone::Empty => continue,
+                        };
+                        
+                        let captured = self.capture_opponent_stones(opponent);
+                        
+                        // Update ko point if single stone captured
+                        if captured.len() == 1 {
+                            self.ko_point = Some(captured[0]);
+                        } else {
+                            self.ko_point = None;
                         }
+                        
+                        // Update captures count
+                        *self.captures.entry(player_id.clone()).or_insert(0) += captured.len();
+                        round_captures.insert(player_id.clone(), captured.len());
+                        
+                        // Record move
+                        self.move_history.push(MoveRecord {
+                            player: player_id.clone(),
+                            action: GoAction::Place(row, col),
+                            captures: captured,
+                        });
+                        
+                        moves_made.push((player_id.clone(), GoAction::Place(row, col)));
                     }
                 }
+                _ => {}
             }
-            
-            // Switch players
-            self.current_player = 1 - self.current_player;
         }
         
-        Ok(())
-    }
-    
-    async fn advance_round(&mut self) -> Result<GameResult> {
-        self.round += 1;
+        // Calculate scores
+        let mut scores_delta = HashMap::new();
         
-        // For demo purposes, simulate some moves
-        if self.players.len() == 2 && self.pass_count < 2 && self.round < self.max_rounds {
-            // Simple AI: play random valid moves
-            let current_stone = if self.current_player == 0 { Stone::Black } else { Stone::White };
-            let mut valid_moves = Vec::new();
+        if self.pass_count >= 2 {
+            // Game ends when both players pass
+            let (black_territory, white_territory) = self.calculate_territory();
             
-            for row in 0..BOARD_SIZE {
-                for col in 0..BOARD_SIZE {
-                    if self.is_valid_move(row, col, current_stone) {
-                        valid_moves.push((row, col));
-                    }
-                }
-            }
-            
-            if !valid_moves.is_empty() && rand::random::<f32>() > 0.1 {
-                let (row, col) = valid_moves[rand::random::<usize>() % valid_moves.len()];
-                let action = PlayerAction {
-                    player_id: self.players[self.current_player].clone(),
-                    action_type: format!("{},{}", row, col),
-                    data: None,
+            for (player_id, &color) in &self.players {
+                let captures = self.captures.get(player_id).copied().unwrap_or(0);
+                let score = match color {
+                    Stone::Black => black_territory + captures,
+                    Stone::White => white_territory + captures + KOMI as usize,
+                    Stone::Empty => 0,
                 };
-                self.process_action(action).await?;
-            } else {
-                // Pass
-                let action = PlayerAction {
-                    player_id: self.players[self.current_player].clone(),
-                    action_type: "pass".to_string(),
-                    data: None,
-                };
-                self.process_action(action).await?;
-            }
-        }
-        
-        let (black_territory, white_territory) = self.calculate_territory();
-        let white_score = white_territory as f32 + KOMI;
-        
-        let mut scores = HashMap::new();
-        if self.players.len() == 2 {
-            scores.insert(self.players[0].clone(), black_territory);
-            scores.insert(self.players[1].clone(), white_score as i32);
-        }
-        
-        let round_winners = if self.pass_count >= 2 || self.round >= self.max_rounds {
-            // Game over
-            if black_territory > white_score as i32 {
-                vec![self.players[0].clone()]
-            } else {
-                vec![self.players[1].clone()]
+                scores_delta.insert(player_id.clone(), score as i32);
             }
         } else {
-            vec![]
-        };
+            // Incremental scoring based on captures this round
+            for (player_id, captures) in round_captures {
+                scores_delta.insert(player_id, captures as i32);
+            }
+        }
         
-        let emergence = self.detect_emergence();
+        // Check for emergence
+        let emergence_event = self.detect_strategic_emergence(state);
         
-        Ok(GameResult {
-            round: self.round,
-            scores,
-            round_winners,
-            is_final_round: self.pass_count >= 2 || self.round >= self.max_rounds,
-            emergence_metrics: emergence,
-            special_data: Some(serde_json::json!({
-                "board": self.board,
-                "game_ended": self.pass_count >= 2,
-                "final_scores": {
-                    "black": black_territory,
-                    "white": white_score,
-                },
-            })),
+        // Determine winners and losers for this round
+        let max_score = scores_delta.values().max().copied().unwrap_or(0);
+        let winners: Vec<String> = scores_delta.iter()
+            .filter(|(_, &score)| score == max_score && score > 0)
+            .map(|(id, _)| id.clone())
+            .collect();
+        
+        let losers: Vec<String> = scores_delta.iter()
+            .filter(|(_, &score)| score < max_score)
+            .map(|(id, _)| id.clone())
+            .collect();
+        
+        let mut special_events = vec![];
+        if self.pass_count >= 2 {
+            special_events.push("Game ended - both players passed".to_string());
+        }
+        if let Some(event) = &emergence_event {
+            special_events.push(event.description.clone());
+        }
+        
+        Ok(RoundResult {
+            round: state.round + 1,
+            actions: actions.clone(),
+            outcome: Outcome {
+                winners,
+                losers,
+                special_events,
+                emergence_detected: emergence_event.is_some(),
+            },
+            scores_delta,
+            timestamp: chrono::Utc::now(),
         })
     }
     
-    fn add_player(&mut self, player_id: String) -> Result<()> {
-        if self.players.len() < 2 && !self.players.contains(&player_id) {
-            self.players.push(player_id.clone());
-            self.captured_stones.insert(player_id, 0);
-        }
-        Ok(())
+    async fn is_game_over(&self, state: &GameState) -> bool {
+        self.pass_count >= 2 || state.round >= 200
     }
     
-    fn get_game_id(&self) -> Uuid {
-        self.id
+    async fn calculate_final_result(&self, state: &GameState) -> GameResult {
+        // Calculate final territory and scores
+        let (black_territory, white_territory) = self.calculate_territory();
+        
+        let mut final_scores = HashMap::new();
+        let mut black_total = 0;
+        let mut white_total = 0;
+        
+        for (player_id, &color) in &self.players {
+            let captures = self.captures.get(player_id).copied().unwrap_or(0);
+            let score = match color {
+                Stone::Black => {
+                    let s = black_territory + captures;
+                    black_total += s;
+                    s
+                }
+                Stone::White => {
+                    let s = white_territory + captures + KOMI as usize;
+                    white_total += s;
+                    s
+                }
+                Stone::Empty => 0,
+            };
+            final_scores.insert(player_id.clone(), score as i32);
+        }
+        
+        let winner = final_scores.iter()
+            .max_by_key(|(_, score)| *score)
+            .map(|(id, _)| id.clone())
+            .unwrap_or_else(|| "No winner".to_string());
+        
+        // Collect emergence events
+        let emergence_events: Vec<EmergenceEvent> = state.history.iter()
+            .enumerate()
+            .filter_map(|(i, round_result)| {
+                if round_result.outcome.emergence_detected {
+                    Some(EmergenceEvent {
+                        round: i as u32,
+                        event_type: "go_strategy".to_string(),
+                        description: "Advanced Go strategies emerged".to_string(),
+                        emergence_score: 0.8,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+        
+        let emergence_frequency = emergence_events.len() as f32 / state.round.max(1) as f32;
+        
+        // Calculate strategy depth based on move patterns
+        let strategic_moves = self.move_history.iter()
+            .filter(|move_record| {
+                matches!(move_record.action, GoAction::Place(row, col) 
+                    if (row < 3 || row > 5) && (col < 3 || col > 5))
+            })
+            .count();
+        let strategic_depth = strategic_moves as f32 / self.move_history.len().max(1) as f32;
+        
+        GameResult {
+            game_id: state.game_id,
+            winner,
+            final_scores,
+            total_rounds: state.round,
+            emergence_events,
+            analytics: GameAnalytics {
+                collective_coordination_score: 0.0, // Not applicable for Go
+                decision_diversity_index: 0.5, // Could analyze move variety
+                strategic_depth,
+                emergence_frequency,
+                performance_differential: (black_total as f32 - white_total as f32).abs(),
+            },
+        }
     }
 }

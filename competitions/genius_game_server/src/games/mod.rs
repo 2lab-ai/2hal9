@@ -3,17 +3,27 @@ pub mod byzantine_generals;
 pub mod collective_maze;
 pub mod recursive_reasoning;
 pub mod swarm_optimization;
-// pub mod prisoners_dilemma;
-// pub mod quantum_consensus;
-// pub mod mini_go;
-// pub mod mini_holdem;
-// pub mod squid_game;
+pub mod prisoners_dilemma;
+pub mod quantum_consensus;
+pub mod mini_go;
+pub mod mini_holdem;
+pub mod squid_game;
+pub mod battle_royale;
+pub mod hunger_games;
+pub mod liars_dice;
+pub mod russian_roulette;
+pub mod king_of_the_hill;
+pub mod last_stand;
+pub mod trust_fall;
 
 #[cfg(test)]
 mod tests;
 
 #[cfg(test)]
 mod core_logic_tests;
+
+#[cfg(test)]
+mod death_game_tests;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -144,7 +154,18 @@ impl GameEngine {
             GameType::CollectiveMaze => Box::new(collective_maze::CollectiveMaze::new()),
             GameType::RecursiveReasoning => Box::new(recursive_reasoning::RecursiveReasoning::new()),
             GameType::SwarmOptimization => Box::new(swarm_optimization::SwarmOptimization::new()),
-            _ => Box::new(minority_game::MinorityGame::new()), // Default fallback
+            GameType::PrisonersDilemma => Box::new(prisoners_dilemma::PrisonersDilemmaGame::new()),
+            GameType::QuantumConsensus => Box::new(quantum_consensus::QuantumConsensus::new()),
+            GameType::MiniGo => Box::new(mini_go::MiniGoGame::new()),
+            GameType::MiniHoldem => Box::new(mini_holdem::MiniHoldemGame::new()),
+            GameType::SquidGame => Box::new(squid_game::SquidGame::new()),
+            GameType::BattleRoyale => Box::new(battle_royale::BattleRoyaleGame::new()),
+            GameType::HungerGames => Box::new(hunger_games::HungerGamesGame::new()),
+            GameType::LiarsDice => Box::new(liars_dice::LiarsDiceGame::new()),
+            GameType::RussianRoulette => Box::new(russian_roulette::RussianRoulette::new()),
+            GameType::KingOfTheHill => Box::new(king_of_the_hill::KingOfTheHill::new()),
+            GameType::LastStand => Box::new(last_stand::LastStand::new()),
+            GameType::TrustFall => Box::new(trust_fall::TrustFall::new()),
         }
     }
     
