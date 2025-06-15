@@ -13,6 +13,7 @@ pub struct PrisonersDilemmaGame {
 #[derive(Debug, Clone)]
 struct PDRoundData {
     actions: HashMap<String, PDAction>,
+    #[allow(dead_code)]
     payoffs: HashMap<String, i32>,
     cooperations: Vec<(String, String)>,
     defections: Vec<(String, String)>,
@@ -71,7 +72,7 @@ impl PrisonersDilemmaGame {
         let mut cooperations = 0;
         
         for round in recent_history {
-            for (_, &action) in &round.actions {
+            for &action in round.actions.values() {
                 total_actions += 1;
                 if action == PDAction::Cooperate {
                     cooperations += 1;

@@ -60,7 +60,9 @@ impl Position {
 struct EliminationEvent {
     round: u32,
     player: String,
+    #[allow(dead_code)]
     reason: String,
+    #[allow(dead_code)]
     final_position: Position,
 }
 
@@ -348,12 +350,12 @@ impl Game for KingOfTheHill {
                 }
                 "form_alliance" => {
                     if let Some(target) = action.data.get("target").and_then(|v| v.as_str()) {
-                        let allies = self.alliance_network.entry(player_id.clone()).or_insert_with(Vec::new);
+                        let allies = self.alliance_network.entry(player_id.clone()).or_default();
                         if !allies.contains(&target.to_string()) {
                             allies.push(target.to_string());
                             
                             // Reciprocal alliance
-                            let target_allies = self.alliance_network.entry(target.to_string()).or_insert_with(Vec::new);
+                            let target_allies = self.alliance_network.entry(target.to_string()).or_default();
                             if !target_allies.contains(player_id) {
                                 target_allies.push(player_id.clone());
                             }

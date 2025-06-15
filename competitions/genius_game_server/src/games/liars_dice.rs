@@ -54,6 +54,12 @@ enum LDAction {
     Pass { player: String }, // For spectating after elimination
 }
 
+impl Default for LiarsDiceGame {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LiarsDiceGame {
     pub fn new() -> Self {
         Self {
@@ -249,6 +255,7 @@ impl LiarsDiceGame {
         }
     }
 
+    #[allow(dead_code)]
     fn get_current_player(&self) -> Option<&String> {
         self.betting_order.get(self.current_turn_index)
     }

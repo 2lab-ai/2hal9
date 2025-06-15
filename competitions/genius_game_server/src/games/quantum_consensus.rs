@@ -20,7 +20,9 @@ struct QuantumState {
 
 #[derive(Debug, Clone)]
 struct ConsensusResult {
+    #[allow(dead_code)]
     round: u32,
+    #[allow(dead_code)]
     measured_states: HashMap<String, usize>,
     consensus_achieved: bool,
     quantum_correlation: f32,

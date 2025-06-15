@@ -20,20 +20,31 @@ pub struct TrustFall {
 
 #[derive(Debug, Clone)]
 struct BetrayalEvent {
+    #[allow(dead_code)]
     round: u32,
+    #[allow(dead_code)]
     betrayer: String,
+    #[allow(dead_code)]
     victim: String,
+    #[allow(dead_code)]
     fall_height: u32,
+    #[allow(dead_code)]
     damage: i32,
+    #[allow(dead_code)]
     reputation_loss: f32,
 }
 
 #[derive(Debug, Clone)]
 struct FallEvent {
+    #[allow(dead_code)]
     faller: String,
+    #[allow(dead_code)]
     catchers: Vec<String>,
+    #[allow(dead_code)]
     height: u32,
+    #[allow(dead_code)]
     success: bool,
+    #[allow(dead_code)]
     trust_gained: f32,
 }
 
@@ -129,12 +140,12 @@ impl TrustFall {
     }
     
     fn form_alliance(&mut self, player1: &str, player2: &str) {
-        let allies1 = self.alliance_networks.entry(player1.to_string()).or_insert_with(Vec::new);
+        let allies1 = self.alliance_networks.entry(player1.to_string()).or_default();
         if !allies1.contains(&player2.to_string()) {
             allies1.push(player2.to_string());
         }
         
-        let allies2 = self.alliance_networks.entry(player2.to_string()).or_insert_with(Vec::new);
+        let allies2 = self.alliance_networks.entry(player2.to_string()).or_default();
         if !allies2.contains(&player1.to_string()) {
             allies2.push(player1.to_string());
         }
@@ -257,7 +268,7 @@ impl Game for TrustFall {
                 "catch" => {
                     if let Some(faller) = action.data.get("faller").and_then(|v| v.as_str()) {
                         catch_agreements.entry(faller.to_string())
-                            .or_insert_with(Vec::new)
+                            .or_default()
                             .push(player_id.clone());
                     }
                 }

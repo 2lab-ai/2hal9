@@ -51,6 +51,12 @@ enum Direction {
     Southwest,
 }
 
+impl Default for BattleRoyaleGame {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BattleRoyaleGame {
     pub fn new() -> Self {
         Self {
@@ -300,7 +306,7 @@ impl Game for BattleRoyaleGame {
         
         // Calculate scores (survival bonus + loot)
         let mut scores_delta = HashMap::new();
-        for (player, _) in &self.player_positions {
+        for player in self.player_positions.keys() {
             if !self.eliminated_players.contains(player) {
                 let loot_score = self.player_loot.get(player).copied().unwrap_or(0);
                 scores_delta.insert(player.clone(), SURVIVAL_POINTS + loot_score / 5);

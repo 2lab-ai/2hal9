@@ -5,7 +5,6 @@ use genius_game_server::games::{
 use std::collections::HashMap;
 use colored::*;
 use tokio::time::{sleep, Duration};
-use uuid::Uuid;
 use serde_json::json;
 use rand::Rng;
 
@@ -129,7 +128,7 @@ async fn run_mini_go_demo() -> Result<()> {
     };
     
     let game_id = engine.create_game(config).await?;
-    let players = vec!["Black-Master", "White-Challenger"];
+    let players = ["Black-Master", "White-Challenger"];
     
     for round in 1..=10 {
         println!("\n{}", format!("Move {}", round).bright_yellow());
@@ -372,7 +371,7 @@ async fn run_liars_dice_demo() -> Result<()> {
     };
     
     let game_id = engine.create_game(config).await?;
-    let players = vec!["Bluffer", "Caller", "Counter", "Deceiver"];
+    let players = ["Bluffer", "Caller", "Counter", "Deceiver"];
     
     for round in 1..=15 {
         println!("\n{}", format!("Round {}", round).bright_yellow());
@@ -611,7 +610,7 @@ async fn run_trust_fall_demo() -> Result<()> {
     };
     
     let game_id = engine.create_game(config).await?;
-    let players = vec!["Honest", "Sneaky", "Loyal", "Betrayer"];
+    let players = ["Honest", "Sneaky", "Loyal", "Betrayer"];
     
     for round in 1..=10 {
         println!("\n{}", format!("Trust Test {}", round).bright_yellow());
