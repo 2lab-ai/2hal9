@@ -20,7 +20,9 @@ pub struct SquidGame {
 struct EliminationEvent {
     round: u32,
     player: String,
+    #[allow(dead_code)]
     reason: String,
+    #[allow(dead_code)]
     position: f32,
 }
 

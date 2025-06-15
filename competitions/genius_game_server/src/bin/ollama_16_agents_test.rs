@@ -23,6 +23,7 @@ struct SwarmMetrics {
     avg_response_time: Duration,
     emergence_events: usize,
     consensus_rate: f32,
+    #[allow(dead_code)]
     memory_usage_mb: f32,
 }
 
@@ -293,10 +294,8 @@ async fn test_scaling_behavior(_metrics: Arc<Mutex<SwarmMetrics>>) -> Result<()>
         
         let results = join_all(tasks).await;
         
-        for result in results {
-            if let Ok(Ok(decision)) = result {
-                decisions.push(decision.choice);
-            }
+        for decision in results.into_iter().flatten().flatten() {
+            decisions.push(decision.choice);
         }
         
         let elapsed = start.elapsed();
@@ -422,10 +421,8 @@ async fn make_swarm_decision(
     
     let results = join_all(tasks).await;
     
-    for result in results {
-        if let Ok(Ok(decision)) = result {
-            decisions.push(decision);
-        }
+    for decision in results.into_iter().flatten().flatten() {
+        decisions.push(decision);
     }
     
     // Aggregate decisions
@@ -481,10 +478,8 @@ async fn test_binary_consensus(agents: Vec<Arc<OllamaProvider>>) -> Result<(bool
     
     let results = join_all(tasks).await;
     
-    for result in results {
-        if let Ok(Ok(decision)) = result {
-            choices.push(decision.choice);
-        }
+    for decision in results.into_iter().flatten().flatten() {
+        choices.push(decision.choice);
     }
     
     // Calculate consensus
@@ -522,10 +517,8 @@ async fn test_collaborative_problem(agents: Vec<Arc<OllamaProvider>>) -> Result<
     
     let results = join_all(tasks).await;
     
-    for result in results {
-        if let Ok(Ok(decision)) = result {
-            solutions.push(decision.choice);
-        }
+    for decision in results.into_iter().flatten().flatten() {
+        solutions.push(decision.choice);
     }
     
     let unique_solutions = solutions.iter().collect::<std::collections::HashSet<_>>().len();

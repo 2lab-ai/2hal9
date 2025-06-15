@@ -85,6 +85,12 @@ enum HGAction {
     UseItem { player: String, item: String },
 }
 
+impl Default for HungerGamesGame {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HungerGamesGame {
     pub fn new() -> Self {
         Self {
@@ -241,13 +247,11 @@ impl HungerGamesGame {
         if let Some(status) = self.tributes.get_mut(player) {
             // Check for resources at current location
             for (_, cache) in self.resources.iter_mut() {
-                if cache.location == status.position.location && !cache.items.is_empty() {
-                    if !cache.discovered_by.contains(&player.to_string()) {
-                        // Take an item
-                        if let Some(item) = cache.items.pop() {
-                            status.items.push(item);
-                            cache.discovered_by.push(player.to_string());
-                        }
+                if cache.location == status.position.location && !cache.items.is_empty() && !cache.discovered_by.contains(&player.to_string()) {
+                    // Take an item
+                    if let Some(item) = cache.items.pop() {
+                        status.items.push(item);
+                        cache.discovered_by.push(player.to_string());
                     }
                 }
             }
@@ -344,7 +348,7 @@ impl HungerGamesGame {
         let mut rng = rand::thread_rng();
         
         if round % 10 == 0 && rng.gen::<f32>() < 0.5 {
-            let locations = vec![Location::Forest, Location::Plains, Location::Mountain];
+            let locations = [Location::Forest, Location::Plains, Location::Mountain];
             let location = locations[rng.gen_range(0..locations.len())];
             
             let event = match rng.gen_range(0..4) {
@@ -453,11 +457,9 @@ impl Game for HungerGamesGame {
             
             match action.action_type.as_str() {
                 "hunt" => {
-                    if let Ok(target) = serde_json::from_value::<Option<String>>(action.data.clone()) {
-                        if let Some(target_player) = target {
-                            if self.combat(player_id, &target_player) {
-                                round_events.push(format!("{} eliminated {}", player_id, target_player));
-                            }
+                    if let Ok(Some(target_player)) = serde_json::from_value::<Option<String>>(action.data.clone()) {
+                        if self.combat(player_id, &target_player) {
+                            round_events.push(format!("{} eliminated {}", player_id, target_player));
                         }
                     }
                 }
@@ -505,7 +507,7 @@ impl Game for HungerGamesGame {
             if !self.eliminated_tributes.contains(player) {
                 let survival_score = 1;
                 let kill_score = status.kills as i32 * 5;
-                let health_bonus = (status.health / 20) as i32;
+                let health_bonus = status.health / 20;
                 scores_delta.insert(player.clone(), survival_score + kill_score + health_bonus);
             }
         }

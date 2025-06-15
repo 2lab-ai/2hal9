@@ -21,10 +21,15 @@ pub struct RussianRoulette {
 
 #[derive(Debug, Clone)]
 struct EliminationEvent {
+    #[allow(dead_code)]
     round: u32,
+    #[allow(dead_code)]
     player: String,
+    #[allow(dead_code)]
     action: String,
+    #[allow(dead_code)]
     chamber_had_bullet: bool,
+    #[allow(dead_code)]
     pressure_level: f32,
 }
 

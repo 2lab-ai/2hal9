@@ -25,6 +25,7 @@ pub struct MiniGoGame {
 
 #[derive(Debug, Clone)]
 struct MoveRecord {
+    #[allow(dead_code)]
     player: String,
     action: GoAction,
     captures: Vec<(usize, usize)>,
@@ -105,10 +106,8 @@ impl MiniGoGame {
         
         for row in 0..BOARD_SIZE {
             for col in 0..BOARD_SIZE {
-                if self.board[row][col] == opponent_stone {
-                    if self.count_liberties(row, col) == 0 {
-                        captured.push((row, col));
-                    }
+                if self.board[row][col] == opponent_stone && self.count_liberties(row, col) == 0 {
+                    captured.push((row, col));
                 }
             }
         }
@@ -243,9 +242,9 @@ impl MiniGoGame {
         for move_record in recent_moves {
             if let GoAction::Place(row, col) = move_record.action {
                 // Check if move was strategic (corner, side, or capturing)
-                let is_corner = (row < 3 || row > 5) && (col < 3 || col > 5);
+                let is_corner = !(3..=5).contains(&row) && !(3..=5).contains(&col);
                 let is_side = row == 0 || row == 8 || col == 0 || col == 8;
-                let captured_stones = move_record.captures.len() > 0;
+                let captured_stones = !move_record.captures.is_empty();
                 
                 if is_corner || is_side || captured_stones {
                     strategic_moves += 1;
@@ -517,7 +516,7 @@ impl Game for MiniGoGame {
         let strategic_moves = self.move_history.iter()
             .filter(|move_record| {
                 matches!(move_record.action, GoAction::Place(row, col) 
-                    if (row < 3 || row > 5) && (col < 3 || col > 5))
+                    if !(3..=5).contains(&row) && !(3..=5).contains(&col))
             })
             .count();
         let strategic_depth = strategic_moves as f32 / self.move_history.len().max(1) as f32;

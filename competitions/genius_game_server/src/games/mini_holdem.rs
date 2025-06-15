@@ -57,8 +57,11 @@ enum BettingRound {
 
 #[derive(Debug, Clone)]
 struct HandResult {
+    #[allow(dead_code)]
     winner: String,
+    #[allow(dead_code)]
     winning_hand: String,
+    #[allow(dead_code)]
     pot_size: i32,
     showdown: bool,
     bluff_success: bool,
@@ -422,10 +425,8 @@ impl Game for MiniHoldemGame {
         self.active_players.retain(|p| self.chips.get(p).copied().unwrap_or(0) > 0);
         
         // Start new hand if needed
-        if self.betting_round == BettingRound::Showdown || self.hands.is_empty() {
-            if self.active_players.len() >= 2 {
-                self.deal_cards();
-            }
+        if (self.betting_round == BettingRound::Showdown || self.hands.is_empty()) && self.active_players.len() >= 2 {
+            self.deal_cards();
         }
         
         // Process betting actions

@@ -15,6 +15,7 @@ pub struct LastStand {
     shared_resources: Resources,
     cooperation_matrix: HashMap<(String, String), f32>,
     elimination_history: Vec<EliminationEvent>,
+    #[allow(dead_code)]
     survival_strategies: HashMap<String, String>,
 }
 
@@ -34,6 +35,7 @@ impl Resources {
         }
     }
     
+    #[allow(dead_code)]
     fn is_depleted(&self) -> bool {
         self.ammo <= 0 && self.materials <= 0 && self.medical <= 0
     }
@@ -43,8 +45,11 @@ impl Resources {
 struct Fortification {
     health: i32,
     defense_rating: f32,
+    #[allow(dead_code)]
     position: Position,
+    #[allow(dead_code)]
     owner: String,
+    #[allow(dead_code)]
     shared_with: Vec<String>,
 }
 
@@ -53,6 +58,7 @@ struct Enemy {
     health: i32,
     damage: i32,
     position: Position,
+    #[allow(dead_code)]
     target: Option<String>,
     enemy_type: EnemyType,
 }
@@ -81,6 +87,7 @@ impl Position {
 struct EliminationEvent {
     round: u32,
     player: String,
+    #[allow(dead_code)]
     reason: String,
     final_wave: u32,
 }
@@ -245,7 +252,7 @@ impl LastStand {
         let mut total_cooperation = 0.0;
         let mut cooperation_pairs = 0;
         
-        for (_, score) in &self.cooperation_matrix {
+        for score in self.cooperation_matrix.values() {
             total_cooperation += score;
             cooperation_pairs += 1;
         }

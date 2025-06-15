@@ -2,7 +2,7 @@ use anyhow::Result;
 use genius_game_server::ai_providers::{AIProvider, OllamaProvider};
 use std::collections::HashMap;
 use colored::*;
-use tokio::time::{Duration, Instant};
+use tokio::time::Instant;
 use serde_json::json;
 use futures::future::join_all;
 use std::sync::Arc;
@@ -88,10 +88,8 @@ async fn test_consensus(num_agents: usize) -> Result<(String, f32)> {
     let results = join_all(tasks).await;
     
     let mut choices = HashMap::new();
-    for result in results {
-        if let Ok(Ok(decision)) = result {
-            *choices.entry(decision.choice.clone()).or_insert(0) += 1;
-        }
+    for decision in results.into_iter().flatten().flatten() {
+        *choices.entry(decision.choice.clone()).or_insert(0) += 1;
     }
     
     let (best_choice, count) = choices.iter()
@@ -129,10 +127,8 @@ async fn test_diversity(num_agents: usize) -> Result<(usize, usize)> {
     let results = join_all(tasks).await;
     
     let mut choices = Vec::new();
-    for result in results {
-        if let Ok(Ok(decision)) = result {
-            choices.push(decision.choice);
-        }
+    for decision in results.into_iter().flatten().flatten() {
+        choices.push(decision.choice);
     }
     
     let unique_count = choices.iter().collect::<std::collections::HashSet<_>>().len();
@@ -166,12 +162,10 @@ async fn test_game_decision(num_agents: usize) -> Result<(String, f32)> {
     let mut choices = HashMap::new();
     let mut count = 0;
     
-    for result in results {
-        if let Ok(Ok(decision)) = result {
-            *choices.entry(decision.choice.clone()).or_insert(0) += 1;
-            total_confidence += decision.confidence;
-            count += 1;
-        }
+    for decision in results.into_iter().flatten().flatten() {
+        *choices.entry(decision.choice.clone()).or_insert(0) += 1;
+        total_confidence += decision.confidence;
+        count += 1;
     }
     
     let (strategy, _) = choices.iter()
