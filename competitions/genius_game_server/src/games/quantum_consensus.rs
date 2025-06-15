@@ -1,396 +1,442 @@
+use super::*;
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
-use super::{Game, GameState, PlayerAction, GameResult, EmergenceMetrics};
-use anyhow::Result;
+use rand::Rng;
 
-/// Quantum-inspired consensus game where decisions exist in superposition
-pub struct QuantumConsensusGame {
-    id: Uuid,
-    round: u32,
-    max_rounds: u32,
-    players: Vec<String>,
+pub struct QuantumConsensus {
+    measurement_threshold: f32,
+    entanglement_strength: f32,
     quantum_states: HashMap<String, QuantumState>,
-    entanglements: Vec<Entanglement>,
-    measurement_history: Vec<MeasurementResult>,
-    special_rules: HashMap<String, String>,
+    consensus_history: Vec<ConsensusResult>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 struct QuantumState {
-    player_id: String,
-    superposition: Vec<f32>, // Probability amplitudes for each basis state
-    phase: f32,
-    coherence: f32,
+    superposition: Vec<f32>, // Probability amplitudes for different choices
+    entangled_with: Vec<String>, // Other players this player is entangled with
+    coherence: f32, // How well the quantum state is maintained
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Entanglement {
-    players: (String, String),
-    strength: f32,
-    correlation_type: EntanglementType,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-enum EntanglementType {
-    Positive,  // Same measurement outcomes
-    Negative,  // Opposite measurement outcomes
-    Phase,     // Phase-correlated
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct MeasurementResult {
+#[derive(Debug, Clone)]
+struct ConsensusResult {
     round: u32,
-    collapsed_states: HashMap<String, usize>,
+    measured_states: HashMap<String, usize>,
     consensus_achieved: bool,
-    quantum_discord: f32,
+    quantum_correlation: f32,
 }
 
-impl QuantumConsensusGame {
-    pub fn new(max_rounds: u32, special_rules: HashMap<String, String>) -> Self {
+impl Default for QuantumConsensus {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl QuantumConsensus {
+    pub fn new() -> Self {
         Self {
-            id: Uuid::new_v4(),
-            round: 0,
-            max_rounds,
-            players: Vec::new(),
+            measurement_threshold: 0.7,
+            entanglement_strength: 0.5,
             quantum_states: HashMap::new(),
-            entanglements: Vec::new(),
-            measurement_history: Vec::new(),
-            special_rules,
+            consensus_history: Vec::new(),
         }
     }
     
-    fn initialize_quantum_state(&self, player_id: &str) -> QuantumState {
-        let num_basis_states = 4; // |00⟩, |01⟩, |10⟩, |11⟩
-        let mut superposition = vec![0.0; num_basis_states];
+    fn initialize_quantum_state(&mut self, player_id: &str, num_choices: usize) {
+        let mut rng = rand::thread_rng();
         
-        // Initialize in equal superposition
-        for i in 0..num_basis_states {
-            superposition[i] = 1.0 / (num_basis_states as f32).sqrt();
+        // Initialize with random superposition
+        let mut amplitudes = vec![];
+        let mut sum_squares = 0.0;
+        
+        for _ in 0..num_choices {
+            let amp = rng.gen::<f32>();
+            sum_squares += amp * amp;
+            amplitudes.push(amp);
         }
         
-        QuantumState {
-            player_id: player_id.to_string(),
-            superposition,
-            phase: rand::random::<f32>() * 2.0 * std::f32::consts::PI,
+        // Normalize to ensure sum of squares = 1
+        let norm = sum_squares.sqrt();
+        for amp in &mut amplitudes {
+            *amp /= norm;
+        }
+        
+        self.quantum_states.insert(player_id.to_string(), QuantumState {
+            superposition: amplitudes,
+            entangled_with: vec![],
             coherence: 1.0,
+        });
+    }
+    
+    fn entangle_players(&mut self, player1: &str, player2: &str) {
+        if let Some(state1) = self.quantum_states.get_mut(player1) {
+            if !state1.entangled_with.contains(&player2.to_string()) {
+                state1.entangled_with.push(player2.to_string());
+            }
+        }
+        
+        if let Some(state2) = self.quantum_states.get_mut(player2) {
+            if !state2.entangled_with.contains(&player1.to_string()) {
+                state2.entangled_with.push(player1.to_string());
+            }
         }
     }
     
-    fn apply_quantum_gate(&mut self, player: &str, gate_type: &str) {
-        if let Some(state) = self.quantum_states.get_mut(player) {
+    fn apply_quantum_gate(&mut self, player_id: &str, gate_type: &str) {
+        if let Some(state) = self.quantum_states.get_mut(player_id) {
             match gate_type {
                 "hadamard" => {
-                    // Apply Hadamard gate to create superposition
-                    let old = state.superposition.clone();
-                    state.superposition[0] = (old[0] + old[1]) / 2.0_f32.sqrt();
-                    state.superposition[1] = (old[0] - old[1]) / 2.0_f32.sqrt();
+                    // Hadamard gate creates equal superposition
+                    let n = state.superposition.len() as f32;
+                    for amp in &mut state.superposition {
+                        *amp = 1.0 / n.sqrt();
+                    }
                 }
                 "phase" => {
-                    // Apply phase shift
-                    state.phase += std::f32::consts::PI / 4.0;
-                }
-                "entangle" => {
-                    // Entanglement is handled separately
+                    // Random phase shift
+                    let phase = rand::thread_rng().gen::<f32>() * 2.0 * std::f32::consts::PI;
+                    for (i, amp) in state.superposition.iter_mut().enumerate() {
+                        *amp *= (phase * i as f32).cos();
+                    }
                 }
                 _ => {}
             }
             
-            // Normalize the state
-            let norm: f32 = state.superposition.iter().map(|&x| x * x).sum::<f32>().sqrt();
-            for amp in &mut state.superposition {
-                *amp /= norm;
+            // Normalize again
+            let sum_squares: f32 = state.superposition.iter().map(|a| a * a).sum();
+            let norm = sum_squares.sqrt();
+            if norm > 0.0 {
+                for amp in &mut state.superposition {
+                    *amp /= norm;
+                }
             }
         }
     }
     
-    fn create_entanglement(&mut self, player1: &str, player2: &str) {
-        let correlation = rand::random::<f32>();
-        let ent_type = if correlation > 0.7 {
-            EntanglementType::Positive
-        } else if correlation > 0.4 {
-            EntanglementType::Negative
+    fn measure_state(&self, player_id: &str) -> usize {
+        if let Some(state) = self.quantum_states.get(player_id) {
+            let mut rng = rand::thread_rng();
+            let r = rng.gen::<f32>();
+            
+            let mut cumulative = 0.0;
+            for (i, &amp) in state.superposition.iter().enumerate() {
+                cumulative += amp * amp; // Probability is amplitude squared
+                if r <= cumulative {
+                    return i;
+                }
+            }
+            
+            // Fallback to last choice
+            state.superposition.len() - 1
         } else {
-            EntanglementType::Phase
-        };
-        
-        self.entanglements.push(Entanglement {
-            players: (player1.to_string(), player2.to_string()),
-            strength: correlation,
-            correlation_type: ent_type,
-        });
-    }
-    
-    fn measure_states(&self) -> HashMap<String, usize> {
-        let mut collapsed_states = HashMap::new();
-        
-        for (player, state) in &self.quantum_states {
-            // Collapse the quantum state based on probability amplitudes
-            let mut cumulative_prob = 0.0;
-            let random_val = rand::random::<f32>();
-            let mut collapsed_value = 0;
-            
-            for (i, &amplitude) in state.superposition.iter().enumerate() {
-                cumulative_prob += amplitude * amplitude;
-                if random_val <= cumulative_prob {
-                    collapsed_value = i;
-                    break;
-                }
-            }
-            
-            // Apply entanglement correlations
-            for entanglement in &self.entanglements {
-                if entanglement.players.0 == *player || entanglement.players.1 == *player {
-                    let other_player = if entanglement.players.0 == *player {
-                        &entanglement.players.1
-                    } else {
-                        &entanglement.players.0
-                    };
-                    
-                    if let Some(&other_value) = collapsed_states.get(other_player) {
-                        match entanglement.correlation_type {
-                            EntanglementType::Positive => {
-                                collapsed_value = other_value;
-                            }
-                            EntanglementType::Negative => {
-                                collapsed_value = 3 - other_value; // Opposite in 2-bit system
-                            }
-                            EntanglementType::Phase => {
-                                // Phase correlation doesn't affect measurement outcome
-                            }
-                        }
-                    }
-                }
-            }
-            
-            collapsed_states.insert(player.clone(), collapsed_value);
+            0
         }
-        
-        collapsed_states
     }
     
-    fn calculate_quantum_discord(&self, measurements: &HashMap<String, usize>) -> f32 {
-        let values: Vec<usize> = measurements.values().copied().collect();
-        if values.is_empty() {
+    fn calculate_quantum_correlation(&self, measurements: &HashMap<String, usize>) -> f32 {
+        if measurements.len() < 2 {
             return 0.0;
         }
         
-        // Calculate entropy
-        let mut counts = HashMap::new();
-        for &v in &values {
-            *counts.entry(v).or_insert(0) += 1;
+        let mut correlation = 0.0;
+        let mut count = 0;
+        
+        for (player1, &choice1) in measurements.iter() {
+            if let Some(state1) = self.quantum_states.get(player1) {
+                for player2 in &state1.entangled_with {
+                    if let Some(&choice2) = measurements.get(player2) {
+                        if choice1 == choice2 {
+                            correlation += 1.0;
+                        }
+                        count += 1;
+                    }
+                }
+            }
         }
         
-        let total = values.len() as f32;
-        let entropy: f32 = counts.values()
-            .map(|&count| {
-                let p = count as f32 / total;
-                -p * p.log2()
-            })
-            .sum();
-        
-        // Normalize to [0, 1]
-        entropy / 2.0 // Max entropy for 4 states is 2
+        if count > 0 {
+            correlation / count as f32
+        } else {
+            0.0
+        }
     }
     
-    fn detect_emergence(&self) -> EmergenceMetrics {
-        if self.measurement_history.len() < 3 {
-            return EmergenceMetrics {
-                emergence_detected: false,
-                coordination_score: 0.0,
-                collective_intelligence_index: 0.0,
-                decision_diversity_index: 0.0,
-                strategic_depth: 0.0,
-                special_patterns: HashMap::new(),
-            };
+    fn detect_quantum_emergence(&self, state: &GameState) -> Option<EmergenceEvent> {
+        if self.consensus_history.len() < 5 {
+            return None;
         }
         
-        // Check for quantum consensus patterns
-        let recent = self.measurement_history.iter().rev().take(5).collect::<Vec<_>>();
-        
-        // Measure consensus achievement rate
-        let consensus_rate = recent.iter()
+        // Check recent consensus achievement
+        let recent_consensus = self.consensus_history.iter()
+            .rev()
+            .take(5)
             .filter(|r| r.consensus_achieved)
-            .count() as f32 / recent.len() as f32;
+            .count();
         
-        // Average quantum discord (lower means more order)
-        let avg_discord: f32 = recent.iter()
-            .map(|r| r.quantum_discord)
-            .sum::<f32>() / recent.len() as f32;
+        // Check average quantum correlation
+        let avg_correlation: f32 = self.consensus_history.iter()
+            .rev()
+            .take(5)
+            .map(|r| r.quantum_correlation)
+            .sum::<f32>() / 5.0;
         
-        // Check entanglement network density
-        let entanglement_density = self.entanglements.len() as f32 / 
-            (self.players.len() * (self.players.len() - 1) / 2).max(1) as f32;
-        
-        // Average coherence
-        let avg_coherence = self.quantum_states.values()
-            .map(|s| s.coherence)
-            .sum::<f32>() / self.quantum_states.len().max(1) as f32;
-        
-        // Emergence detected when:
-        // 1. High consensus rate
-        // 2. Low quantum discord (ordered states)
-        // 3. Dense entanglement network
-        // 4. High coherence maintained
-        let emergence_detected = consensus_rate > 0.6 && 
-                                avg_discord < 0.5 && 
-                                entanglement_density > 0.5 &&
-                                avg_coherence > 0.7;
-        
-        let mut special_patterns = HashMap::new();
-        special_patterns.insert("consensus_rate".to_string(), consensus_rate.to_string());
-        special_patterns.insert("quantum_discord".to_string(), avg_discord.to_string());
-        special_patterns.insert("entanglement_density".to_string(), entanglement_density.to_string());
-        special_patterns.insert("coherence".to_string(), avg_coherence.to_string());
-        
-        EmergenceMetrics {
-            emergence_detected,
-            coordination_score: consensus_rate,
-            collective_intelligence_index: 1.0 - avg_discord,
-            decision_diversity_index: avg_discord,
-            strategic_depth: entanglement_density,
-            special_patterns,
+        if recent_consensus >= 4 && avg_correlation > 0.7 {
+            Some(EmergenceEvent {
+                round: state.round,
+                event_type: "quantum_consensus".to_string(),
+                description: "Collective achieved quantum entanglement consensus".to_string(),
+                emergence_score: avg_correlation,
+            })
+        } else {
+            None
         }
     }
 }
 
 #[async_trait]
-impl Game for QuantumConsensusGame {
-    async fn get_state(&self) -> Result<GameState> {
-        let available_choices = vec![
-            "measure".to_string(),
-            "hadamard".to_string(),
-            "phase".to_string(),
-            "entangle".to_string(),
-        ];
-        
-        let mut player_states = HashMap::new();
-        for player in &self.players {
-            if let Some(qstate) = self.quantum_states.get(player) {
-                player_states.insert(player.clone(), serde_json::json!({
-                    "superposition": qstate.superposition,
-                    "phase": qstate.phase,
-                    "coherence": qstate.coherence,
-                    "entangled_with": self.entanglements.iter()
-                        .filter(|e| e.players.0 == *player || e.players.1 == *player)
-                        .map(|e| if e.players.0 == *player { &e.players.1 } else { &e.players.0 })
-                        .collect::<Vec<_>>(),
-                }));
+impl Game for QuantumConsensus {
+    async fn initialize(&mut self, config: GameConfig) -> anyhow::Result<GameState> {
+        // Extract parameters from config
+        if let Some(threshold) = config.special_rules.get("measurement_threshold") {
+            if let Ok(t) = threshold.parse::<f32>() {
+                self.measurement_threshold = t;
             }
         }
         
         Ok(GameState {
-            game_id: self.id,
-            game_type: "quantum_consensus".to_string(),
-            round: self.round,
-            players: self.players.clone(),
-            current_state: serde_json::json!({
-                "round": self.round,
-                "max_rounds": self.max_rounds,
-                "available_choices": available_choices,
-                "entanglement_count": self.entanglements.len(),
-                "last_measurement": self.measurement_history.last(),
-            }),
-            available_actions: available_choices,
-            scores: HashMap::new(), // Scores based on consensus achievement
-            player_states,
-            is_complete: self.round >= self.max_rounds,
-            special_data: Some(serde_json::json!({
-                "quantum_mechanics": {
-                    "basis_states": ["00", "01", "10", "11"],
-                    "gates_available": ["hadamard", "phase", "entangle"],
-                },
-            })),
+            game_id: Uuid::new_v4(),
+            game_type: GameType::QuantumConsensus,
+            round: 0,
+            scores: HashMap::new(),
+            history: vec![],
+            metadata: {
+                let mut meta = HashMap::new();
+                meta.insert("measurement_threshold".to_string(), serde_json::json!(self.measurement_threshold));
+                meta.insert("entanglement_strength".to_string(), serde_json::json!(self.entanglement_strength));
+                meta.insert("quantum_mechanics".to_string(), serde_json::json!({
+                    "superposition": "Players exist in multiple states simultaneously",
+                    "entanglement": "Correlated states between players",
+                    "measurement": "Collapses superposition to single choice"
+                }));
+                meta
+            },
         })
     }
     
-    async fn process_action(&mut self, action: PlayerAction) -> Result<()> {
-        match action.action_type.as_str() {
-            "hadamard" | "phase" => {
-                self.apply_quantum_gate(&action.player_id, &action.action_type);
+    async fn process_round(&mut self, state: &GameState, actions: HashMap<String, Action>) -> anyhow::Result<RoundResult> {
+        let num_choices = 3; // Default to 3 quantum states
+        
+        // Initialize quantum states for new players
+        for player_id in actions.keys() {
+            if !self.quantum_states.contains_key(player_id) {
+                self.initialize_quantum_state(player_id, num_choices);
             }
-            "entangle" => {
-                // Randomly entangle with another player
-                if let Some(other) = self.players.iter()
-                    .find(|&p| p != &action.player_id && rand::random::<f32>() > 0.5) {
-                    self.create_entanglement(&action.player_id, other);
+        }
+        
+        // Process quantum operations from actions
+        for (player_id, action) in &actions {
+            match action.action_type.as_str() {
+                "hadamard" => self.apply_quantum_gate(player_id, "hadamard"),
+                "phase" => self.apply_quantum_gate(player_id, "phase"),
+                "entangle" => {
+                    // Try to entangle with another player
+                    if let Some(target) = action.data.as_str() {
+                        self.entangle_players(player_id, target);
+                    }
+                }
+                _ => {
+                    // Random quantum operation
+                    if rand::thread_rng().gen_bool(0.5) {
+                        self.apply_quantum_gate(player_id, "hadamard");
+                    }
                 }
             }
-            _ => {}
+            
+            // Decoherence over time
+            if let Some(state) = self.quantum_states.get_mut(player_id) {
+                state.coherence *= 0.95;
+                if state.coherence < 0.1 {
+                    state.coherence = 0.1;
+                }
+            }
         }
         
-        // Decoherence over time
-        if let Some(state) = self.quantum_states.get_mut(&action.player_id) {
-            state.coherence *= 0.95;
+        // Create entanglements between collective players
+        let collective_players: Vec<String> = actions.keys()
+            .filter(|id| id.starts_with("collective_"))
+            .cloned()
+            .collect();
+        
+        for i in 0..collective_players.len() {
+            for j in i+1..collective_players.len() {
+                if rand::thread_rng().gen::<f32>() < self.entanglement_strength {
+                    self.entangle_players(&collective_players[i], &collective_players[j]);
+                }
+            }
         }
         
-        Ok(())
-    }
-    
-    async fn advance_round(&mut self) -> Result<GameResult> {
-        self.round += 1;
+        // Measure all quantum states
+        let mut measurements = HashMap::new();
+        let mut choice_counts = vec![0; num_choices];
         
-        // Perform quantum measurement
-        let collapsed_states = self.measure_states();
+        for player_id in actions.keys() {
+            let measurement = self.measure_state(player_id);
+            measurements.insert(player_id.clone(), measurement);
+            if measurement < choice_counts.len() {
+                choice_counts[measurement] += 1;
+            }
+        }
         
-        // Check for consensus
-        let values: Vec<_> = collapsed_states.values().copied().collect();
-        let consensus_achieved = values.windows(2).all(|w| w[0] == w[1]);
+        // Calculate quantum correlation
+        let quantum_correlation = self.calculate_quantum_correlation(&measurements);
         
-        let quantum_discord = self.calculate_quantum_discord(&collapsed_states);
+        // Determine consensus
+        let total_players = measurements.len() as f32;
+        let max_agreement = choice_counts.iter().max().copied().unwrap_or(0) as f32;
+        let consensus_level = max_agreement / total_players;
+        let consensus_achieved = consensus_level >= self.measurement_threshold;
         
-        let measurement = MeasurementResult {
-            round: self.round,
-            collapsed_states: collapsed_states.clone(),
+        // Store consensus result
+        self.consensus_history.push(ConsensusResult {
+            round: state.round + 1,
+            measured_states: measurements.clone(),
             consensus_achieved,
-            quantum_discord,
-        };
+            quantum_correlation,
+        });
         
-        self.measurement_history.push(measurement);
+        // Calculate scores
+        let mut scores_delta = HashMap::new();
+        let consensus_choice = choice_counts.iter()
+            .enumerate()
+            .max_by_key(|(_, &count)| count)
+            .map(|(idx, _)| idx)
+            .unwrap_or(0);
         
-        // Update scores based on consensus participation
-        let mut scores = HashMap::new();
-        if consensus_achieved {
-            for player in &self.players {
-                scores.insert(player.clone(), 10);
-            }
-        } else {
-            // Partial credit based on alignment
-            for (player, &value) in &collapsed_states {
-                let same_count = collapsed_states.values()
-                    .filter(|&&v| v == value)
-                    .count();
-                scores.insert(player.clone(), same_count as i32);
+        for (player_id, &measurement) in &measurements {
+            if consensus_achieved && measurement == consensus_choice {
+                // Reward for being part of consensus
+                scores_delta.insert(player_id.clone(), 10);
+            } else if consensus_achieved {
+                // Small penalty for not being in consensus
+                scores_delta.insert(player_id.clone(), -2);
+            } else {
+                // No consensus, small reward for quantum correlation
+                let player_correlation = if let Some(state) = self.quantum_states.get(player_id) {
+                    state.entangled_with.len() as i32
+                } else {
+                    0
+                };
+                scores_delta.insert(player_id.clone(), player_correlation);
             }
         }
         
-        let emergence = self.detect_emergence();
+        // Check for emergence
+        let emergence_event = self.detect_quantum_emergence(state);
         
-        Ok(GameResult {
-            round: self.round,
-            scores,
-            round_winners: if consensus_achieved { self.players.clone() } else { vec![] },
-            is_final_round: self.round >= self.max_rounds,
-            emergence_metrics: emergence,
-            special_data: Some(serde_json::json!({
-                "collapsed_states": collapsed_states,
-                "consensus_achieved": consensus_achieved,
-                "quantum_discord": quantum_discord,
-            })),
+        // Determine winners and losers
+        let winners: Vec<String> = measurements.iter()
+            .filter(|(_, &m)| consensus_achieved && m == consensus_choice)
+            .map(|(id, _)| id.clone())
+            .collect();
+        
+        let losers: Vec<String> = measurements.iter()
+            .filter(|(_, &m)| consensus_achieved && m != consensus_choice)
+            .map(|(id, _)| id.clone())
+            .collect();
+        
+        let mut special_events = vec![];
+        if consensus_achieved {
+            special_events.push(format!("Quantum consensus achieved on state {}!", consensus_choice));
+        }
+        if quantum_correlation > 0.8 {
+            special_events.push("High quantum entanglement detected!".to_string());
+        }
+        if let Some(event) = &emergence_event {
+            special_events.push(event.description.clone());
+        }
+        
+        Ok(RoundResult {
+            round: state.round + 1,
+            actions: actions.clone(),
+            outcome: Outcome {
+                winners,
+                losers,
+                special_events,
+                emergence_detected: emergence_event.is_some(),
+            },
+            scores_delta,
+            timestamp: chrono::Utc::now(),
         })
     }
     
-    fn add_player(&mut self, player_id: String) -> Result<()> {
-        if !self.players.contains(&player_id) {
-            self.players.push(player_id.clone());
-            let qstate = self.initialize_quantum_state(&player_id);
-            self.quantum_states.insert(player_id, qstate);
-        }
-        Ok(())
+    async fn is_game_over(&self, state: &GameState) -> bool {
+        state.round >= 50 || 
+        state.scores.values().any(|&score| score >= 200 || score <= -50) ||
+        (self.consensus_history.len() >= 10 && 
+         self.consensus_history.iter().rev().take(10).all(|r| r.consensus_achieved))
     }
     
-    fn get_game_id(&self) -> Uuid {
-        self.id
+    async fn calculate_final_result(&self, state: &GameState) -> GameResult {
+        let winner = state.scores.iter()
+            .max_by_key(|(_, score)| *score)
+            .map(|(id, _)| id.clone())
+            .unwrap_or_else(|| "No winner".to_string());
+        
+        // Collect emergence events
+        let emergence_events: Vec<EmergenceEvent> = state.history.iter()
+            .enumerate()
+            .filter_map(|(i, round_result)| {
+                if round_result.outcome.emergence_detected {
+                    Some(EmergenceEvent {
+                        round: i as u32,
+                        event_type: "quantum_consensus".to_string(),
+                        description: "Quantum entanglement consensus achieved".to_string(),
+                        emergence_score: 0.9,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+        
+        // Calculate analytics
+        let total_consensus = self.consensus_history.iter()
+            .filter(|r| r.consensus_achieved)
+            .count() as f32;
+        let consensus_rate = total_consensus / self.consensus_history.len().max(1) as f32;
+        
+        let avg_correlation = self.consensus_history.iter()
+            .map(|r| r.quantum_correlation)
+            .sum::<f32>() / self.consensus_history.len().max(1) as f32;
+        
+        let collective_scores: Vec<i32> = state.scores.iter()
+            .filter(|(id, _)| id.starts_with("collective_"))
+            .map(|(_, &score)| score)
+            .collect();
+        
+        let single_scores: Vec<i32> = state.scores.iter()
+            .filter(|(id, _)| id.starts_with("sota_"))
+            .map(|(_, &score)| score)
+            .collect();
+        
+        let avg_collective = collective_scores.iter().sum::<i32>() as f32 / collective_scores.len().max(1) as f32;
+        let avg_single = single_scores.iter().sum::<i32>() as f32 / single_scores.len().max(1) as f32;
+        
+        let emergence_frequency = emergence_events.len() as f32 / state.round.max(1) as f32;
+        
+        GameResult {
+            game_id: state.game_id,
+            winner,
+            final_scores: state.scores.clone(),
+            total_rounds: state.round,
+            emergence_events,
+            analytics: GameAnalytics {
+                collective_coordination_score: consensus_rate,
+                decision_diversity_index: 1.0 - avg_correlation, // Diversity vs correlation
+                strategic_depth: avg_correlation,
+                emergence_frequency,
+                performance_differential: avg_collective - avg_single,
+            },
+        }
     }
 }
