@@ -366,6 +366,53 @@ struct GoDecision {
     reasoning: String,
 }
 
+async fn meditate_on_rules(model: &str, player_name: &str) -> anyhow::Result<()> {
+    println!("\n{} {} is preparing to think...", "🧘", player_name.bright_yellow());
+    
+    let rules = r#"You will play Go on a 9x9 board.
+
+Basic rules:
+- Black plays first, then alternate
+- Place stones on intersections
+- Capture enemy stones by surrounding them
+- Winner controls most territory
+
+Now think deeply about this game..."#;
+
+    let client = reqwest::Client::new();
+    let request = OllamaRequest {
+        model: model.to_string(),
+        prompt: rules,
+        stream: false,
+        options: OllamaOptions {
+            temperature: 0.7,
+            num_predict: 1,
+        },
+    };
+    
+    let _ = client
+        .post("http://localhost:11434/api/generate")
+        .json(&request)
+        .timeout(std::time::Duration::from_secs(30))
+        .send()
+        .await?;
+    
+    // Thinking dots
+    print!("  ");
+    for i in 0..100 {
+        print!(".");
+        std::io::Write::flush(&mut std::io::stdout()).unwrap();
+        tokio::time::sleep(tokio::time::Duration::from_millis(30)).await;
+        if i % 20 == 19 {
+            println!();
+            print!("  ");
+        }
+    }
+    println!("\n  {} {} is ready!", "✨", player_name.bright_green());
+    
+    Ok(())
+}
+
 async fn get_ollama_move(board: &GoBoard, model: &str, player_name: &str) -> anyhow::Result<(usize, usize)> {
     let valid_moves = board.get_valid_moves();
     if valid_moves.is_empty() {
@@ -505,7 +552,7 @@ Think step by step:
 2. Where can I build the most territory?
 3. How can I reduce opponent's area?
 
-Reply with JSON: {{"position": "D5", "reasoning": "your strategic thinking"}}"#,
+Choose your move and explain why. Format: position (like D5) and your reasoning."#,
         player_name,
         if board.current_player == BLACK { "Black (●)" } else { "White (○)" },
         situation,
@@ -540,33 +587,14 @@ Reply with JSON: {{"position": "D5", "reasoning": "your strategic thinking"}}"#,
     
     println!("  {} {} thinking... ({}ms)", "🤔", player_name.bright_yellow(), elapsed);
     
-    // Try multiple parsing strategies
+    // Parse AI response more flexibly
     let text = &ollama_resp.response;
+    println!("  {} {}: {}", "💭", player_name, text.lines().next().unwrap_or("").italic());
     
-    // Strategy 1: Parse JSON
-    if let Ok(decision) = serde_json::from_str::<GoDecision>(text) {
-        println!("  {} {}: {}", "💭", player_name, decision.reasoning.italic());
-        
-        if let Some((row, col)) = parse_position(&decision.position, &valid_moves) {
-            return Ok((row, col));
-        }
-    }
-    
-    // Strategy 2: Extract JSON from text
-    if let Some(start) = text.find('{') {
-        if let Some(end) = text.rfind('}') {
-            if let Ok(decision) = serde_json::from_str::<GoDecision>(&text[start..=end]) {
-                println!("  {} {}: {}", "💭", player_name, decision.reasoning.italic());
-                
-                if let Some((row, col)) = parse_position(&decision.position, &valid_moves) {
-                    return Ok((row, col));
-                }
-            }
-        }
-    }
-    
-    // Strategy 3: Look for position patterns
+    // Look for position patterns (more flexible)
     let text_upper = text.to_uppercase();
+    
+    // Try common position patterns: "D5", "D 5", "Play D5", "Move: D5", etc.
     for (r, c) in &valid_moves {
         let col_char = if *c >= 8 { 
             (b'A' + *c as u8 + 1) as char
@@ -574,11 +602,22 @@ Reply with JSON: {{"position": "D5", "reasoning": "your strategic thinking"}}"#,
             (b'A' + *c as u8) as char 
         };
         let row_num = 9 - r;
-        let pos = format!("{}{}", col_char, row_num);
         
-        if text_upper.contains(&pos) {
-            println!("  {} Found {} in response", "🎯", pos);
-            return Ok((*r, *c));
+        // Try different patterns
+        let patterns = vec![
+            format!("{}{}", col_char, row_num),           // D5
+            format!("{} {}", col_char, row_num),          // D 5
+            format!("{}:{}", col_char, row_num),          // D:5
+            format!("{}-{}", col_char, row_num),          // D-5
+            format!("({},{})", col_char, row_num),        // (D,5)
+            format!("[{},{}]", col_char, row_num),        // [D,5]
+        ];
+        
+        for pattern in patterns {
+            if text_upper.contains(&pattern) {
+                println!("  {} AI chooses {}{}", "🎯", col_char, row_num);
+                return Ok((*r, *c));
+            }
         }
     }
     
@@ -722,6 +761,15 @@ async fn main() -> anyhow::Result<()> {
     let max_moves = 40; // Increased for more complete games
     let players = ["AI Black", "AI White"];
     
+    // Meditation phase - AI learns the rules
+    println!("{}", "📚 Pre-game Meditation Phase".bright_magenta().bold());
+    println!("{}", "=".repeat(60).bright_blue());
+    
+    // Both AIs meditate on the rules
+    meditate_on_rules(&black_model, "AI Black").await?;
+    meditate_on_rules(&white_model, "AI White").await?;
+    
+    println!();
     println!("{}", "🏁 Starting Strategic Mini Go Match!".bright_magenta());
     println!("{}", board);
     

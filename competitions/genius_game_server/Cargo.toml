@@ -83,3 +83,7 @@ path = "src/bin/mini_go_ollama_demo.rs"
 [[bin]]
 name = "mini_go_thinking_demo"
 path = "src/bin/mini_go_thinking_demo.rs"
+
+[[bin]]
+name = "mini_go_meditation_demo"
+path = "src/bin/mini_go_meditation_demo.rs"
