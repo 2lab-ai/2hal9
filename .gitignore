@@ -54,3 +54,4 @@ Thumbs.db
 # Build optimization
 .sccache/
 target-remote/
+CLAUDE.LOCAL.md

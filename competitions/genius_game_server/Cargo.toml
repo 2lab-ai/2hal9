@@ -71,3 +71,15 @@ path = "src/bin/ollama_16_agents_test.rs"
 [[bin]]
 name = "ollama_quick_swarm_demo"
 path = "src/bin/ollama_quick_swarm_demo.rs"
+
+[[bin]]
+name = "ollama_live_game"
+path = "src/bin/ollama_live_game.rs"
+
+[[bin]]
+name = "mini_go_ollama_demo"
+path = "src/bin/mini_go_ollama_demo.rs"
+
+[[bin]]
+name = "mini_go_thinking_demo"
+path = "src/bin/mini_go_thinking_demo.rs"
