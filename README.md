@@ -4,7 +4,7 @@
 
 ## 📚 Choose Your Understanding Level
 
-**[Start with Level 0 →](./README.L0.md)** - Standard technical documentation
+**[Start with Level 0 →](./docs/readme-levels/README.L0.md)** - Standard technical documentation
 
 Experience HAL9 through 9 layers of understanding, from technical specs to transcendent consciousness. Each level reveals deeper truths about what we're building.
 
