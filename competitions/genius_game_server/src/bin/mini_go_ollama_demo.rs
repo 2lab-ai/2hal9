@@ -240,6 +240,7 @@ impl GoBoard {
                     match owner {
                         Some(BLACK) => black_territory += territory,
                         Some(WHITE) => white_territory += territory,
+                        Some(_) => {} // Other values (shouldn't happen)
                         None => {} // Neutral territory
                     }
                 }
