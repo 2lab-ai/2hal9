@@ -1,0 +1,72 @@
+[package]
+name = "hal9_core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Async
+tokio = { workspace = true }
+async-trait = { workspace = true }
+tokio-util = { version = "0.7", features = ["rt"] }
+futures = "0.3"
+tokio-stream = "0.1"
+
+# Logging
+tracing = { workspace = true }
+
+# HTTP client for web fetch tool
+reqwest = { workspace = true }
+
+# Database for memory storage
+sqlx = { workspace = true }
+
+# Authentication
+jsonwebtoken = { workspace = true }
+bcrypt = { workspace = true }
+base64 = { workspace = true }
+rand = { workspace = true }
+sha2 = "0.10"
+
+# Concurrency
+parking_lot = "0.12"
+dashmap = { workspace = true }
+
+# Compression
+flate2 = "1.0"
+zstd = "0.13"
+lz4_flex = "0.11"
+
+# Serialization
+bincode = "1.3"
+
+# System info
+sysinfo = "0.30"
+
+# Cache
+lru = "0.12"
+moka = { version = "0.12", features = ["future"] }
+
+# Graph operations
+petgraph = "0.6"
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
+
+[[bench]]
+name = "neuron_performance"
+harness = false

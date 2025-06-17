@@ -1,0 +1,117 @@
+[package]
+name = "hal9_server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "hal9-server"
+path = "src/main.rs"
+
+[dependencies]
+# Core types
+hal9_core = { path = "../hal9-core" }
+hal9-browser = { path = "../hal9-browser", optional = true }
+
+# Async runtime
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+chrono = { workspace = true }
+dashmap = { workspace = true }
+once_cell = { workspace = true }
+parking_lot = "0.12"
+md5 = "0.7"
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Configuration
+config = { workspace = true }
+
+# HTTP client for Claude API
+reqwest = { workspace = true }
+
+# HTTP server
+axum = { version = "0.7", features = ["ws"] }
+tower = { version = "0.4" }
+tower-http = { version = "0.5", features = ["cors"] }
+
+# Testing
+mockall = { workspace = true }
+
+# System info
+sys-info = "0.9"
+
+# Low-level system calls
+libc = "0.2"
+
+# Database
+sqlx = { workspace = true }
+
+# Redis for caching
+redis = { workspace = true }
+bb8 = { workspace = true }
+bb8-redis = { workspace = true }
+
+# Enterprise features
+base64 = { workspace = true }
+sha2 = "0.10"
+urlencoding = "2.1"
+regex = "1.10"
+csv = "1.3"
+
+# Additional dependencies
+rand = { workspace = true }
+futures = "0.3"
+aes-gcm = "0.10"
+metrics = { workspace = true }
+
+# GraphQL
+async-graphql = { version = "7.0", features = ["apollo_tracing", "apollo_persisted_queries", "chrono", "uuid"], optional = true }
+async-graphql-axum = { version = "7.0", optional = true }
+tokio-stream = { version = "0.1", optional = true }
+futures-util = { version = "0.3", optional = true }
+
+# WebAssembly
+wasmtime = { version = "25.0", optional = true }
+wasmtime-wasi = { version = "25.0", optional = true }
+zip = { version = "2.2", optional = true }
+
+# Blockchain
+ethers = { version = "2.0", optional = true }
+ipfs-api-backend-hyper = { version = "0.6", optional = true }
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+criterion = { version = "0.5", features = ["async_tokio"] }
+tempfile = "3.8"
+
+# Benchmark temporarily disabled due to API changes
+# [[bench]]
+# name = "performance_benchmark"
+# harness = false
+
+[features]
+default = ["sqlx-runtime"]
+browser = ["hal9-browser"]
+# Use runtime SQL queries instead of compile-time verification
+sqlx-runtime = []
+# Enable compile-time SQL verification (requires database at build time)
+sqlx-compile-time = []
+graphql = ["async-graphql", "async-graphql-axum", "tokio-stream", "futures-util"]
+plugins = ["wasmtime", "wasmtime-wasi", "zip"]
+blockchain = ["ethers", "ipfs-api-backend-hyper"]
