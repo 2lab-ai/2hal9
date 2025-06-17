@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: genius-games
-  labels:
-    app: genius-game-server
-    environment: production

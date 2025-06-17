@@ -14,8 +14,6 @@ members = [
     "substrate/tooling/mcp/ha-prompter",
     # L8 Visionary implementations
     "layers/L8_visionary/exploration/gentle_singularity",
-    # Competition infrastructure
-    "competitions/genius_game_server",
 ]
 
 [workspace.package]
