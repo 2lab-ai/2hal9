@@ -26,6 +26,7 @@ pub mod router;
 // TODO: Fix database abstraction issues
 // pub mod scaling;
 pub mod server;
+pub mod websocket;
 
 #[cfg(feature = "plugins")]
 pub mod plugins;

@@ -5,6 +5,7 @@ use crate::{
     auth_middleware::{auth_middleware as auth_mw, AuthState},
     error::ServerError,
     server::HAL9Server,
+    websocket,
 };
 use axum::{
     extract::{Json, Path, Query, State},
@@ -140,8 +141,9 @@ pub fn create_api_router(server: Arc<HAL9Server>) -> Router {
         .route("/metrics", get(prometheus_metrics))
         // Network status
         .route("/api/v1/network/status", get(get_network_status))
-        // WebSocket endpoint for real-time updates
-        .route("/api/v1/ws", get(websocket_handler))
+        // WebSocket endpoints for real-time updates
+        .route("/api/v1/ws", get(websocket::websocket_handler))
+        .route("/ws", get(websocket::websocket_handler))
         // Add CORS support
         .layer(CorsLayer::permissive())
         .with_state(server.clone());
@@ -417,61 +419,6 @@ async fn get_network_status(
     }
 }
 
-async fn websocket_handler(
-    ws: axum::extract::ws::WebSocketUpgrade,
-    State(server): State<Arc<HAL9Server>>,
-) -> impl IntoResponse {
-    ws.on_upgrade(|socket| handle_websocket(socket, server))
-}
-
-async fn handle_websocket(mut socket: axum::extract::ws::WebSocket, server: Arc<HAL9Server>) {
-    use axum::extract::ws::Message;
-
-    // Subscribe to server events
-    let mut event_rx = server.subscribe_to_events().await;
-
-    // Send initial connection message
-    let welcome_msg = WsMessage::ServerEvent {
-        event: "connected".to_string(),
-        details: "Connected to 2HAL9 server".to_string(),
-    };
-
-    if let Ok(msg_json) = serde_json::to_string(&welcome_msg) {
-        let _ = socket.send(Message::Text(msg_json)).await;
-    }
-
-    // Handle bidirectional communication
-    loop {
-        tokio::select! {
-            // Handle incoming messages from client
-            Some(msg) = socket.recv() => {
-                match msg {
-                    Ok(msg) => match msg {
-                    Message::Text(text) => {
-                        // Handle text messages if needed
-                        tracing::debug!("Received WebSocket message: {}", text);
-                    }
-                    Message::Close(_) => {
-                        tracing::info!("WebSocket client disconnected");
-                        break;
-                    }
-                    _ => {}
-                    },
-                    Err(_) => break,
-                }
-            }
-
-            // Forward server events to client
-            Ok(event) = event_rx.recv() => {
-                if let Ok(msg_json) = serde_json::to_string(&event) {
-                    if socket.send(Message::Text(msg_json)).await.is_err() {
-                        break;
-                    }
-                }
-            }
-        }
-    }
-}
 
 // Error handling
 impl IntoResponse for ServerError {
