@@ -1,0 +1,203 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: hal9/hal9-server
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.version }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=tag
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,prefix={{branch}}-
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'staging'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging.hal9.ai
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+    
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.STAGING_KUBECONFIG }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+    
+    - name: Update deployment
+      run: |
+        kubectl set image deployment/hal9-server \
+          hal9-server=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image-tag }} \
+          -n hal9-staging
+    
+    - name: Wait for rollout
+      run: |
+        kubectl rollout status deployment/hal9-server -n hal9-staging
+    
+    - name: Run smoke tests
+      run: |
+        STAGING_URL="https://staging-api.hal9.ai"
+        for i in {1..10}; do
+          if curl -f "$STAGING_URL/health"; then
+            echo "Staging deployment successful"
+            break
+          fi
+          echo "Waiting for staging to be ready... ($i/10)"
+          sleep 10
+        done
+
+  deploy-production:
+    name: Deploy to Production
+    needs: [build-and-push, deploy-staging]
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.environment == 'production'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://api.hal9.ai
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+    
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.PRODUCTION_KUBECONFIG }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+    
+    - name: Create backup
+      run: |
+        kubectl create job backup-$(date +%Y%m%d-%H%M%S) \
+          --from=cronjob/database-backup \
+          -n hal9-production
+    
+    - name: Update deployment (Blue-Green)
+      run: |
+        # Update blue deployment
+        kubectl set image deployment/hal9-server-blue \
+          hal9-server=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image-tag }} \
+          -n hal9-production
+        
+        # Wait for blue to be ready
+        kubectl rollout status deployment/hal9-server-blue -n hal9-production
+        
+        # Switch traffic to blue
+        kubectl patch service hal9-server \
+          -p '{"spec":{"selector":{"version":"blue"}}}' \
+          -n hal9-production
+        
+        # Update green for next deployment
+        kubectl set image deployment/hal9-server-green \
+          hal9-server=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image-tag }} \
+          -n hal9-production
+    
+    - name: Run production tests
+      run: |
+        PROD_URL="https://api.hal9.ai"
+        ./scripts/test_api.sh "$PROD_URL"
+    
+    - name: Send deployment notification
+      if: always()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: |
+          Production deployment ${{ job.status }}
+          Version: ${{ needs.build-and-push.outputs.image-tag }}
+          Actor: ${{ github.actor }}
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+  rollback:
+    name: Rollback Production
+    needs: deploy-production
+    if: failure() && (startsWith(github.ref, 'refs/tags/v') || github.event.inputs.environment == 'production')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.PRODUCTION_KUBECONFIG }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+    
+    - name: Rollback deployment
+      run: |
+        # Switch traffic back to green
+        kubectl patch service hal9-server \
+          -p '{"spec":{"selector":{"version":"green"}}}' \
+          -n hal9-production
+        
+        echo "Rolled back to previous version"
+    
+    - name: Send rollback notification
+      uses: 8398a7/action-slack@v3
+      with:
+        status: custom
+        custom_payload: |
+          {
+            text: "⚠️ Production deployment rolled back",
+            color: "warning"
+          }
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
