@@ -1,0 +1,52 @@
+# Git
+.git/
+.gitignore
+
+# Build artifacts
+target/
+# Cargo.lock is needed for reproducible builds
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+docs/
+*.md
+
+# Test data
+tests/
+benches/
+
+# Local config
+.env
+.env.local
+config/local/
+
+# Logs
+*.log
+logs/
+
+# Cache
+.cache/
+tmp/
+
+# Node modules (if any)
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Reports
+reports/
+
+# Keep only necessary files for build

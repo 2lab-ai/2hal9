@@ -1,0 +1,20 @@
+# Docker Compose configuration with authentication enabled
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.auth.yml up -d
+
+services:
+  hal9-server:
+    environment:
+      # Authentication Configuration
+      JWT_SECRET: ${JWT_SECRET:-development-secret-change-this-in-production-minimum-32-chars}
+      JWT_EXPIRY: ${JWT_EXPIRY:-3600}
+      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY:-604800}
+      API_KEY_PREFIX: ${API_KEY_PREFIX:-hal9_}
+      BCRYPT_COST: ${BCRYPT_COST:-12}
+      
+      # Enable authentication
+      AUTH_ENABLED: "true"
+      
+      # Admin user (created on first startup)
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@hal9.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-AdminPass123!}

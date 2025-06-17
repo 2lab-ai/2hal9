@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  hal9-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hal9-server
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+    environment:
+      - RUST_LOG=info
+      - HAL9_ENV=production
+      - DATABASE_URL=postgres://hal9:hal9pass@postgres:5432/hal9db
+      - REDIS_URL=redis://redis:6379
+      - SERVER_HOST=0.0.0.0
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - hal9-network
+    volumes:
+      - ./config:/home/hal9/config:ro
+      - hal9-data:/home/hal9/data
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: hal9-postgres
+    environment:
+      - POSTGRES_USER=hal9
+      - POSTGRES_PASSWORD=hal9pass
+      - POSTGRES_DB=hal9db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - hal9-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: hal9-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6380:6379"
+    networks:
+      - hal9-network
+    restart: unless-stopped
+
+  # Optional: Game server for 2hal9-demo
+  # game-server:
+  #   build:
+  #     context: ../2hal9-demo
+  #     dockerfile: Dockerfile
+  #   container_name: hal9-game-server
+  #   ports:
+  #     - "3000:3000"
+  #     - "8081:8081"
+  #   environment:
+  #     - RUST_LOG=info
+  #     - GAME_ENV=production
+  #   networks:
+  #     - hal9-network
+  #   depends_on:
+  #     - hal9-server
+  #   restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  hal9-data:
+
+networks:
+  hal9-network:
+    driver: bridge
