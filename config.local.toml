@@ -1,0 +1,40 @@
+[server]
+server_id = "local-hal9"
+
+[[neurons]]
+id = "local-neuron-l1"
+layer = "L1"
+has_api = false
+
+[[neurons]]
+id = "local-neuron-l2"
+layer = "L2"
+has_api = false
+
+[claude]
+mode = "mock"
+fallback_to_mock = true
+temperature = 0.7
+max_tokens = 1000
+
+[claude.mock_responses.L1]
+[[claude.mock_responses.L1]]
+trigger = "default"
+response = "L1 로컬 응답: 즉각적인 반응을 처리합니다."
+
+[claude.mock_responses.L2]
+[[claude.mock_responses.L2]]
+trigger = "default"
+response = "L2 로컬 응답: 실행 계층에서 작업을 수행합니다."
+
+[memory]
+enabled = false
+
+[network]
+enabled = false
+
+[auth]
+enabled = false
+
+[monitoring]
+enabled = false
