@@ -1,13 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    # Legacy crates moved to substrate during HA reorganization
-    "substrate/tooling/rust/legacy-crates/hal9-core",
-    "substrate/tooling/rust/legacy-crates/hal9-server", 
-    "substrate/tooling/rust/legacy-crates/hal9-cli",
-    "substrate/tooling/rust/legacy-crates/hal9-browser",
-    "substrate/tooling/rust/legacy-crates/hal9-codegen",
-    "substrate/tooling/rust/legacy-crates/hal9-plugin-sdk",
+    # L2 Implementation - Core neurons
     "layers/L2_implementation/neurons/game_neurons",
     "layers/L2_implementation/neurons/agent_dropout",
     # MCP tools

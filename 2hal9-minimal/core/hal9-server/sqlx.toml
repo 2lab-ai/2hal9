@@ -1,6 +1,0 @@
-[database]
-# For offline mode
-offline = true
-
-# Path to the query cache directory
-query_cache_path = ".sqlx"
