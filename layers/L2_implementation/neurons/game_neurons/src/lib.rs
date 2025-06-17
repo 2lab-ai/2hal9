@@ -4,7 +4,7 @@
 use wasm_bindgen::prelude::*;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, KeyboardEvent};
 
-mod game;
+pub mod game;
 use game::PAL9Neuron;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global allocator

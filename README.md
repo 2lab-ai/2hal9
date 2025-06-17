@@ -231,11 +231,11 @@ Each layer can only communicate with adjacent layers. This isn't a limitation - 
 
 <div align="center">
 
-![AI Genius Game Demo](competitions/genius_game_server/demo/ai_genius_demo.gif)
+![AI Genius Game Demo](https://github.com/icedac/2hal9-demo/blob/main/demo/ai_genius_demo.gif)
 
 **Watch Collective AI achieve emergent intelligence in real-time game theory competitions**
 
-[🚀 Try the Demo](competitions/genius_game_server/README.md) • [📊 View Results](competitions/genius_game_server/demo/demo_snapshot.md)
+[🚀 Try the Demo](https://github.com/icedac/2hal9-demo) • [📊 View Results](https://github.com/icedac/2hal9-demo/blob/main/demo/demo_snapshot.md)
 
 </div>
 
@@ -249,8 +249,9 @@ Our AI Genius Game platform demonstrates how collective intelligence emerges fro
 - **Visual Analytics**: Beautiful web and terminal visualizations
 
 ```bash
-# Run the interactive demo
-cd competitions/genius_game_server
+# Clone and run the demo repository
+git clone https://github.com/icedac/2hal9-demo
+cd 2hal9-demo
 cargo run --bin demo
 
 # Or open the web visualization

@@ -47,8 +47,9 @@ async fn main() -> Result<()> {
     let api_router = api::create_api_router(server.clone());
 
     // Start HTTP server - use env var or default
-    let http_port = std::env::var("HTTP_PORT").unwrap_or_else(|_| "8080".to_string());
-    let http_addr = format!("127.0.0.1:{}", http_port);
+    let http_host = std::env::var("SERVER_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let http_port = std::env::var("SERVER_PORT").unwrap_or_else(|_| "8080".to_string());
+    let http_addr = format!("{}:{}", http_host, http_port);
 
     info!("Starting HTTP server on {}", http_addr);
 
