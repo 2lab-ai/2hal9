@@ -44,6 +44,31 @@ mod test_utils {
     }
 }
 
+mod basic_tests {
+    #[test]
+    fn test_basic_math_works() {
+        // 가장 기본적인 테스트 - 실제로 테스트가 실행되는지 확인
+        assert_eq!(2 + 2, 4);
+        assert_eq!(10 * 10, 100);
+    }
+    
+    #[test]
+    fn test_string_concatenation() {
+        let hello = "Hello";
+        let world = "World";
+        let result = format!("{} {}", hello, world);
+        assert_eq!(result, "Hello World");
+    }
+    
+    #[test]
+    fn test_vector_operations() {
+        let mut vec = vec![1, 2, 3];
+        vec.push(4);
+        assert_eq!(vec.len(), 4);
+        assert_eq!(vec[3], 4);
+    }
+}
+
 mod jwt_tests {
     use super::*;
     use super::test_utils::*;
