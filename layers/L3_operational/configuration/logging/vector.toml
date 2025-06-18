@@ -1,0 +1,110 @@
+# Vector configuration for HAL9 log aggregation and processing
+# Vector is a high-performance observability data pipeline
+
+# Global options
+[api]
+enabled = true
+address = "127.0.0.1:8686"
+
+# Sources - where logs come from
+[sources.hal9_logs]
+type = "file"
+include = ["/var/log/hal9/*.log"]
+# Parse JSON logs
+data_dir = "/var/lib/vector"
+
+[sources.hal9_metrics]
+type = "prometheus_scrape"
+endpoints = ["http://localhost:8080/metrics"]
+scrape_interval_secs = 30
+
+# Transforms - process and enrich logs
+[transforms.parse_json]
+type = "remap"
+inputs = ["hal9_logs"]
+source = '''
+. = parse_json!(.message)
+.service = "hal9"
+.environment = get_env_var!("ENVIRONMENT", "production")
+'''
+
+[transforms.add_metadata]
+type = "remap"
+inputs = ["parse_json"]
+source = '''
+.hostname = get_hostname!()
+.timestamp_processed = now()
+'''
+
+[transforms.filter_errors]
+type = "filter"
+inputs = ["add_metadata"]
+condition = '.level == "error" || .level == "warn"'
+
+[transforms.aggregate_performance]
+type = "aggregate"
+inputs = ["add_metadata"]
+interval_ms = 60000  # 1 minute windows
+group_by = ["neuron_id", "layer"]
+mode = "tumbling"
+
+[[transforms.aggregate_performance.aggregates]]
+name = "avg_duration"
+fields = ["duration_ms"]
+operation = "avg"
+
+[[transforms.aggregate_performance.aggregates]]
+name = "max_duration"
+fields = ["duration_ms"]
+operation = "max"
+
+[[transforms.aggregate_performance.aggregates]]
+name = "request_count"
+operation = "count"
+
+# Sinks - where processed logs go
+[sinks.elasticsearch]
+type = "elasticsearch"
+inputs = ["add_metadata"]
+endpoint = "http://localhost:9200"
+index = "hal9-logs-%Y.%m.%d"
+healthcheck.enabled = true
+
+[sinks.error_alerts]
+type = "webhook"
+inputs = ["filter_errors"]
+endpoint = "https://alerts.example.com/webhook"
+encoding.codec = "json"
+headers.X-Alert-Source = "hal9"
+
+[sinks.performance_metrics]
+type = "prometheus_exporter"
+inputs = ["aggregate_performance"]
+address = "0.0.0.0:9598"
+default_namespace = "hal9"
+
+[sinks.backup_s3]
+type = "aws_s3"
+inputs = ["add_metadata"]
+region = "us-east-1"
+bucket = "hal9-logs-backup"
+key_prefix = "logs/{{ .environment }}/{{ .timestamp | date('%Y/%m/%d') }}/"
+compression = "gzip"
+encoding.codec = "json"
+
+# Only backup every hour to reduce costs
+batch.timeout_secs = 3600
+batch.max_bytes = 10485760  # 10MB
+
+[sinks.console_debug]
+type = "console"
+inputs = ["parse_json"]
+encoding.codec = "json"
+# Only enable in development
+enabled = false
+
+# Observability of Vector itself
+[sinks.internal_metrics]
+type = "prometheus_exporter"
+inputs = ["internal_metrics"]
+address = "0.0.0.0:9599"
