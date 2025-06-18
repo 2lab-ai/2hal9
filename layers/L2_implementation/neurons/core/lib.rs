@@ -15,7 +15,13 @@ pub mod hierarchical;
 // Migration infrastructure
 pub mod migration;
 
+// Consciousness measurement
+pub mod consciousness;
+
+// Performance optimizations
+pub mod performance;
+
 pub use error::{Error, Result};
-pub use signal::{NeuronSignal, PropagationType, SignalPayload, Activation, Gradient};
+pub use signal::{NeuronSignal, PropagationType, SignalPayload, Activation, Gradient, Signal};
 pub use config::{ServerConfig, NeuronConfig};
-pub use neuron::{NeuronInterface, NeuronId, Layer};
+pub use neuron::{NeuronInterface, NeuronId, Layer, Neuron};

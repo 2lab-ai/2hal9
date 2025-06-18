@@ -5,6 +5,9 @@ use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 
+/// Alias for NeuronSignal for backwards compatibility
+pub type Signal = NeuronSignal;
+
 /// A signal passed between neurons
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NeuronSignal {

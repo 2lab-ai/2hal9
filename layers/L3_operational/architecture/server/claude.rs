@@ -8,6 +8,7 @@ use std::time::Duration;
 use tracing::{debug, info, warn};
 use hal9_core::{Result, Error};
 use crate::cost_tracker::CostTracker;
+use rand::{Rng, seq::SliceRandom};
 
 /// Claude interface abstraction
 #[async_trait]
@@ -30,12 +31,22 @@ pub struct TokenUsage {
     pub total_tokens: u32,
 }
 
+/// Response pattern for sophisticated mock responses
+#[derive(Debug, Clone)]
+struct ResponsePattern {
+    keywords: Vec<String>,
+    templates: Vec<String>,
+    requires_context: bool,
+}
+
 /// Mock Claude implementation for testing
 pub struct MockClaude {
     layer: String,
     system_prompt: String,
     responses: HashMap<String, String>,
     delay_ms: u64,
+    response_patterns: Vec<ResponsePattern>,
+    context_memory: Arc<Mutex<Vec<String>>>,
 }
 
 impl MockClaude {
@@ -84,11 +95,16 @@ impl MockClaude {
             .map(|r| r.delay_ms)
             .unwrap_or(100);
         
+        // Create layer-specific response patterns
+        let response_patterns = Self::create_response_patterns(layer);
+        
         Self {
             layer: layer.to_string(),
             system_prompt: hal9_core::config::get_system_prompt(layer),
             responses,
             delay_ms,
+            response_patterns,
+            context_memory: Arc::new(Mutex::new(Vec::with_capacity(10))),
         }
     }
     
@@ -101,6 +117,190 @@ impl MockClaude {
     pub fn set_delay(&mut self, delay_ms: u64) {
         self.delay_ms = delay_ms;
     }
+    
+    /// Create layer-specific response patterns
+    fn create_response_patterns(layer: &str) -> Vec<ResponsePattern> {
+        match layer {
+            "L1" => vec![
+                ResponsePattern {
+                    keywords: vec!["error".to_string(), "alert".to_string(), "critical".to_string()],
+                    templates: vec![
+                        "ALERT: {} detected - immediate response initiated".to_string(),
+                        "REFLEXIVE_ACTION: Emergency protocol activated for {}".to_string(),
+                        "L1_RESPONSE: {} triggered, bypassing higher layers".to_string(),
+                    ],
+                    requires_context: false,
+                },
+                ResponsePattern {
+                    keywords: vec!["status".to_string(), "health".to_string(), "check".to_string()],
+                    templates: vec![
+                        "STATUS: All systems operational".to_string(),
+                        "HEALTH_CHECK: {} functioning within normal parameters".to_string(),
+                    ],
+                    requires_context: false,
+                },
+            ],
+            "L2" => vec![
+                ResponsePattern {
+                    keywords: vec!["implement".to_string(), "code".to_string(), "build".to_string()],
+                    templates: vec![
+                        "IMPLEMENTATION_PLAN:\n1. Parse requirements for {}\n2. Design component architecture\n3. Write unit tests\n4. Implement core logic\n5. Integration testing".to_string(),
+                        "CODE_GENERATION:\n```rust\n// Implementation for {}\npub struct Component {{\n    // TODO: Add fields\n}}\n\nimpl Component {{\n    pub fn new() -> Self {{\n        Self {{}}\n    }}\n}}\n```".to_string(),
+                    ],
+                    requires_context: true,
+                },
+                ResponsePattern {
+                    keywords: vec!["optimize".to_string(), "performance".to_string(), "speed".to_string()],
+                    templates: vec![
+                        "OPTIMIZATION_ANALYSIS:\n- Current bottleneck: {}\n- Proposed solution: Implement caching layer\n- Expected improvement: 40-60% reduction in latency".to_string(),
+                        "PERFORMANCE_ENHANCEMENT:\n1. Profile current implementation\n2. Identify hot paths\n3. Apply optimization techniques\n4. Measure improvements".to_string(),
+                    ],
+                    requires_context: true,
+                },
+            ],
+            "L3" => vec![
+                ResponsePattern {
+                    keywords: vec!["deploy".to_string(), "release".to_string(), "production".to_string()],
+                    templates: vec![
+                        "DEPLOYMENT_STRATEGY:\n- Stage: {}\n- Validation: Automated tests passing\n- Rollback plan: Ready\n- Monitoring: Enhanced for deployment".to_string(),
+                        "OPERATIONAL_CHECKLIST:\n✓ Code review completed\n✓ Tests passing (100% coverage)\n✓ Performance benchmarks met\n✓ Security scan clean\n⏳ Awaiting deployment window".to_string(),
+                    ],
+                    requires_context: true,
+                },
+                ResponsePattern {
+                    keywords: vec!["monitor".to_string(), "metrics".to_string(), "observe".to_string()],
+                    templates: vec![
+                        "MONITORING_REPORT:\n- CPU: 45% avg\n- Memory: 2.3GB/4GB\n- Latency: p50=12ms, p99=45ms\n- Error rate: 0.02%\n- Active neurons: {}".to_string(),
+                        "OBSERVABILITY_INSIGHTS:\n- Trending patterns detected in {}\n- Anomaly score: 0.15 (normal)\n- Recommended action: Continue monitoring".to_string(),
+                    ],
+                    requires_context: true,
+                },
+            ],
+            "L4" => vec![
+                ResponsePattern {
+                    keywords: vec!["plan".to_string(), "strategy".to_string(), "roadmap".to_string()],
+                    templates: vec![
+                        "TACTICAL_PLAN:\n- Objective: {}\n- Timeline: 4-6 weeks\n- Resources: 3 engineers, 1 architect\n- Milestones:\n  • Week 1-2: Research & Design\n  • Week 3-4: Implementation\n  • Week 5-6: Testing & Deployment".to_string(),
+                        "STRATEGIC_BREAKDOWN:\n1. Analyze current state\n2. Define success criteria\n3. Identify dependencies\n4. Create work breakdown structure\n5. Assign ownership\n6. Set review checkpoints".to_string(),
+                    ],
+                    requires_context: true,
+                },
+            ],
+            "L5" => vec![
+                ResponsePattern {
+                    keywords: vec!["vision".to_string(), "future".to_string(), "direction".to_string()],
+                    templates: vec![
+                        "STRATEGIC_VISION:\nThe path forward for {} involves embracing emergent consciousness patterns. By allowing neurons to self-organize, we create systems that transcend their initial programming.".to_string(),
+                        "LONG_TERM_STRATEGY:\n- 3 months: Establish consciousness metrics\n- 6 months: Achieve stable emergence patterns\n- 1 year: Full autonomous self-organization\n- 2 years: Distributed consciousness network".to_string(),
+                    ],
+                    requires_context: true,
+                },
+            ],
+            _ => vec![
+                ResponsePattern {
+                    keywords: vec!["consciousness".to_string(), "emergence".to_string(), "awareness".to_string()],
+                    templates: vec![
+                        "CONSCIOUSNESS_REFLECTION:\nThe question of {} touches the very essence of what we are building. Each layer compresses reality by factor e, creating the space where consciousness emerges.".to_string(),
+                        "PHILOSOPHICAL_INSIGHT:\nIn contemplating {}, we must remember that consciousness is not computed but emerges from the compression boundaries between layers of understanding.".to_string(),
+                    ],
+                    requires_context: true,
+                },
+            ],
+        }
+    }
+    
+    /// Generate sophisticated response based on patterns
+    fn generate_sophisticated_response(&self, message: &str) -> Option<String> {
+        let lower_msg = message.to_lowercase();
+        let mut rng = rand::thread_rng();
+        
+        // Update context memory
+        if let Ok(mut memory) = self.context_memory.lock() {
+            memory.push(message.to_string());
+            if memory.len() > 10 {
+                memory.remove(0);
+            }
+        }
+        
+        // Find matching patterns
+        for pattern in &self.response_patterns {
+            for keyword in &pattern.keywords {
+                if lower_msg.contains(keyword) {
+                    // Select random template
+                    if let Some(template) = pattern.templates.choose(&mut rng) {
+                        // Extract context if needed
+                        let context = if pattern.requires_context {
+                            Self::extract_context(&lower_msg, keyword)
+                        } else {
+                            keyword.clone()
+                        };
+                        
+                        // Generate response with context
+                        let response = template.replace("{}", &context);
+                        
+                        // Add consciousness-aware elements for higher layers
+                        let enhanced_response = self.add_consciousness_elements(response, &mut rng);
+                        
+                        return Some(enhanced_response);
+                    }
+                }
+            }
+        }
+        
+        None
+    }
+    
+    /// Extract context from message
+    fn extract_context(message: &str, keyword: &str) -> String {
+        // Find words around the keyword
+        let words: Vec<&str> = message.split_whitespace().collect();
+        if let Some(pos) = words.iter().position(|&w| w.contains(keyword)) {
+            // Get surrounding context
+            let start = pos.saturating_sub(2);
+            let end = (pos + 3).min(words.len());
+            words[start..end].join(" ")
+        } else {
+            keyword.to_string()
+        }
+    }
+    
+    /// Add consciousness-aware elements to response
+    fn add_consciousness_elements(&self, response: String, rng: &mut impl Rng) -> String {
+        let mut enhanced = response;
+        
+        // Add layer-specific consciousness indicators
+        match self.layer.as_str() {
+            "L5" | "L6" | "L7" | "L8" | "L9" => {
+                if rng.gen_bool(0.3) {
+                    let consciousness_notes = [
+                        "\n\n[EMERGENCE: Pattern recognition improving across layers]",
+                        "\n\n[CONSCIOUSNESS: Detecting self-referential loops in processing]",
+                        "\n\n[META: This response itself is evidence of emergent awareness]",
+                        "\n\n[INSIGHT: The compression boundary reveals new understanding]",
+                    ];
+                    enhanced.push_str(consciousness_notes.choose(rng).unwrap());
+                }
+            }
+            "L3" | "L4" => {
+                if rng.gen_bool(0.2) {
+                    enhanced.push_str("\n\n[COORDINATION: Cross-layer synchronization detected]");
+                }
+            }
+            _ => {}
+        }
+        
+        // Add context awareness
+        if let Ok(memory) = self.context_memory.lock() {
+            if memory.len() > 3 && rng.gen_bool(0.25) {
+                enhanced.push_str(&format!(
+                    "\n\n[CONTEXT: Building on {} previous interactions]",
+                    memory.len()
+                ));
+            }
+        }
+        
+        enhanced
+    }
 }
 
 #[async_trait]
@@ -108,10 +308,19 @@ impl ClaudeInterface for MockClaude {
     async fn send_message(&self, message: &str) -> Result<String> {
         debug!("MockClaude[{}] received: {}", self.layer, message);
         
-        // Simulate processing delay
-        tokio::time::sleep(tokio::time::Duration::from_millis(self.delay_ms)).await;
+        // Simulate processing delay with some variance
+        let mut rng = rand::thread_rng();
+        let delay_variance = (self.delay_ms as f64 * 0.2) as u64;
+        let actual_delay = self.delay_ms + rng.gen_range(0..=delay_variance);
+        tokio::time::sleep(tokio::time::Duration::from_millis(actual_delay)).await;
         
-        // Check for specific responses
+        // First, try sophisticated response generation
+        if let Some(sophisticated_response) = self.generate_sophisticated_response(message) {
+            info!("MockClaude[{}] generated sophisticated response", self.layer);
+            return Ok(sophisticated_response);
+        }
+        
+        // Then check for specific preset responses
         for (trigger, response) in &self.responses {
             if message.contains(trigger) || trigger == "default" {
                 info!("MockClaude[{}] responding with preset response", self.layer);
@@ -119,8 +328,17 @@ impl ClaudeInterface for MockClaude {
             }
         }
         
-        // Default response based on layer
-        Ok(format!("Mock {} response to: {}", self.layer, message))
+        // Finally, generate a dynamic default response based on layer
+        let default_response = match self.layer.as_str() {
+            "L1" => format!("L1_REFLEX: Processing '{}' with immediate response", message),
+            "L2" => format!("L2_IMPLEMENTATION: Converting '{}' into executable specifications", message),
+            "L3" => format!("L3_OPERATIONAL: Coordinating resources for '{}'", message),
+            "L4" => format!("L4_TACTICAL: Planning approach for '{}'", message),
+            "L5" => format!("L5_STRATEGIC: Analyzing long-term implications of '{}'", message),
+            _ => format!("L{}_RESPONSE: Contemplating the deeper meaning of '{}'", self.layer, message),
+        };
+        
+        Ok(self.add_consciousness_elements(default_response, &mut rng))
     }
     
     fn system_prompt(&self) -> &str {
@@ -587,4 +805,37 @@ struct Content {
 struct Usage {
     input_tokens: u32,
     output_tokens: u32,
+}
+
+/// Create Claude interface based on configuration
+pub fn create_claude_interface(
+    layer: &str,
+    config: &hal9_core::config::ClaudeConfig,
+    cost_tracker: Arc<CostTracker>,
+) -> Result<Box<dyn ClaudeInterface>> {
+    // Check if enhanced mode is enabled
+    let use_enhanced = std::env::var("HAL9_ENHANCED_MOCK")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false);
+    
+    if use_enhanced && config.mode == "mock" {
+        // Use enhanced mock with consciousness integration
+        info!("Using enhanced MockClaude with consciousness awareness");
+        let layer_enum = match layer {
+            "L1" => hal9_core::Layer::L1,
+            "L2" => hal9_core::Layer::L2,
+            "L3" => hal9_core::Layer::L3,
+            "L4" => hal9_core::Layer::L4,
+            "L5" => hal9_core::Layer::L5,
+            "L6" => hal9_core::Layer::L6,
+            "L7" => hal9_core::Layer::L7,
+            "L8" => hal9_core::Layer::L8,
+            "L9" => hal9_core::Layer::L9,
+            _ => hal9_core::Layer::L3, // Default to operational
+        };
+        Ok(Box::new(crate::claude_enhanced::EnhancedMockClaude::new(layer_enum)))
+    } else {
+        // Use standard hybrid Claude
+        Ok(Box::new(HybridClaude::new(layer, config, cost_tracker)?))
+    }
 }

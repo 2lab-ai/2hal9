@@ -5,7 +5,8 @@ use dashmap::DashMap;
 use std::sync::Arc;
 use std::collections::HashMap;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, warn, instrument};
+use crate::{log_performance, log_structured, logging::neuron_span};
 use chrono::Utc;
 use serde_json::Value;
 use uuid::Uuid;
@@ -435,21 +436,53 @@ impl NeuronInterface for ManagedNeuron {
         self.layer
     }
     
+    #[instrument(skip(self, signal), fields(neuron_id = %self.id, layer = %self.layer, signal_id = %signal.id))]
     async fn process_signal(&self, signal: &NeuronSignal) -> Result<String> {
         let perf_timer = std::time::Instant::now();
+        let span = neuron_span(&self.id, self.layer.as_str(), "process_signal");
+        let _enter = span.enter();
+        
+        info!(
+            target: "neuron.signal",
+            signal_type = ?signal.propagation_type,
+            from_neuron = %signal.from_neuron,
+            strength = signal.payload.activation.strength,
+            "Processing signal"
+        );
         
         // Handle backward propagation signals
         if signal.propagation_type == PropagationType::Backward {
             self.process_backward_signal(signal).await?;
+            let duration = perf_timer.elapsed();
+            log_performance!(
+                "neuron_backward_propagation",
+                duration,
+                true,
+                "neuron_id" => &self.id,
+                "layer" => self.layer.as_str()
+            );
             return Ok("Backward propagation processed".to_string());
         }
         
         // Check circuit breaker first
         if !self.circuit_breaker.allow_request().await {
-            warn!("Circuit breaker open for neuron {}", self.id);
+            warn!(
+                target: "neuron.circuit_breaker",
+                neuron_id = %self.id,
+                "Circuit breaker open - rejecting signal"
+            );
             if let Some(metrics) = &self.metrics {
                 metrics.record_error("circuit_breaker_open");
             }
+            let duration = perf_timer.elapsed();
+            log_performance!(
+                "neuron_signal_processing",
+                duration,
+                false,
+                "neuron_id" => &self.id,
+                "layer" => self.layer.as_str(),
+                "error" => "circuit_breaker_open"
+            );
             return Err(Error::CircuitBreakerOpen { 
                 service: format!("neuron-{}", self.id) 
             });
@@ -484,7 +517,12 @@ impl NeuronInterface for ManagedNeuron {
         
         if let Some(cache) = &self.response_cache {
             if let Some(cached_response) = cache.get(&cache_key) {
-                debug!("Neuron {} using cached response", self.id);
+                debug!(
+                    target: "neuron.cache",
+                    neuron_id = %self.id,
+                    cache_key = %cache_key,
+                    "Using cached response"
+                );
                 
                 // Fast path for cached responses - minimal overhead
                 let duration = start_time.elapsed();
@@ -495,11 +533,24 @@ impl NeuronInterface for ManagedNeuron {
                 
                 *self.state.write().await = NeuronState::Running;
                 self.performance_monitor.record("cache_hit", duration);
+                log_performance!(
+                    "neuron_signal_processing",
+                    duration,
+                    true,
+                    "neuron_id" => &self.id,
+                    "layer" => self.layer.as_str(),
+                    "cache_hit" => true
+                );
                 return Ok(cached_response);
             }
         }
         
-        debug!("Neuron {} processing signal: {}", self.id, signal.signal_id);
+        debug!(
+            target: "neuron.processing",
+            neuron_id = %self.id,
+            signal_id = %signal.signal_id,
+            "Processing signal without cache"
+        );
         
         // Process the signal, potentially using tools
         let mut full_response = String::new();
@@ -509,7 +560,12 @@ impl NeuronInterface for ManagedNeuron {
         loop {
             iterations += 1;
             if iterations > 5 {
-                warn!("Neuron {} exceeded max tool iterations", self.id);
+                warn!(
+                    target: "neuron.tool_loop",
+                    neuron_id = %self.id,
+                    iterations = iterations,
+                    "Exceeded max tool iterations"
+                );
                 break;
             }
             
@@ -556,7 +612,21 @@ impl NeuronInterface for ManagedNeuron {
                     // Record failure with circuit breaker
                     self.circuit_breaker.record_failure().await;
                     
-                    error!("Neuron {} timed out after {:?}", self.id, timeout_duration);
+                    error!(
+                        target: "neuron.timeout",
+                        neuron_id = %self.id,
+                        timeout_ms = timeout_duration.as_millis(),
+                        "Request timed out"
+                    );
+                    let duration = perf_timer.elapsed();
+                    log_performance!(
+                        "neuron_signal_processing",
+                        duration,
+                        false,
+                        "neuron_id" => &self.id,
+                        "layer" => self.layer.as_str(),
+                        "error" => "timeout"
+                    );
                     return Err(timeout_err);
                 }
             };
@@ -705,8 +775,27 @@ impl NeuronInterface for ManagedNeuron {
         }
         
         // Record performance
-        self.performance_monitor.record("process_signal", perf_timer.elapsed());
-        self.performance_monitor.record(&format!("layer_{}", self.layer.as_str()), perf_timer.elapsed());
+        let final_duration = perf_timer.elapsed();
+        self.performance_monitor.record("process_signal", final_duration);
+        self.performance_monitor.record(&format!("layer_{}", self.layer.as_str()), final_duration);
+        
+        info!(
+            target: "neuron.signal",
+            neuron_id = %self.id,
+            duration_ms = final_duration.as_millis(),
+            response_length = full_response.len(),
+            "Signal processed successfully"
+        );
+        
+        log_performance!(
+            "neuron_signal_processing",
+            final_duration,
+            true,
+            "neuron_id" => &self.id,
+            "layer" => self.layer.as_str(),
+            "response_length" => full_response.len(),
+            "tool_iterations" => iterations
+        );
         
         Ok(full_response)
     }

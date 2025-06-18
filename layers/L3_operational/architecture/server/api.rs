@@ -10,6 +10,8 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::collections::HashMap;
+use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
 use crate::{
     server::HAL9Server, 
@@ -17,6 +19,7 @@ use crate::{
     auth_middleware::{auth_middleware as auth_mw, AuthState},
     api_auth,
     api_codegen,
+    middleware::logging_middleware,
 };
 use hal9_core::NeuronSignal;
 
@@ -152,6 +155,8 @@ pub fn create_api_router(server: Arc<HAL9Server>) -> Router {
         
         // Add CORS support
         .layer(CorsLayer::permissive())
+        // Add request/response logging
+        .layer(middleware::from_fn(logging_middleware))
         .with_state(server.clone());
     
     // Add authentication routes if enabled
@@ -204,6 +209,15 @@ pub fn create_api_router(server: Arc<HAL9Server>) -> Router {
         .with_state(codegen_state);
     
     router = router.merge(codegen_router);
+    
+    // Add Genius Game routes
+    let genius_state = Arc::new(RwLock::new(crate::genius_game::AppState {
+        games: HashMap::new(),
+        connections: HashMap::new(),
+    }));
+    
+    let genius_router = crate::genius_game::create_genius_game_router(genius_state);
+    router = router.merge(genius_router);
     
     // Add GraphQL endpoints if enabled
     #[cfg(feature = "graphql")]

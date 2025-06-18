@@ -6,6 +6,9 @@ use crate::{Result, NeuronSignal};
 /// Neuron identifier type
 pub type NeuronId = String;
 
+/// Alias for NeuronInterface for backwards compatibility
+pub use NeuronInterface as Neuron;
+
 /// Neural network layers
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Layer {

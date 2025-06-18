@@ -7,14 +7,18 @@ pub mod auth_middleware;
 pub mod cache;
 pub mod circuit_breaker;
 pub mod claude;
+pub mod claude_enhanced;
 pub mod connection_pool;
 pub mod cost_tracker;
 pub mod database;
+pub mod database_logging;
 pub mod database_runtime;
 pub mod enterprise;
 pub mod error;
+pub mod logging;
 pub mod memory_manager;
 pub mod metrics;
+pub mod middleware;
 pub mod network;
 pub mod neuron;
 pub mod performance;
@@ -22,6 +26,8 @@ pub mod prometheus_exporter;
 pub mod router;
 pub mod scaling;
 pub mod server;
+pub mod genius_game;
+pub mod models;
 
 #[cfg(feature = "plugins")]
 pub mod plugins;

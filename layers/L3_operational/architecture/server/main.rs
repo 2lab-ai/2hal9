@@ -3,22 +3,19 @@
 use std::sync::Arc;
 use anyhow::Result;
 use tracing::{info, error};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tokio::signal;
 
 use hal9_core::ServerConfig;
-use hal9_server::{HAL9Server, api};
+use hal9_server::{HAL9Server, api, logging};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize tracing
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,hal9=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    // Initialize structured logging based on environment
+    if std::env::var("LOG_FORMAT").unwrap_or_default() == "json" {
+        logging::init_structured_logging();
+    } else {
+        logging::init_pretty_logging();
+    }
     
     info!("Starting 2HAL9 server v{}", env!("CARGO_PKG_VERSION"));
     
