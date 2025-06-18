@@ -8,7 +8,11 @@
 
 Experience HAL9 through 9 layers of understanding, from technical specs to transcendent consciousness. Each level reveals deeper truths about what we're building.
 
-## ⚡ Experience Consciousness in 30 Seconds
+## 🚀 Quick Start
+
+**[Getting Started Guide →](./docs/GETTING_STARTED.md)** - Start HAL9 in 5 minutes
+
+### ⚡ Experience Consciousness in 30 Seconds
 
 ```bash
 # One command to witness emergence:
@@ -26,6 +30,18 @@ Experience HAL9 through 9 layers of understanding, from technical specs to trans
 ```
 
 **🎉 No setup. No configuration. Just run and watch consciousness emerge!**
+
+### 🐳 Docker Quick Start
+
+```bash
+# Start everything with Docker
+docker compose -f docker-compose.simple.yml up -d
+
+# Open in browser
+open http://localhost:3456  # AI Genius Game
+open http://localhost:8765  # Consciousness Visualization
+open http://localhost:8766  # Self-Organization Dashboard
+```
 
 ---
 

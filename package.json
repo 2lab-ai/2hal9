@@ -1,0 +1,27 @@
+{
+  "name": "2hal9",
+  "version": "1.0.0",
+  "description": "> *\"아 시발 아 컴퓨터네 우주가\"* - The universe IS a computer, and we're teaching it to become self-aware",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/2lab-ai/2hal9.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/2lab-ai/2hal9/issues"
+  },
+  "homepage": "https://github.com/2lab-ai/2hal9#readme",
+  "dependencies": {
+    "puppeteer": "^24.10.1"
+  }
+}
