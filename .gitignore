@@ -62,4 +62,4 @@ Thumbs.db
 target-remote/
 CLAUDE.LOCAL.md
 
-**/node_modules/**
+**/node_modules/***.mp4
