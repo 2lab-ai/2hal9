@@ -25,7 +25,7 @@ pub struct EmergenceEvent {
     pub metadata: HashMap<String, serde_json::Value>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum EmergenceType {
     /// Spontaneous pattern formation
     PatternFormation,

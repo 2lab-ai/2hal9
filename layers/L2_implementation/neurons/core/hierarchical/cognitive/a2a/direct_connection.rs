@@ -28,7 +28,7 @@ pub struct DirectNeuralConnection {
 /// Peer-to-peer neural network without central coordination
 pub struct DirectNeuralNetwork {
     /// All neural units in the network
-    units: Arc<RwLock<HashMap<Uuid, Arc<dyn CognitiveUnit<Input = CognitiveInput, Output = CognitiveOutput, State = crate::hierarchical::cognitive::BasicCognitiveState>>>>>,
+    units: Arc<RwLock<HashMap<Uuid, Arc<RwLock<Box<dyn CognitiveUnit<Input = CognitiveInput, Output = CognitiveOutput, State = crate::hierarchical::cognitive::BasicCognitiveState>>>>>>>,
     
     /// Direct connections between units
     connections: Arc<RwLock<HashMap<Uuid, Vec<DirectNeuralConnection>>>>,
@@ -61,12 +61,12 @@ impl DirectNeuralNetwork {
     }
     
     /// Register a cognitive unit in the network
-    pub async fn register_unit(&self, unit: Arc<dyn CognitiveUnit<Input = CognitiveInput, Output = CognitiveOutput, State = crate::hierarchical::cognitive::BasicCognitiveState>>) -> Result<()> {
+    pub async fn register_unit(&self, unit: Box<dyn CognitiveUnit<Input = CognitiveInput, Output = CognitiveOutput, State = crate::hierarchical::cognitive::BasicCognitiveState>>) -> Result<()> {
         let unit_id = *unit.id();
         let layer = unit.layer();
         
         // Add to network
-        self.units.write().await.insert(unit_id, unit);
+        self.units.write().await.insert(unit_id, Arc::new(RwLock::new(unit)));
         
         // Announce presence for discovery
         let discovery = DiscoveryMessage {
@@ -85,18 +85,18 @@ impl DirectNeuralNetwork {
     pub async fn connect_units(&self, source: Uuid, target: Uuid, initial_strength: f32) -> Result<()> {
         // Validate ±1 rule
         let units = self.units.read().await;
-        let source_unit = units.get(&source).ok_or("Source unit not found")?;
-        let target_unit = units.get(&target).ok_or("Target unit not found")?;
+        let source_unit = units.get(&source).ok_or_else(|| crate::Error::NotFound("Source unit not found".to_string()))?;
+        let target_unit = units.get(&target).ok_or_else(|| crate::Error::NotFound("Target unit not found".to_string()))?;
         
-        let source_layer = source_unit.layer().depth() as i32;
-        let target_layer = target_unit.layer().depth() as i32;
+        let source_layer = source_unit.read().await.layer().depth() as i32;
+        let target_layer = target_unit.read().await.layer().depth() as i32;
         
         if (source_layer - target_layer).abs() > 1 {
-            return Err(format!(
+            return Err(crate::Error::InvalidInput(format!(
                 "Connection violates ±1 rule: {} -> {}",
-                source_unit.layer().name(),
-                target_unit.layer().name()
-            ).into());
+                source_unit.read().await.layer().name(),
+                target_unit.read().await.layer().name()
+            )));
         }
         
         // Create connection
@@ -124,7 +124,7 @@ impl DirectNeuralNetwork {
         let units = self.units.read().await;
         let connections = self.connections.read().await;
         
-        let source_unit = units.get(&source).ok_or("Source unit not found")?;
+        let source_unit = units.get(&source).ok_or_else(|| crate::Error::NotFound("Source unit not found".to_string()))?;
         let source_connections = connections.get(&source).cloned().unwrap_or_default();
         
         let mut outputs = Vec::new();
@@ -140,10 +140,12 @@ impl DirectNeuralNetwork {
                     );
                     
                     // Process through target unit
-                    match Arc::clone(target_unit).process(modified_input).await {
+                    let mut target_guard = target_unit.write().await;
+                    match target_guard.process(modified_input).await {
                         Ok(output) => outputs.push(output),
                         Err(e) => tracing::warn!("Propagation error: {}", e),
                     }
+                    drop(target_guard);
                 }
             }
         }
@@ -223,8 +225,8 @@ impl DirectNeuralNetwork {
         // For now, simulate based on layer proximity and random factor
         let units = self.units.read().await;
         if let (Some(u1), Some(u2)) = (units.get(&unit1), units.get(&unit2)) {
-            let layer1 = u1.layer();
-            let layer2 = u2.layer();
+            let layer1 = u1.read().await.layer();
+            let layer2 = u2.read().await.layer();
             
             let layer_diff = (layer1.depth() as i32 - layer2.depth() as i32).abs();
             let base_correlation = match layer_diff {
@@ -243,7 +245,7 @@ impl DirectNeuralNetwork {
     /// Discover potential new connections based on activity
     async fn discover_new_connections(
         &self,
-        units: &HashMap<Uuid, Arc<dyn CognitiveUnit<Input = CognitiveInput, Output = CognitiveOutput, State = crate::hierarchical::cognitive::BasicCognitiveState>>>,
+        units: &HashMap<Uuid, Arc<RwLock<Box<dyn CognitiveUnit<Input = CognitiveInput, Output = CognitiveOutput, State = crate::hierarchical::cognitive::BasicCognitiveState>>>>>,
         correlations: &HashMap<(Uuid, Uuid), f32>
     ) -> Vec<(Uuid, Uuid, f32)> {
         let mut new_connections = Vec::new();
@@ -266,7 +268,7 @@ impl DirectNeuralNetwork {
                 
                 if correlation > 0.7 {
                     if let (Some(u1), Some(u2)) = (units.get(unit1), units.get(unit2)) {
-                        let layer_diff = (u1.layer().depth() as i32 - u2.layer().depth() as i32).abs();
+                        let layer_diff = (u1.read().await.layer().depth() as i32 - u2.read().await.layer().depth() as i32).abs();
                         if layer_diff <= 1 {
                             new_connections.push((*unit1, *unit2, correlation));
                         }
@@ -342,11 +344,11 @@ impl DirectNeuralNetwork {
         let mut cross_layer_connections = 0;
         for (source, unit_connections) in connections.iter() {
             if let Some(source_unit) = units.get(source) {
-                let source_layer = source_unit.layer().depth();
+                let source_layer = source_unit.read().await.layer().depth();
                 
                 for connection in unit_connections {
                     if let Some(target_unit) = units.get(&connection.target_unit) {
-                        if source_layer != target_unit.layer().depth() {
+                        if source_layer != target_unit.read().await.layer().depth() {
                             cross_layer_connections += 1;
                         }
                     }
@@ -383,7 +385,7 @@ impl DirectNeuralNetwork {
         // Group units by layer
         let mut layers: HashMap<u8, Vec<Uuid>> = HashMap::new();
         for (id, unit) in units.iter() {
-            layers.entry(unit.layer().depth()).or_insert_with(Vec::new).push(*id);
+            layers.entry(unit.read().await.layer().depth()).or_insert_with(Vec::new).push(*id);
         }
         
         // Draw units grouped by layer
@@ -396,7 +398,7 @@ impl DirectNeuralNetwork {
                     dot.push_str(&format!(
                         "    \"{}\" [label=\"{}\"];\n",
                         id,
-                        unit.layer().name().chars().next().unwrap()
+                        unit.read().await.layer().name().chars().next().unwrap()
                     ));
                 }
             }
@@ -532,32 +534,36 @@ mod tests {
         let (network, _rx) = DirectNeuralNetwork::new();
         
         // Create units at different layers
-        let l1_unit = Arc::new(MockUnit {
-            id: Uuid::new_v4(),
+        let l1_id = Uuid::new_v4();
+        let l2_id = Uuid::new_v4();
+        let l3_id = Uuid::new_v4();
+        
+        let l1_unit = Box::new(MockUnit {
+            id: l1_id,
             layer: CognitiveLayer::Reflexive,
         });
         
-        let l2_unit = Arc::new(MockUnit {
-            id: Uuid::new_v4(),
+        let l2_unit = Box::new(MockUnit {
+            id: l2_id,
             layer: CognitiveLayer::Implementation,
         });
         
-        let l3_unit = Arc::new(MockUnit {
-            id: Uuid::new_v4(),
+        let l3_unit = Box::new(MockUnit {
+            id: l3_id,
             layer: CognitiveLayer::Operational,
         });
         
         // Register units
-        network.register_unit(l1_unit.clone()).await.unwrap();
-        network.register_unit(l2_unit.clone()).await.unwrap();
-        network.register_unit(l3_unit.clone()).await.unwrap();
+        network.register_unit(l1_unit).await.unwrap();
+        network.register_unit(l2_unit).await.unwrap();
+        network.register_unit(l3_unit).await.unwrap();
         
         // Connect adjacent layers (should succeed)
-        network.connect_units(*l1_unit.id(), *l2_unit.id(), 0.5).await.unwrap();
-        network.connect_units(*l2_unit.id(), *l3_unit.id(), 0.7).await.unwrap();
+        network.connect_units(l1_id, l2_id, 0.5).await.unwrap();
+        network.connect_units(l2_id, l3_id, 0.7).await.unwrap();
         
         // Try to connect non-adjacent layers (should fail)
-        let result = network.connect_units(*l1_unit.id(), *l3_unit.id(), 0.5).await;
+        let result = network.connect_units(l1_id, l3_id, 0.5).await;
         assert!(result.is_err());
         
         // Test signal propagation
@@ -567,7 +573,7 @@ mod tests {
             source_layer: Some(CognitiveLayer::Reflexive),
         };
         
-        let outputs = network.propagate_signal(*l1_unit.id(), input).await.unwrap();
+        let outputs = network.propagate_signal(l1_id, input).await.unwrap();
         assert_eq!(outputs.len(), 1);
         assert_eq!(outputs[0].content, "Processed: Test signal");
         

@@ -127,7 +127,7 @@ impl SignalPool {
     /// Create a new signal pool
     pub fn new(capacity: usize) -> Self {
         Self {
-            pool: NeuronPool::new(capacity, Signal::default),
+            pool: NeuronPool::new(capacity, || Signal::default()),
         }
     }
     

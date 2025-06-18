@@ -1,0 +1,46 @@
+# 2HAL9 Minimal Production Docker Image
+# Ultra-lightweight image using distroless base
+
+# ===== Build Stage =====
+FROM rust:1.75-alpine AS builder
+
+# Install minimal build dependencies
+RUN apk add --no-cache musl-dev
+
+WORKDIR /build
+
+# Copy workspace files
+COPY substrate/tooling/rust/workspace.toml ./Cargo.toml
+COPY substrate/tooling/rust/workspace.lock ./Cargo.lock
+
+# Copy server Cargo.toml only
+COPY layers/L2_implementation/neurons/core/Cargo.toml ./layers/L2_implementation/neurons/core/
+COPY layers/L3_operational/architecture/server/Cargo.toml ./layers/L3_operational/architecture/server/
+
+# Build with minimal features
+COPY layers/ ./layers/
+RUN cargo build --release \
+    --package hal9-server \
+    --no-default-features \
+    --features "production,minimal" \
+    && strip target/release/hal9-server
+
+# ===== Runtime Stage =====
+FROM gcr.io/distroless/cc-debian12
+
+# Copy binary
+COPY --from=builder /build/target/release/hal9-server /hal9-server
+
+# Environment
+ENV RUST_LOG=warn,hal9=info
+ENV RUST_BACKTRACE=0
+
+# Expose only HTTP port
+EXPOSE 8080
+
+# Non-root user (distroless includes nobody:65534)
+USER nobody
+
+# Run server
+ENTRYPOINT ["/hal9-server"]
+CMD ["--minimal"]

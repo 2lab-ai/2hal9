@@ -14,7 +14,8 @@ use crate::hierarchical::cognitive::{
     CognitiveLayer, CognitiveUnit, CognitiveInput, CognitiveOutput,
     BasicCognitiveState, CognitiveConfig, StateMetrics, LearningGradient,
 };
-use crate::hierarchical::cognitive::a2a::{DirectNeuralConnection, A2AProtocol};
+use super::direct_connection::DirectNeuralConnection;
+use super::protocol::A2AProtocol;
 use crate::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -178,7 +179,7 @@ impl SelfReorganizingNetwork {
     /// Autonomously connect a new unit based on compatibility
     async fn auto_connect_unit(&self, new_unit_id: Uuid) -> Result<()> {
         let units = self.units.read().await;
-        let new_unit = units.get(&new_unit_id).ok_or("Unit not found")?;
+        let new_unit = units.get(&new_unit_id).ok_or_else(|| crate::Error::NotFound("Unit not found".to_string()))?;
         let new_layer = new_unit.read().await.layer();
         
         let mut connection_candidates = Vec::new();
@@ -270,7 +271,7 @@ impl SelfReorganizingNetwork {
         
         // Get source unit
         let units = self.units.read().await;
-        let source_unit = units.get(&source_unit_id).ok_or("Source unit not found")?;
+        let source_unit = units.get(&source_unit_id).ok_or_else(|| crate::Error::NotFound("Source unit not found".to_string()))?;
         
         // Process through source unit
         let mut source_unit_mut = source_unit.write().await;

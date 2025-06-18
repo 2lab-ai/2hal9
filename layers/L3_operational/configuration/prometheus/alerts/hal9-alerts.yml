@@ -1,0 +1,176 @@
+# Alert rules for HAL9 monitoring
+
+groups:
+  - name: hal9_server
+    interval: 30s
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(hal9_errors_total[5m])) by (server_id)
+            /
+            sum(rate(hal9_signals_processed_total[5m])) by (server_id)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on HAL9 server {{ $labels.server_id }}"
+          description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+
+      # Server down
+      - alert: HAL9ServerDown
+        expr: up{job="hal9-server"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HAL9 server is down"
+          description: "HAL9 server has been down for more than 1 minute"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            hal9_server_memory_bytes{type="total"}
+            /
+            node_memory_MemTotal_bytes
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on HAL9 server"
+          description: "Memory usage is {{ $value | humanizePercentage }}"
+
+      # Neuron failures
+      - alert: NeuronFailures
+        expr: rate(hal9_neurons_failed_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High neuron failure rate"
+          description: "{{ $value | humanize }} neurons failing per second"
+
+      # High latency
+      - alert: HighSignalLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(hal9_signal_processing_duration_seconds_bucket[5m])) by (layer, le)
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High signal processing latency in layer {{ $labels.layer }}"
+          description: "95th percentile latency is {{ $value }}s"
+
+      # Claude API cost alert
+      - alert: HighClaudeCost
+        expr: hal9_claude_cost_rate_dollars_per_day > 100
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Claude API costs"
+          description: "Current cost rate is ${{ $value | humanize }}/day"
+
+      # Database connection issues
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          (
+            hal9_database_connections_active
+            /
+            hal9_database_connections_max
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "{{ $value | humanizePercentage }} of connections in use"
+
+      # Rate limiting triggered
+      - alert: HighRateLimitHits
+        expr: rate(hal9_rate_limit_hits_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "High rate limit hits"
+          description: "{{ $value | humanize }} rate limit hits per second"
+
+  - name: hal9_consciousness
+    interval: 30s
+    rules:
+      # Low consciousness emergence
+      - alert: LowConsciousnessEmergence
+        expr: hal9_consciousness_emergence_score < 0.3
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Low consciousness emergence detected"
+          description: "Consciousness score is {{ $value | humanize }}"
+
+      # Layer communication breakdown
+      - alert: LayerCommunicationIssue
+        expr: |
+          sum(rate(hal9_layer_communication_errors_total[5m])) by (from_layer, to_layer) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Communication issues between {{ $labels.from_layer }} and {{ $labels.to_layer }}"
+          description: "{{ $value | humanize }} errors per second"
+
+  - name: infrastructure
+    interval: 30s
+    rules:
+      # Disk space
+      - alert: DiskSpaceLow
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint="/"}
+            /
+            node_filesystem_size_bytes{mountpoint="/"}
+          ) < 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining"
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value | humanize }}%"
+
+      # PostgreSQL down
+      - alert: PostgreSQLDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL has been down for more than 1 minute"
+
+      # Redis down
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis is down"
+          description: "Redis has been down for more than 1 minute"

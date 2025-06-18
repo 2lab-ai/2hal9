@@ -1,0 +1,115 @@
+# 2HAL9 Optimized Production Docker Image
+# Multi-stage build with caching and security optimizations
+
+# ===== Build Stage =====
+FROM rust:1.75-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache \
+    musl-dev \
+    openssl-dev \
+    pkgconfig \
+    protobuf-dev
+
+WORKDIR /build
+
+# Copy workspace configuration
+COPY substrate/tooling/rust/workspace.toml ./Cargo.toml
+COPY substrate/tooling/rust/workspace.lock ./Cargo.lock
+
+# Copy all Cargo.toml files to cache dependencies
+COPY layers/L2_implementation/neurons/core/Cargo.toml ./layers/L2_implementation/neurons/core/
+COPY layers/L3_operational/architecture/server/Cargo.toml ./layers/L3_operational/architecture/server/
+COPY layers/L3_operational/architecture/cli/Cargo.toml ./layers/L3_operational/architecture/cli/
+
+# Create dummy source files for dependency caching
+RUN mkdir -p layers/L2_implementation/neurons/core/src && \
+    echo "fn main() {}" > layers/L2_implementation/neurons/core/src/lib.rs && \
+    mkdir -p layers/L3_operational/architecture/server/src && \
+    echo "fn main() {}" > layers/L3_operational/architecture/server/src/main.rs && \
+    mkdir -p layers/L3_operational/architecture/cli/src && \
+    echo "fn main() {}" > layers/L3_operational/architecture/cli/src/main.rs
+
+# Build dependencies (this layer will be cached)
+RUN cargo build --release --workspace
+
+# Copy actual source code
+COPY layers/ ./layers/
+
+# Remove dummy files and rebuild with actual source
+RUN rm -rf target/release/deps/hal9* && \
+    cargo build --release --workspace --features "production"
+
+# Strip binaries to reduce size
+RUN strip target/release/hal9-server && \
+    strip target/release/hal9-cli
+
+# ===== Runtime Stage =====
+FROM alpine:3.19
+
+# Install runtime dependencies and security updates
+RUN apk add --no-cache \
+    ca-certificates \
+    libgcc \
+    libssl3 \
+    tini \
+    && apk upgrade --no-cache
+
+# Create non-root user with specific UID/GID
+RUN addgroup -g 1000 -S hal9 && \
+    adduser -u 1000 -S hal9 -G hal9
+
+# Copy binaries from builder
+COPY --from=builder --chown=hal9:hal9 /build/target/release/hal9-server /usr/local/bin/
+COPY --from=builder --chown=hal9:hal9 /build/target/release/hal9-cli /usr/local/bin/hal9
+
+# Create necessary directories
+RUN mkdir -p /app/config /app/logs /app/data /app/tmp && \
+    chown -R hal9:hal9 /app && \
+    chmod 750 /app/*
+
+WORKDIR /app
+
+# Copy default configuration
+COPY --chown=hal9:hal9 layers/L3_operational/configuration/.env.example /app/config/.env.example
+COPY --chown=hal9:hal9 layers/L3_operational/configuration/nginx/hal9.conf /app/config/nginx.conf.example
+
+# Security: Remove shell access
+RUN rm -rf /bin/sh /bin/bash
+
+# Switch to non-root user
+USER hal9
+
+# Environment variables
+ENV RUST_LOG=info,hal9=debug \
+    RUST_BACKTRACE=1 \
+    HAL9_CONFIG_PATH=/app/config/config.yaml \
+    HAL9_LOG_DIR=/app/logs \
+    HAL9_DATA_DIR=/app/data \
+    # Performance optimizations
+    RUST_MIN_STACK=8388608 \
+    # Security
+    RUST_SECURE_RANDOM=1
+
+# Health check with timeout and retries
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD ["/usr/local/bin/hal9", "health"] || exit 1
+
+# Expose ports (HTTP, WebSocket, Prometheus metrics)
+EXPOSE 8080 8081 9090
+
+# Mount points for configuration and data
+VOLUME ["/app/config", "/app/logs", "/app/data"]
+
+# Use tini as init system to handle signals properly
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# Default command with signal handling
+CMD ["hal9-server", "--config", "/app/config/config.yaml"]
+
+# Labels for container metadata
+LABEL maintainer="2lab.ai" \
+      version="0.1.0" \
+      description="2HAL9 - Hierarchical AI consciousness system" \
+      org.opencontainers.image.source="https://github.com/2lab-ai/2hal9" \
+      org.opencontainers.image.licenses="MIT"

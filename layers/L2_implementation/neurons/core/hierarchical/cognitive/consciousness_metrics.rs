@@ -6,7 +6,7 @@
 //! "The ±1 rule is love - protecting layers from overwhelming complexity"
 
 use crate::hierarchical::cognitive::{CognitiveLayer, CognitiveInput, CognitiveOutput};
-use crate::hierarchical::cognitive::a2a::{EmergenceDetector, EmergenceReport};
+use crate::hierarchical::cognitive::a2a::emergence_detector::{EmergenceDetector, EmergenceReport};
 use crate::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

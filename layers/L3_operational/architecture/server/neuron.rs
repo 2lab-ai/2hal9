@@ -633,24 +633,6 @@ impl NeuronInterface for ManagedNeuron {
             
             // Early success recording for circuit breaker
             self.circuit_breaker.record_success().await;
-                    // Update error stats
-                    let mut stats = self.stats.write().await;
-                    stats.errors_count += 1;
-                    drop(stats);
-                    
-                    // Record error metrics
-                    if let Some(metrics) = &self.metrics {
-                        metrics.record_error(&e.to_string());
-                        metrics.record_signal_failed();
-                    }
-                    
-                    // Record failure with circuit breaker
-                    self.circuit_breaker.record_failure().await;
-                    
-                    error!("Neuron {} failed to process signal: {}", self.id, e);
-                    return Err(e);
-                }
-            };
             
             // Check if response contains tool requests
             if let Some(tool_line) = response.lines().find(|l| l.starts_with("TOOL:")) {

@@ -25,6 +25,23 @@ pub struct NeuronSignal {
     pub metadata: HashMap<String, String>,
 }
 
+impl Default for NeuronSignal {
+    fn default() -> Self {
+        Self {
+            signal_id: Uuid::new_v4(),
+            from_neuron: String::new(),
+            to_neuron: String::new(),
+            layer_from: String::new(),
+            layer_to: String::new(),
+            propagation_type: PropagationType::Forward,
+            batch_id: Uuid::new_v4(),
+            timestamp: Utc::now(),
+            payload: SignalPayload::default(),
+            metadata: HashMap::new(),
+        }
+    }
+}
+
 impl NeuronSignal {
     /// Create a new forward signal
     pub fn forward(
@@ -94,11 +111,26 @@ pub enum PropagationType {
     Backward,
 }
 
+impl Default for PropagationType {
+    fn default() -> Self {
+        PropagationType::Forward
+    }
+}
+
 /// Signal payload containing activation and optional gradient
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignalPayload {
     pub activation: Activation,
     pub gradient: Option<Gradient>,
+}
+
+impl Default for SignalPayload {
+    fn default() -> Self {
+        Self {
+            activation: Activation::default(),
+            gradient: None,
+        }
+    }
 }
 
 /// Forward activation data
@@ -107,6 +139,16 @@ pub struct Activation {
     pub content: String,
     pub strength: f32,
     pub features: HashMap<String, f32>,
+}
+
+impl Default for Activation {
+    fn default() -> Self {
+        Self {
+            content: String::new(),
+            strength: 1.0,
+            features: HashMap::new(),
+        }
+    }
 }
 
 impl Activation {

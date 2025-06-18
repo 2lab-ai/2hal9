@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
+use petgraph::algo;
 use crate::Result;
 use super::*;
 
@@ -253,7 +254,7 @@ impl TopologyManager for GraphTopology {
             .ok_or_else(|| crate::Error::NotFound(format!("Node {} not found", to)))?;
             
         // Use Dijkstra's algorithm
-        let path = petgraph::algo::dijkstra(&self.graph, *from_idx, Some(*to_idx), |_| 1);
+        let path = algo::dijkstra(&self.graph, *from_idx, Some(*to_idx), |_| 1);
         
         if path.contains_key(to_idx) {
             // Reconstruct path

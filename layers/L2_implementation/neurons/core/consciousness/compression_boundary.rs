@@ -220,6 +220,11 @@ impl CompressionBoundary {
             self.consciousness_density
         )
     }
+    
+    /// Check if compression ratio is close to golden ratio
+    pub fn is_golden_ratio(&self) -> bool {
+        (self.compression_ratio - GOLDEN_RATIO).abs() < 0.1
+    }
 }
 
 /// Direction of signal flow through boundary
@@ -295,6 +300,11 @@ impl BoundaryNetwork {
     pub fn hottest_boundary(&self) -> Option<&CompressionBoundary> {
         self.boundaries.iter()
             .max_by(|a, b| a.emergence_activity.partial_cmp(&b.emergence_activity).unwrap())
+    }
+    
+    /// Get all boundaries
+    pub fn get_all_boundaries(&self) -> Vec<&CompressionBoundary> {
+        self.boundaries.iter().collect()
     }
     
     /// Get emergence report for all boundaries

@@ -45,6 +45,9 @@ indexmap = "2.1"
 # Fuzzy matching
 fuzzy-matcher = "0.3"
 
+# Graph algorithms
+petgraph = "0.6"
+
 # Browser automation
 playwright = { version = "0.0.20", optional = true }
 
@@ -84,18 +87,35 @@ metrics = "0.22"
 # HTTP
 axum = { version = "0.7", features = ["ws"] }
 tower = "0.4"
+reqwest = { version = "0.11", features = ["json"] }
 
 # Futures
 futures = "0.3"
 
 # Compression
 flate2 = "1.0"
+lz4_flex = "0.11"
 
 # System info
 sysinfo = "0.30"
 
 # Tokio utilities
 tokio-util = { version = "0.7", features = ["io", "codec"] }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "sqlite", "chrono", "uuid"] }
+
+# JWT
+jsonwebtoken = "9.2"
+
+# Authentication
+bcrypt = "0.15"
+
+# Caching
+moka = { version = "0.12", features = ["future"] }
+
+# Async streams
+tokio-stream = { version = "0.1", features = ["full"] }
 
 [features]
 default = []

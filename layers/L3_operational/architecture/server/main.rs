@@ -6,7 +6,11 @@ use tracing::{info, error};
 use tokio::signal;
 
 use hal9_core::ServerConfig;
-use hal9_server::{HAL9Server, api, logging};
+
+// For binaries in the same crate, we need to use the library crate name
+extern crate hal9_server;
+
+use hal9_server::{HAL9Server, api, logging, error_recovery};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -16,6 +20,9 @@ async fn main() -> Result<()> {
     } else {
         logging::init_pretty_logging();
     }
+    
+    // Setup panic handler for better error reporting
+    error_recovery::setup_panic_handler();
     
     info!("Starting 2HAL9 server v{}", env!("CARGO_PKG_VERSION"));
     
@@ -171,6 +178,7 @@ fn create_default_config() -> ServerConfig {
         memory: Default::default(),
         backward_propagation: Default::default(),
         auth: Default::default(),
+        browser: None,
     }
 }
 

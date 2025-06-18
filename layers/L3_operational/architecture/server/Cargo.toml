@@ -3,6 +3,10 @@ name = "hal9-server"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "hal9_server"
+path = "lib.rs"
+
 [[bin]]
 name = "hal9-server"
 path = "main.rs"
@@ -77,6 +81,18 @@ regex = "1.10"
 
 # HTML templating (for genius game)
 askama = "0.12"
+
+# System info
+sysinfo = "0.30"
+
+# Filesystem utilities
+fs2 = "0.4"
+
+# HTTP body utilities
+http-body-util = "0.1"
+
+# Concurrency
+parking_lot = "0.12"
 
 [dev-dependencies]
 criterion = "0.5"

@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 use std::collections::HashMap;
-use hal9_neurons_core::{
+use hal9_core::{
     consciousness::{ConsciousnessMonitor, BoundaryNetwork, ConsciousnessPhase},
     hierarchical::HierarchicalNeuron,
     Layer, Neuron, NeuronId,

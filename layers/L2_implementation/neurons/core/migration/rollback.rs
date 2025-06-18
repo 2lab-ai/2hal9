@@ -5,7 +5,7 @@ use parking_lot::RwLock;
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 use crate::{Result, Error};
-use sysinfo::{System, SystemExt, ProcessExt};
+use sysinfo::System;
 use reqwest;
 
 /// Rollback strategy options
@@ -199,13 +199,13 @@ impl RollbackManager {
     
     async fn capture_system_state(&self) -> Result<SystemState> {
         // Capture actual system state from metrics
-        use sysinfo::{System, SystemExt, ProcessExt};
+        use sysinfo::System;
         
         let mut sys = System::new_all();
         sys.refresh_all();
         
         // Get memory usage
-        let memory_usage_mb = (sys.used_memory() / 1024) as u64;
+        let memory_usage_mb = (sys.used_memory() / 1024 / 1024) as u64;
         
         // Get CPU usage
         let cpu_usage_percent = sys.global_cpu_info().cpu_usage();
@@ -456,11 +456,6 @@ impl RollbackManager {
         Ok(())
     }
     
-    async fn restore_partial_state(&self, state: &SystemState, component: &str) -> Result<()> {
-        // TODO: Implement partial state restoration
-        tracing::info!("Restoring partial state for component: {}", component);
-        Ok(())
-    }
     
     async fn verify_system_health(&self) -> Result<()> {
         tracing::info!("Verifying system health after rollback");
@@ -515,9 +510,8 @@ impl RollbackManager {
         }
         
         // Check system resources
-        use sysinfo::{System, SystemExt};
         let mut sys = System::new_all();
-        sys.refresh_all();
+        sys.refresh_memory();
         
         let memory_percent = (sys.used_memory() as f64 / sys.total_memory() as f64) * 100.0;
         if memory_percent > 90.0 {
@@ -635,9 +629,9 @@ impl RollbackManager {
     async fn count_active_neurons(&self) -> Result<usize> {
         // In production, query the neuron registry
         // For now, estimate based on process count
-        use sysinfo::{System, SystemExt, ProcessExt};
+        use sysinfo::System;
         
-        let mut sys = System::new_all();
+        let mut sys = System::new();
         sys.refresh_processes();
         
         let neuron_count = sys.processes().values()

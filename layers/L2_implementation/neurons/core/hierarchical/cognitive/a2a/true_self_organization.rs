@@ -247,7 +247,7 @@ impl TrueSelfOrganizingNetwork {
     /// Start discovery phase for a neuron
     pub async fn start_discovery(&self, neuron_id: Uuid) -> Result<()> {
         let neurons = self.neurons.read().await;
-        let neuron_arc = neurons.get(&neuron_id).ok_or("Neuron not found")?;
+        let neuron_arc = neurons.get(&neuron_id).ok_or_else(|| crate::Error::NotFound("Neuron not found".to_string()))?;
         let neuron = neuron_arc.read().await;
         
         // Create discovery message

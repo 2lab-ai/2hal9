@@ -14,7 +14,9 @@ pub mod self_reorganization;
 pub mod true_self_organization;
 
 pub use protocol::{A2AProtocol, A2AAgent, AgentMessage, AgentCapability, L9PhilosophyAgent};
+pub use direct_connection::{DirectNeuralConnection, DirectNeuralNetwork, DiscoveryMessage};
+pub use emergence_detector::{EmergenceDetector, EmergenceReport, EmergenceEvent as DetectorEmergenceEvent, EmergenceType};
 pub use self_reorganization::{SelfReorganizingNetwork, ReorganizationEvent, ReorganizationReport};
 pub use true_self_organization::{
-    TrueSelfOrganizingNetwork, PrimordialNeuron, EmergenceEvent, EmergenceReport
+    TrueSelfOrganizingNetwork, PrimordialNeuron, EmergenceEvent, EmergenceReport as SelfOrgEmergenceReport
 };

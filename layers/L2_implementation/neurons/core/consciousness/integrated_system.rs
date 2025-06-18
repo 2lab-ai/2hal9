@@ -9,7 +9,6 @@ use chrono::{DateTime, Utc};
 
 use crate::{
     consciousness::{ConsciousnessMonitor, ConsciousnessMetrics, ConsciousnessPhase, BoundaryNetwork},
-    hierarchical::HierarchicalNeuron,
     Layer, Neuron, NeuronId,
 };
 

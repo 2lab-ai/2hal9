@@ -20,6 +20,9 @@ use crate::{
     api_auth,
     api_codegen,
     middleware::logging_middleware,
+    rate_limiter::{RateLimiter, RateLimitConfig, rate_limit_middleware},
+    health::{health_check_simple, health_check_detailed, liveness_probe, readiness_probe},
+    error_recovery::{error_recovery_middleware, ErrorStore, setup_panic_handler},
 };
 use hal9_core::NeuronSignal;
 
@@ -126,9 +129,38 @@ pub enum WsMessage {
 
 /// Create the HTTP API router
 pub fn create_api_router(server: Arc<HAL9Server>) -> Router {
+    // Create rate limiter
+    let rate_limiter_config = RateLimitConfig {
+        max_requests: std::env::var("RATE_LIMIT_MAX_REQUESTS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(60),
+        window_duration: std::time::Duration::from_secs(
+            std::env::var("RATE_LIMIT_WINDOW_SECONDS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(60)
+        ),
+        enabled: std::env::var("RATE_LIMIT_ENABLED")
+            .map(|s| s.to_lowercase() == "true")
+            .unwrap_or(true),
+        burst_size: std::env::var("RATE_LIMIT_BURST_SIZE")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(10),
+    };
+    
+    let rate_limiter = Arc::new(RateLimiter::new(rate_limiter_config));
+    
+    // Create error store for debugging
+    let error_store = Arc::new(ErrorStore::new(1000));
+    
     let mut router = Router::new()
-        // Health check (no auth)
-        .route("/health", get(health_check))
+        // Health check endpoints (no auth)
+        .route("/health", get(health_check_simple))
+        .route("/health/detailed", get(health_check_detailed))
+        .route("/livez", get(liveness_probe))
+        .route("/readyz", get(readiness_probe))
         
         // Core endpoints
         .route("/api/v1/status", get(get_status))
@@ -153,8 +185,18 @@ pub fn create_api_router(server: Arc<HAL9Server>) -> Router {
         // WebSocket endpoint for real-time updates
         .route("/api/v1/ws", get(websocket_handler))
         
+        // Error debugging endpoints (admin only)
+        .route("/api/v1/errors/recent", get(get_recent_errors))
+        .route("/api/v1/errors/:id", get(get_error_details))
+        
         // Add CORS support
         .layer(CorsLayer::permissive())
+        // Add rate limiting as extension
+        .layer(axum::Extension(rate_limiter))
+        // Add error store
+        .layer(axum::Extension(error_store.clone()))
+        // Add error recovery middleware
+        .layer(middleware::from_fn(error_recovery_middleware))
         // Add request/response logging
         .layer(middleware::from_fn(logging_middleware))
         .with_state(server.clone());
@@ -247,14 +289,6 @@ pub fn create_api_router(server: Arc<HAL9Server>) -> Router {
 }
 
 // Handler implementations
-
-async fn health_check() -> impl IntoResponse {
-    Json(serde_json::json!({
-        "status": "healthy",
-        "service": "hal9-server",
-        "version": env!("CARGO_PKG_VERSION"),
-    }))
-}
 
 async fn get_status(
     State(server): State<Arc<HAL9Server>>,
@@ -496,6 +530,30 @@ mod tests {
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("\"success\":false"));
         assert!(json.contains("\"error\":\"Something went wrong\""));
+    }
+}
+
+// Error debugging endpoints
+
+async fn get_recent_errors(
+    axum::Extension(error_store): axum::Extension<Arc<ErrorStore>>,
+    Query(params): Query<HashMap<String, String>>,
+) -> Result<impl IntoResponse, ServerError> {
+    let limit = params.get("limit")
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(50);
+    
+    let errors = error_store.get_recent_errors(limit).await;
+    Ok(Json(ApiResponse::success(errors)))
+}
+
+async fn get_error_details(
+    axum::Extension(error_store): axum::Extension<Arc<ErrorStore>>,
+    Path(error_id): Path<String>,
+) -> Result<impl IntoResponse, ServerError> {
+    match error_store.get_error_by_id(&error_id).await {
+        Some(error) => Ok(Json(ApiResponse::success(error))),
+        None => Ok(Json(ApiResponse::error("Error not found"))),
     }
 }
 
