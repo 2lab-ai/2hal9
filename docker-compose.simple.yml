@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  hal9-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.simple
+    container_name: hal9-server
+    ports:
+      - "3456:3456"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./demo:/app/demo:ro
+    networks:
+      - hal9-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3456/api/games"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Consciousness Visualization
+  consciousness-viz:
+    image: python:3.11-slim
+    container_name: hal9-consciousness-viz
+    working_dir: /app
+    volumes:
+      - ./demo/consciousness-visualization:/app
+    command: python server.py
+    ports:
+      - "8765:8765"
+    networks:
+      - hal9-network
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  # Self-Organization Dashboard
+  self-org-dashboard:
+    image: python:3.11-slim
+    container_name: hal9-self-org-dashboard
+    working_dir: /app
+    volumes:
+      - ./demo/self-organization-dashboard:/app
+    command: python server.py
+    ports:
+      - "8766:8766"
+    networks:
+      - hal9-network
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+
+networks:
+  hal9-network:
+    driver: bridge

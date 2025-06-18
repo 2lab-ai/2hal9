@@ -1,0 +1,57 @@
+# HAL9 Simple Docker Image - For Testing
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install basic dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy demo files
+COPY demo/ai-genius-game/static /app/static
+COPY demo/consciousness-visualization /app/consciousness-visualization
+COPY demo/self-organization-dashboard /app/self-organization-dashboard
+
+# Create a simple server script
+RUN echo '#!/usr/bin/env python3\n\
+import http.server\n\
+import socketserver\n\
+import os\n\
+import json\n\
+from datetime import datetime\n\
+\n\
+PORT = 3456\n\
+\n\
+class HAL9Handler(http.server.SimpleHTTPRequestHandler):\n\
+    def do_GET(self):\n\
+        if self.path == "/api/games":\n\
+            self.send_response(200)\n\
+            self.send_header("Content-type", "application/json")\n\
+            self.end_headers()\n\
+            games = []\n\
+            self.wfile.write(json.dumps(games).encode())\n\
+        elif self.path == "/":\n\
+            self.send_response(200)\n\
+            self.send_header("Content-type", "text/html")\n\
+            self.end_headers()\n\
+            with open("/app/static/index.html", "rb") as f:\n\
+                self.wfile.write(f.read())\n\
+        else:\n\
+            super().do_GET()\n\
+\n\
+print(f"🚀 HAL9 Server running on port {PORT}")\n\
+with socketserver.TCPServer(("", PORT), HAL9Handler) as httpd:\n\
+    httpd.serve_forever()\n\
+' > /app/server.py
+
+RUN chmod +x /app/server.py
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:3456/api/games || exit 1
+
+EXPOSE 3456
+
+CMD ["python", "/app/server.py"]

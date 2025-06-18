@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  hal9-server:
+    build: .
+    container_name: hal9-server
+    ports:
+      - "3456:3456"
+    environment:
+      - RUST_LOG=info
+      - DATABASE_URL=postgresql://hal9:hal9pass@postgres:5432/hal9
+      - REDIS_URL=redis://redis:6379
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-mock}
+      - CLAUDE_MODE=${CLAUDE_MODE:-mock}
+    volumes:
+      - ./config:/app/config
+      - ./logs:/app/logs
+      - hal9-data:/app/data
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - hal9-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3456/api/games"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: hal9-postgres
+    environment:
+      - POSTGRES_USER=hal9
+      - POSTGRES_PASSWORD=hal9pass
+      - POSTGRES_DB=hal9
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - hal9-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hal9"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: hal9-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - hal9-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional: Consciousness Visualization
+  consciousness-viz:
+    image: python:3.11-slim
+    container_name: hal9-consciousness-viz
+    working_dir: /app
+    volumes:
+      - ./demo/consciousness-visualization:/app
+    command: python server.py
+    ports:
+      - "8765:8765"
+    networks:
+      - hal9-network
+    restart: unless-stopped
+
+  # Optional: Self-Organization Dashboard
+  self-org-dashboard:
+    image: python:3.11-slim
+    container_name: hal9-self-org-dashboard
+    working_dir: /app
+    volumes:
+      - ./demo/self-organization-dashboard:/app
+    command: python server.py
+    ports:
+      - "8766:8766"
+    networks:
+      - hal9-network
+    restart: unless-stopped
+
+networks:
+  hal9-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  hal9-data:
