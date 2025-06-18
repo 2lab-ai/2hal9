@@ -2,8 +2,11 @@
 resolver = "2"
 members = [
     # L2 Implementation - Core neurons
+    "layers/L2_implementation/neurons/core",
     "layers/L2_implementation/neurons/game_neurons",
     "layers/L2_implementation/neurons/agent_dropout",
+    # L3 Operational - Server
+    "layers/L3_operational/architecture/server",
     # MCP tools
     "substrate/tooling/mcp/ha-prompter",
     # L8 Visionary implementations

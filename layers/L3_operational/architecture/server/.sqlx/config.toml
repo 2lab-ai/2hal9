@@ -1,0 +1,5 @@
+# SQLx configuration
+
+[database]
+# Default database URL for development
+url = "postgresql://postgres:postgres@localhost:5432/hal9_dev"

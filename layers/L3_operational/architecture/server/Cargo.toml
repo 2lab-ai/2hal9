@@ -1,0 +1,83 @@
+[package]
+name = "hal9-server"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "hal9-server"
+path = "main.rs"
+
+[dependencies]
+# Core neurons library
+hal9-core = { path = "../../../L2_implementation/neurons/core", features = ["browser"] }
+
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+tokio-util = { version = "0.7", features = ["io"] }
+
+# Web framework
+axum = { version = "0.7", features = ["ws", "macros"] }
+axum-extra = { version = "0.9", features = ["typed-header"] }
+tower = { version = "0.4", features = ["full"] }
+tower-http = { version = "0.5", features = ["fs", "cors", "trace", "timeout"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "sqlite", "chrono", "uuid", "migrate"] }
+
+# Authentication
+jsonwebtoken = "9.2"
+bcrypt = "0.15"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "fmt", "ansi"] }
+tracing-appender = "0.2"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Async
+async-trait = "0.1"
+futures = "0.3"
+futures-util = "0.3"
+
+# Types
+uuid = { version = "1.6", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# Environment
+dotenv = "0.15"
+
+# Metrics
+prometheus = "0.13"
+
+# Redis
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+
+# Random
+rand = "0.8"
+
+# Base64
+base64 = "0.21"
+
+# URL parsing
+url = "2.5"
+
+# Regex
+regex = "1.10"
+
+# HTML templating (for genius game)
+askama = "0.12"
+
+[dev-dependencies]
+criterion = "0.5"
+tempfile = "3.8"
