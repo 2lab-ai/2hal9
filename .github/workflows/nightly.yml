@@ -1,0 +1,221 @@
+name: Nightly Build & Performance Test
+
+on:
+  schedule:
+    # 매일 한국시간 새벽 2시 (UTC 17:00)
+    - cron: '0 17 * * *'
+  workflow_dispatch:
+
+env:
+  RUST_VERSION: "1.75"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # 1. 나이틀리 빌드
+  nightly-build:
+    name: Nightly Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+        
+      - name: Build with nightly
+        run: |
+          cargo +nightly build --workspace --release
+          cargo +nightly test --workspace --release
+          
+      - name: Check future compatibility
+        run: |
+          cargo +nightly check -Z minimal-versions
+          cargo +nightly clippy --workspace -- -W clippy::all -W clippy::pedantic
+
+  # 2. 성능 벤치마크
+  performance-benchmark:
+    name: Performance Benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          
+      - name: Run benchmarks
+        run: |
+          cargo bench --workspace -- --output-format bencher | tee output.txt
+          
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'cargo'
+          output-file-path: output.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          
+      - name: Run HAL9 performance tests
+        run: |
+          ./demo/performance-benchmark.sh > performance-results.txt
+          ./demo/verify-performance.sh >> performance-results.txt
+          
+      - name: Upload performance results
+        uses: actions/upload-artifact@v3
+        with:
+          name: nightly-performance-${{ github.run_number }}
+          path: |
+            performance-results.txt
+            target/criterion
+
+  # 3. 통합 시스템 테스트
+  integration-test:
+    name: Full System Integration Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql redis
+          
+      - name: Install dependencies
+        run: |
+          cargo build --workspace --release
+          npm install
+          pip install -r requirements.txt || echo "No requirements.txt"
+          
+      - name: Start services
+        run: |
+          docker compose -f docker-compose.simple.yml up -d
+          sleep 30  # Wait for services to start
+          
+      - name: Run integration tests
+        run: |
+          # Test all demos
+          node demo/test-integrated-suite.js
+          
+          # Test API endpoints
+          curl -f http://localhost:3456/api/games
+          curl -f http://localhost:8765/
+          curl -f http://localhost:8766/
+          
+      - name: Stop services
+        if: always()
+        run: docker compose -f docker-compose.simple.yml down
+
+  # 4. 메모리 및 리소스 분석
+  resource-analysis:
+    name: Memory & Resource Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install analysis tools
+        run: |
+          cargo install cargo-bloat
+          cargo install cargo-udeps
+          
+      - name: Analyze binary size
+        run: |
+          cargo bloat --release --crates > bloat-report.txt
+          cargo bloat --release --filter hal9 >> bloat-report.txt
+          
+      - name: Check unused dependencies
+        run: |
+          cargo +nightly udeps --workspace > udeps-report.txt || true
+          
+      - name: Memory leak detection
+        run: |
+          # Run with valgrind if available
+          if command -v valgrind &> /dev/null; then
+            timeout 60s valgrind --leak-check=full --track-origins=yes \
+              ./target/release/hal9-server 2>&1 | tee valgrind-report.txt || true
+          fi
+          
+      - name: Upload analysis reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: resource-analysis-${{ github.run_number }}
+          path: |
+            bloat-report.txt
+            udeps-report.txt
+            valgrind-report.txt
+
+  # 5. 보안 스캔
+  security-scan:
+    name: Nightly Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run cargo audit
+        run: |
+          cargo install cargo-audit
+          cargo audit --json > audit-report.json
+          
+      - name: Run dependency check
+        run: |
+          cargo tree --duplicate > duplicate-deps.txt
+          
+      - name: Check for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-scan-${{ github.run_number }}
+          path: |
+            audit-report.json
+            duplicate-deps.txt
+
+  # 6. 리포트 생성
+  generate-report:
+    name: Generate Nightly Report
+    runs-on: ubuntu-latest
+    needs: [nightly-build, performance-benchmark, integration-test, resource-analysis, security-scan]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        
+      - name: Generate report
+        run: |
+          echo "# HAL9 Nightly Report - $(date)" > nightly-report.md
+          echo "" >> nightly-report.md
+          echo "## Build Status" >> nightly-report.md
+          echo "- Nightly Build: ${{ needs.nightly-build.result }}" >> nightly-report.md
+          echo "- Performance: ${{ needs.performance-benchmark.result }}" >> nightly-report.md
+          echo "- Integration: ${{ needs.integration-test.result }}" >> nightly-report.md
+          echo "- Resource Analysis: ${{ needs.resource-analysis.result }}" >> nightly-report.md
+          echo "- Security: ${{ needs.security-scan.result }}" >> nightly-report.md
+          echo "" >> nightly-report.md
+          
+          # Add performance summary
+          if [ -f "nightly-performance-${{ github.run_number }}/performance-results.txt" ]; then
+            echo "## Performance Summary" >> nightly-report.md
+            tail -20 "nightly-performance-${{ github.run_number }}/performance-results.txt" >> nightly-report.md
+          fi
+          
+      - name: Create issue if failed
+        if: contains(needs.*.result, 'failure')
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const title = `Nightly Build Failed - ${new Date().toISOString().split('T')[0]}`;
+            const body = `The nightly build has failed. Please check the [workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for details.`;
+            
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['nightly-failure', 'automated']
+            });

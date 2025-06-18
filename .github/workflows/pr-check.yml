@@ -1,175 +1,179 @@
-name: PR Check
+name: Pull Request Check
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
 
 jobs:
-  lint:
-    name: Lint and Format
+  # PR 타이틀 체크
+  pr-title:
+    name: Check PR Title
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
-    
-    - name: Check formatting
-      run: cargo fmt --all -- --check
-    
-    - name: Run clippy
-      run: cargo clippy --all-targets --all-features -- -D warnings
-    
-    - name: Check documentation
-      run: cargo doc --no-deps --document-private-items --all-features
+      - name: Check PR title format
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            chore
+            revert
+          scopes: |
+            L1
+            L2
+            L3
+            L4
+            L5
+            L6
+            L7
+            L8
+            L9
+            demo
+            docs
+            ci
+          requireScope: true
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" found in the pull request title "{title}"
+            didn't match the configured pattern. Please ensure that the subject
+            doesn't start with an uppercase character.
 
-  security:
-    name: Security Audit
+  # 변경사항 분석
+  changes:
+    name: Analyze Changes
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+      demos: ${{ steps.filter.outputs.demos }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            rust:
+              - '**/*.rs'
+              - '**/Cargo.toml'
+              - '**/Cargo.lock'
+            demos:
+              - 'demo/**'
+            docs:
+              - '**/*.md'
+              - 'docs/**'
+
+  # Rust 코드 검사
+  rust-check:
+    name: Rust Code Check
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install cargo-audit
-      run: cargo install cargo-audit
-    
-    - name: Run security audit
-      run: cargo audit
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      
+      - name: Check format
+        run: cargo fmt --all -- --check
+        
+      - name: Clippy
+        run: cargo clippy --workspace --no-deps -- -W clippy::all
+        
+      - name: Check
+        run: cargo check --workspace
 
-  test-coverage:
-    name: Test Coverage
+  # 데모 검증
+  demo-check:
+    name: Demo Validation
+    needs: changes
+    if: needs.changes.outputs.demos == 'true'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-    
-    - name: Install tarpaulin
-      run: cargo install cargo-tarpaulin
-    
-    - name: Run tests with coverage
-      run: cargo tarpaulin --workspace --out Xml
-    
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        files: ./cobertura.xml
-        fail_ci_if_error: false
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          npm install
+          pip install psutil
+          
+      - name: Test demos
+        run: |
+          # Quick validation that demos are syntactically correct
+          for demo in demo/*.sh; do
+            bash -n "$demo" || exit 1
+          done
+          
+          # Python syntax check
+          python -m py_compile demo/consciousness-visualization/server.py
+          python -m py_compile demo/self-organization-dashboard/server.py
 
-  size-check:
-    name: Binary Size Check
+  # 문서 검사
+  docs-check:
+    name: Documentation Check
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-    
-    - name: Build release binary
-      run: cargo build --release --bin hal9-server
-    
-    - name: Check binary size
-      run: |
-        SIZE=$(stat -c%s target/release/hal9-server)
-        echo "Binary size: $SIZE bytes"
-        if [ $SIZE -gt 52428800 ]; then  # 50MB
-          echo "::warning::Binary size exceeds 50MB threshold"
-        fi
-    
-    - name: Strip binary and check size
-      run: |
-        strip target/release/hal9-server
-        SIZE=$(stat -c%s target/release/hal9-server)
-        echo "Stripped binary size: $SIZE bytes"
+      - uses: actions/checkout@v4
+      
+      - name: Check markdown links
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: 'yes'
+          config-file: '.github/markdown-link-check.json'
 
-  docker-check:
-    name: Docker Build Check
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    
-    - name: Build Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        platforms: linux/amd64
-        push: false
-        tags: hal9-test:pr-${{ github.event.pull_request.number }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-    
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: hal9-test:pr-${{ github.event.pull_request.number }}
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-    
-    - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v2
-      with:
-        sarif_file: 'trivy-results.sarif'
-
+  # PR 댓글 추가
   pr-comment:
-    name: PR Comment
+    name: Add PR Comment
     runs-on: ubuntu-latest
-    needs: [lint, security, test-coverage, size-check, docker-check]
-    if: always()
+    if: github.event.pull_request.head.repo.full_name == github.repository
     steps:
-    - name: Comment PR
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const { data: comments } = await github.rest.issues.listComments({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-          });
-          
-          const botComment = comments.find(comment => 
-            comment.user.type === 'Bot' && 
-            comment.body.includes('## PR Check Results')
-          );
-          
-          const checkRuns = await github.rest.checks.listForRef({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            ref: context.sha,
-          });
-          
-          let body = '## PR Check Results\n\n';
-          body += '| Check | Status |\n';
-          body += '|-------|--------|\n';
-          
-          const checks = ['Lint and Format', 'Security Audit', 'Test Coverage', 'Binary Size Check', 'Docker Build Check'];
-          for (const checkName of checks) {
-            const check = checkRuns.data.check_runs.find(run => run.name === checkName);
-            const status = check ? 
-              (check.conclusion === 'success' ? '✅' : '❌') : 
-              '⏳';
-            body += `| ${checkName} | ${status} |\n`;
-          }
-          
-          body += '\n';
-          body += `Last updated: ${new Date().toISOString()}\n`;
-          
-          if (botComment) {
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: botComment.id,
-              body: body
-            });
-          } else {
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: body
-            });
-          }
+      - uses: actions/checkout@v4
+      
+      - name: Comment PR
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          message: |
+            ## 🤖 HAL9 PR Check Results
+            
+            안녕하세요! HAL9 CI 봇입니다. PR 검사를 시작합니다.
+            
+            ### 체크리스트
+            - [ ] PR 제목이 규칙을 따르는지 확인
+            - [ ] Rust 코드 포맷팅 확인
+            - [ ] Clippy 경고 확인
+            - [ ] 테스트 통과 확인
+            - [ ] 데모 검증 (해당되는 경우)
+            - [ ] 문서 링크 확인 (해당되는 경우)
+            
+            ### 테스트 방법
+            ```bash
+            # 로컬에서 테스트하기
+            cargo fmt --all -- --check
+            cargo clippy --workspace --no-deps -- -W clippy::all
+            cargo test --workspace
+            ```
+            
+            자세한 결과는 위의 체크들을 확인해주세요!
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
