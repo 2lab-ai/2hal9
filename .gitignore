@@ -25,8 +25,14 @@ artifacts/target/
 # Environment and API keys
 .env
 .env.local
+.env.production
+.env.staging
+.env.*.local
 *api_key*
 *API_KEY*
+*.pem
+*.key
+*.crt
 
 # Logs and build artifacts
 *.log
@@ -55,3 +61,5 @@ Thumbs.db
 .sccache/
 target-remote/
 CLAUDE.LOCAL.md
+
+**/node_modules/**

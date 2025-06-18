@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Genius Game 2025 - HAL9 Security Edition</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #0a0a0a;
+            color: #00ff00;
+            font-family: 'Orbitron', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px #00ff00;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        /* Auth Section */
+        .auth-section {
+            background: rgba(0, 255, 0, 0.1);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 30px;
+            max-width: 400px;
+            margin: 0 auto 30px;
+        }
+        
+        .auth-form h2 {
+            color: #00ffff;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #00ff00;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            background: #000;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            font-family: 'Orbitron', monospace;
+            border-radius: 5px;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        
+        .auth-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 10px 20px;
+            background: transparent;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            font-family: 'Orbitron', monospace;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #00ff00;
+            color: #000;
+            box-shadow: 0 0 20px #00ff00;
+        }
+        
+        .btn.secondary {
+            border-color: #00ffff;
+            color: #00ffff;
+        }
+        
+        .btn.secondary:hover {
+            background: #00ffff;
+            box-shadow: 0 0 20px #00ffff;
+        }
+        
+        .auth-status {
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .auth-status.success {
+            background: rgba(0, 255, 0, 0.2);
+            border: 1px solid #00ff00;
+        }
+        
+        .auth-status.error {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid #ff0000;
+            color: #ff0000;
+        }
+        
+        /* Game Section */
+        .game-section {
+            display: none;
+            background: rgba(0, 255, 0, 0.05);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 30px;
+        }
+        
+        .game-section.active {
+            display: block;
+        }
+        
+        .user-info {
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid #00ffff;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .user-info .username {
+            font-size: 18px;
+            color: #00ffff;
+        }
+        
+        .user-info .role {
+            background: #00ff00;
+            color: #000;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        #gameBoard {
+            background: #000;
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(19, 1fr);
+            gap: 2px;
+            aspect-ratio: 1;
+            max-width: 600px;
+            margin: 20px auto;
+        }
+        
+        .cell {
+            background: #001100;
+            border: 1px solid #003300;
+            cursor: pointer;
+            transition: all 0.3s;
+            aspect-ratio: 1;
+        }
+        
+        .cell:hover {
+            background: #002200;
+            border-color: #00ff00;
+        }
+        
+        .cell.active {
+            background: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        
+        #gameInfo {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .info-card {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            padding: 15px;
+        }
+        
+        .info-card h3 {
+            color: #00ffff;
+            margin-bottom: 10px;
+        }
+        
+        .info-card .value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        #gameControls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        
+        #connectionStatus {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        #connectionStatus.connected {
+            background: #00ff00;
+            color: #000;
+        }
+        
+        #connectionStatus.disconnected {
+            background: #ff0000;
+            color: #fff;
+        }
+        
+        #eventLog {
+            background: #000;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            padding: 10px;
+            height: 150px;
+            overflow-y: auto;
+            margin-top: 20px;
+            font-size: 12px;
+        }
+        
+        .event-line {
+            margin: 2px 0;
+            opacity: 0.8;
+        }
+        
+        .event-line.important {
+            color: #00ffff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 AI GENIUS GAME 2025 🧠</h1>
+        
+        <!-- Authentication Section -->
+        <div class="auth-section" id="authSection">
+            <div class="auth-form">
+                <h2>🔐 Secure Login</h2>
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" placeholder="Enter username" value="admin">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter password" value="admin123">
+                </div>
+                <div class="auth-buttons">
+                    <button class="btn" onclick="login()">Login</button>
+                    <button class="btn secondary" onclick="showRegister()">Register</button>
+                </div>
+                <div id="authStatus" class="auth-status"></div>
+            </div>
+        </div>
+        
+        <!-- Game Section -->
+        <div class="game-section" id="gameSection">
+            <div class="user-info">
+                <div>
+                    <span>Welcome, </span>
+                    <span class="username" id="currentUsername">Player</span>
+                </div>
+                <div>
+                    <span class="role" id="currentRole">PLAYER</span>
+                    <button class="btn" onclick="logout()" style="margin-left: 20px;">Logout</button>
+                </div>
+            </div>
+            
+            <div id="gameInfo">
+                <div class="info-card">
+                    <h3>🎮 Game Status</h3>
+                    <div class="value" id="gameStatus">Waiting</div>
+                </div>
+                <div class="info-card">
+                    <h3>🏆 Score</h3>
+                    <div class="value" id="playerScore">0</div>
+                </div>
+                <div class="info-card">
+                    <h3>🧠 Consciousness</h3>
+                    <div class="value" id="consciousnessLevel">0%</div>
+                </div>
+                <div class="info-card">
+                    <h3>🔄 Round</h3>
+                    <div class="value" id="currentRound">0/20</div>
+                </div>
+            </div>
+            
+            <div id="gameBoard"></div>
+            
+            <div id="gameControls">
+                <button class="btn" onclick="createGame()">Create New Game</button>
+                <button class="btn" onclick="joinGame()">Join Game</button>
+                <button class="btn secondary" onclick="listGames()">List Games</button>
+            </div>
+            
+            <div id="eventLog"></div>
+        </div>
+        
+        <div id="connectionStatus" class="disconnected">Disconnected</div>
+    </div>
+    
+    <script>
+        let ws = null;
+        let currentGameId = null;
+        let authToken = null;
+        let currentUser = null;
+        
+        // Check for existing auth token
+        window.addEventListener('load', () => {
+            const token = localStorage.getItem('authToken');
+            const user = localStorage.getItem('currentUser');
+            if (token && user) {
+                authToken = token;
+                currentUser = JSON.parse(user);
+                showGame();
+            }
+        });
+        
+        // Authentication functions
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.access_token;
+                    currentUser = data.user;
+                    
+                    // Store auth data
+                    localStorage.setItem('authToken', authToken);
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    
+                    showStatus('Login successful!', 'success');
+                    setTimeout(() => showGame(), 1000);
+                } else {
+                    showStatus('Invalid credentials', 'error');
+                }
+            } catch (error) {
+                showStatus('Login failed: ' + error.message, 'error');
+            }
+        }
+        
+        async function showRegister() {
+            const username = prompt('Choose a username:');
+            const email = prompt('Enter your email:');
+            const password = prompt('Choose a password:');
+            
+            if (!username || !email || !password) return;
+            
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, email, password })
+                });
+                
+                if (response.ok) {
+                    showStatus('Registration successful! Please login.', 'success');
+                    document.getElementById('username').value = username;
+                    document.getElementById('password').value = '';
+                } else {
+                    showStatus('Registration failed', 'error');
+                }
+            } catch (error) {
+                showStatus('Registration error: ' + error.message, 'error');
+            }
+        }
+        
+        function logout() {
+            authToken = null;
+            currentUser = null;
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            
+            if (ws) {
+                ws.close();
+            }
+            
+            document.getElementById('authSection').style.display = 'block';
+            document.getElementById('gameSection').classList.remove('active');
+        }
+        
+        function showGame() {
+            document.getElementById('authSection').style.display = 'none';
+            document.getElementById('gameSection').classList.add('active');
+            document.getElementById('currentUsername').textContent = currentUser.username;
+            document.getElementById('currentRole').textContent = currentUser.role.toUpperCase();
+            
+            initializeGame();
+        }
+        
+        function showStatus(message, type) {
+            const status = document.getElementById('authStatus');
+            status.textContent = message;
+            status.className = `auth-status ${type}`;
+            setTimeout(() => {
+                status.textContent = '';
+                status.className = 'auth-status';
+            }, 3000);
+        }
+        
+        // Game functions
+        function initializeGame() {
+            createBoard();
+            updateConnectionStatus('disconnected');
+        }
+        
+        function createBoard() {
+            const board = document.getElementById('gameBoard');
+            board.innerHTML = '';
+            
+            for (let i = 0; i < 19 * 19; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.onclick = () => placeNeuron(Math.floor(i / 19), i % 19);
+                board.appendChild(cell);
+            }
+        }
+        
+        async function createGame() {
+            try {
+                const response = await fetch('/api/games/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        game_type: { type: 'ConsciousnessEmergence' },
+                        max_rounds: 20
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    currentGameId = data.id;
+                    connectWebSocket(data.id);
+                    addEvent('Game created: ' + data.id, true);
+                } else if (response.status === 401) {
+                    alert('Session expired. Please login again.');
+                    logout();
+                } else {
+                    addEvent('Failed to create game', false);
+                }
+            } catch (error) {
+                addEvent('Error: ' + error.message, false);
+            }
+        }
+        
+        async function joinGame() {
+            const gameId = prompt('Enter game ID:');
+            if (gameId) {
+                currentGameId = gameId;
+                connectWebSocket(gameId);
+            }
+        }
+        
+        async function listGames() {
+            try {
+                const response = await fetch('/api/games');
+                const games = await response.json();
+                
+                if (games.length === 0) {
+                    alert('No active games');
+                } else {
+                    const gameList = games.map(g => `${g.id} - ${g.status}`).join('\n');
+                    alert('Active games:\n' + gameList);
+                }
+            } catch (error) {
+                addEvent('Error fetching games: ' + error.message, false);
+            }
+        }
+        
+        function connectWebSocket(gameId) {
+            if (ws) {
+                ws.close();
+            }
+            
+            ws = new WebSocket(`ws://localhost:3456/ws/${gameId}`);
+            
+            ws.onopen = () => {
+                updateConnectionStatus('connected');
+                ws.send(JSON.stringify({
+                    type: 'join_game',
+                    player_name: currentUser.username,
+                    player_type: { type: 'single_ai', model: 'human' }
+                }));
+                addEvent('Connected to game', true);
+            };
+            
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                handleGameMessage(message);
+            };
+            
+            ws.onclose = () => {
+                updateConnectionStatus('disconnected');
+                addEvent('Disconnected from game', false);
+            };
+            
+            ws.onerror = (error) => {
+                addEvent('WebSocket error: ' + error, false);
+            };
+        }
+        
+        function handleGameMessage(message) {
+            if (message.type === 'game_state') {
+                updateGameState(message.state);
+            } else if (message.type === 'error') {
+                addEvent('Error: ' + message.message, false);
+            }
+        }
+        
+        function updateGameState(state) {
+            document.getElementById('gameStatus').textContent = state.status;
+            document.getElementById('currentRound').textContent = `${state.round}/${state.max_rounds}`;
+            document.getElementById('consciousnessLevel').textContent = 
+                `${Math.round(state.consciousness_level * 100)}%`;
+            
+            // Update player score
+            const player = state.players[currentUser.username];
+            if (player) {
+                document.getElementById('playerScore').textContent = player.score;
+            }
+            
+            // Update board
+            updateBoard(state.board);
+        }
+        
+        function updateBoard(board) {
+            const cells = document.querySelectorAll('.cell');
+            board.forEach((row, i) => {
+                row.forEach((cell, j) => {
+                    const index = i * 19 + j;
+                    if (cell.owner) {
+                        cells[index].classList.add('active');
+                        cells[index].style.background = 
+                            state.players[cell.owner]?.color || '#00ff00';
+                    } else {
+                        cells[index].classList.remove('active');
+                        cells[index].style.background = '';
+                    }
+                });
+            });
+        }
+        
+        function placeNeuron(x, y) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'game_action',
+                    action: {
+                        action: 'place_neuron',
+                        x: x,
+                        y: y
+                    }
+                }));
+            }
+        }
+        
+        function updateConnectionStatus(status) {
+            const element = document.getElementById('connectionStatus');
+            element.textContent = status === 'connected' ? 'Connected' : 'Disconnected';
+            element.className = status;
+        }
+        
+        function addEvent(message, important = false) {
+            const log = document.getElementById('eventLog');
+            const line = document.createElement('div');
+            line.className = 'event-line' + (important ? ' important' : '');
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(line);
+            log.scrollTop = log.scrollHeight;
+            
+            // Keep only last 50 events
+            while (log.children.length > 50) {
+                log.removeChild(log.firstChild);
+            }
+        }
+    </script>
+</body>
+</html>
