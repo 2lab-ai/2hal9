@@ -10,7 +10,7 @@ echo "
 cd "$(dirname "$0")/../layers/L2_implementation/neurons/examples"
 
 echo "Compiling..."
-rustc --edition 2021 -O simple_true_self_org_demo.rs -o /tmp/hal9_quick_demo 2>/dev/null
+rustc --edition 2021 -O true_self_organization_demo.rs -o /tmp/hal9_quick_demo 2>/dev/null
 
 if [ $? -eq 0 ]; then
     echo "Running demo..."

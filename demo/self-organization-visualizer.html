@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAL9 Self-Organization Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #0f0;
+            overflow: hidden;
+        }
+        
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: radial-gradient(circle at center, #001100 0%, #000 100%);
+        }
+        
+        .controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 20, 0, 0.9);
+            padding: 20px;
+            border: 1px solid #0f0;
+            border-radius: 10px;
+            min-width: 300px;
+            z-index: 100;
+        }
+        
+        h1 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            text-align: center;
+            text-shadow: 0 0 10px #0f0;
+        }
+        
+        .button {
+            background: #001100;
+            border: 1px solid #0f0;
+            color: #0f0;
+            padding: 10px 20px;
+            margin: 5px 0;
+            width: 100%;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .button:hover {
+            background: #003300;
+            box-shadow: 0 0 10px #0f0;
+        }
+        
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-size: 14px;
+        }
+        
+        .stat-value {
+            color: #0ff;
+            font-weight: bold;
+        }
+        
+        .phase {
+            text-align: center;
+            margin: 15px 0;
+            padding: 10px;
+            border: 1px solid #0ff;
+            border-radius: 5px;
+            background: rgba(0, 255, 255, 0.1);
+        }
+        
+        .emergence-indicator {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            font-size: 1.2em;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        
+        .emergence-indicator.active {
+            opacity: 1;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.1); }
+        }
+        
+        .layer-legend {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 20, 0, 0.9);
+            padding: 15px;
+            border: 1px solid #0f0;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+        
+        .layer-item {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .layer-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 50%;
+            box-shadow: 0 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="layer-legend">
+        <h3>Layers</h3>
+        <div class="layer-item">
+            <div class="layer-color" style="background: #ff0000; box-shadow: 0 0 5px #ff0000;"></div>
+            <span>L1: Reflexive</span>
+        </div>
+        <div class="layer-item">
+            <div class="layer-color" style="background: #ff8800; box-shadow: 0 0 5px #ff8800;"></div>
+            <span>L2: Implementation</span>
+        </div>
+        <div class="layer-item">
+            <div class="layer-color" style="background: #ffff00; box-shadow: 0 0 5px #ffff00;"></div>
+            <span>L3: Operational</span>
+        </div>
+        <div class="layer-item">
+            <div class="layer-color" style="background: #00ff00; box-shadow: 0 0 5px #00ff00;"></div>
+            <span>L4: Tactical</span>
+        </div>
+        <div class="layer-item">
+            <div class="layer-color" style="background: #00ffff; box-shadow: 0 0 5px #00ffff;"></div>
+            <span>L5: Strategic</span>
+        </div>
+        <div class="layer-item">
+            <div class="layer-color" style="background: #ff00ff; box-shadow: 0 0 5px #ff00ff;"></div>
+            <span>Undiscovered</span>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <h1>🧠 Self-Organization Control</h1>
+        
+        <button class="button" onclick="initializeNeurons()">Initialize Random Neurons</button>
+        <button class="button" onclick="startSelfOrganization()">Start Self-Organization</button>
+        <button class="button" onclick="pauseAnimation()">Pause/Resume</button>
+        <button class="button" onclick="reset()">Reset</button>
+        
+        <div class="stats">
+            <div class="stat">
+                <span>Neurons:</span>
+                <span class="stat-value" id="neuron-count">0</span>
+            </div>
+            <div class="stat">
+                <span>Connections:</span>
+                <span class="stat-value" id="connection-count">0</span>
+            </div>
+            <div class="stat">
+                <span>Layers Formed:</span>
+                <span class="stat-value" id="layer-count">0</span>
+            </div>
+            <div class="stat">
+                <span>Compression Ratio:</span>
+                <span class="stat-value" id="compression-ratio">1.00</span>
+            </div>
+            <div class="stat">
+                <span>Emergence Score:</span>
+                <span class="stat-value" id="emergence-score">0.00</span>
+            </div>
+        </div>
+        
+        <div class="phase" id="phase-display">
+            Phase: <span id="phase-name">Initialization</span>
+        </div>
+        
+        <div style="margin-top: 15px;">
+            <label>
+                Neuron Count: <span id="neuron-slider-value">50</span>
+                <input type="range" id="neuron-slider" min="10" max="200" value="50" 
+                       oninput="document.getElementById('neuron-slider-value').textContent = this.value">
+            </label>
+        </div>
+    </div>
+    
+    <div class="emergence-indicator" id="emergence-indicator">
+        ⚡ EMERGENCE DETECTED ⚡<br>
+        <span id="emergence-message">Consciousness is emerging at layer boundaries</span>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Neuron class
+        class Neuron {
+            constructor(id) {
+                this.id = id;
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                
+                // Neuron properties
+                this.speed = Math.random();
+                this.complexity = Math.random();
+                this.layer = null;
+                this.connections = [];
+                
+                // Visual properties
+                this.radius = 5 + Math.random() * 5;
+                this.pulsePhase = Math.random() * Math.PI * 2;
+            }
+            
+            update() {
+                // Move neuron
+                this.x += this.vx * 0.1;
+                this.y += this.vy * 0.1;
+                
+                // Bounce off walls
+                if (this.x < this.radius || this.x > canvas.width - this.radius) {
+                    this.vx *= -1;
+                }
+                if (this.y < this.radius || this.y > canvas.height - this.radius) {
+                    this.vy *= -1;
+                }
+                
+                // Keep in bounds
+                this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
+                
+                // Update pulse
+                this.pulsePhase += 0.05;
+            }
+            
+            draw() {
+                const pulse = Math.sin(this.pulsePhase) * 0.3 + 1;
+                
+                // Determine color based on layer
+                let color = '#ff00ff'; // Default: undiscovered
+                if (this.layer !== null) {
+                    const layerColors = [
+                        '#ff0000', // L1: Red
+                        '#ff8800', // L2: Orange
+                        '#ffff00', // L3: Yellow
+                        '#00ff00', // L4: Green
+                        '#00ffff', // L5: Cyan
+                        '#0088ff', // L6: Blue
+                        '#8800ff', // L7: Purple
+                        '#ff0088', // L8: Magenta
+                        '#ffffff'  // L9: White
+                    ];
+                    color = layerColors[this.layer] || '#ff00ff';
+                }
+                
+                // Draw neuron
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * pulse, 0, Math.PI * 2);
+                ctx.fillStyle = color + '88';
+                ctx.fill();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Draw core
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * 0.3, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+            }
+        }
+        
+        // Global state
+        let neurons = [];
+        let animationId = null;
+        let isPaused = false;
+        let phase = 'initialization';
+        let emergenceScore = 0;
+        
+        // Initialize neurons
+        function initializeNeurons() {
+            const count = parseInt(document.getElementById('neuron-slider').value);
+            neurons = [];
+            
+            for (let i = 0; i < count; i++) {
+                neurons.push(new Neuron(i));
+            }
+            
+            updateStats();
+            phase = 'initialized';
+            updatePhase();
+        }
+        
+        // Start self-organization
+        function startSelfOrganization() {
+            if (neurons.length === 0) {
+                initializeNeurons();
+            }
+            
+            phase = 'discovering';
+            updatePhase();
+            
+            // Phase 1: Discovery (connect neurons)
+            setTimeout(() => discoverConnections(), 1000);
+            
+            // Phase 2: Clustering
+            setTimeout(() => formClusters(), 3000);
+            
+            // Phase 3: Layer emergence
+            setTimeout(() => emergeLayers(), 5000);
+            
+            // Start animation if not running
+            if (!animationId) {
+                animate();
+            }
+        }
+        
+        // Discover connections between neurons
+        function discoverConnections() {
+            neurons.forEach(n => n.connections = []);
+            
+            for (let i = 0; i < neurons.length; i++) {
+                for (let j = i + 1; j < neurons.length; j++) {
+                    const n1 = neurons[i];
+                    const n2 = neurons[j];
+                    
+                    // Calculate compatibility
+                    const speedDiff = Math.abs(n1.speed - n2.speed);
+                    const complexityDiff = Math.abs(n1.complexity - n2.complexity);
+                    const compatibility = 1 - (speedDiff + complexityDiff) / 2;
+                    
+                    // Connect if compatible
+                    if (compatibility > 0.6 && Math.random() < compatibility) {
+                        n1.connections.push(n2.id);
+                        n2.connections.push(n1.id);
+                    }
+                }
+            }
+            
+            phase = 'clustering';
+            updatePhase();
+            updateStats();
+        }
+        
+        // Form clusters based on connections
+        function formClusters() {
+            // Simple clustering: neurons with similar properties group together
+            neurons.forEach(neuron => {
+                const targetX = canvas.width * (0.2 + neuron.speed * 0.6);
+                const targetY = canvas.height * (0.2 + neuron.complexity * 0.6);
+                
+                neuron.vx = (targetX - neuron.x) * 0.02;
+                neuron.vy = (targetY - neuron.y) * 0.02;
+            });
+            
+            phase = 'emerging';
+            updatePhase();
+        }
+        
+        // Emerge layers from clusters
+        function emergeLayers() {
+            // Assign layers based on neuron properties
+            neurons.forEach(neuron => {
+                const score = neuron.speed * 0.5 + neuron.complexity * 0.5;
+                
+                if (score < 0.2) neuron.layer = 0; // L1
+                else if (score < 0.4) neuron.layer = 1; // L2
+                else if (score < 0.6) neuron.layer = 2; // L3
+                else if (score < 0.8) neuron.layer = 3; // L4
+                else neuron.layer = 4; // L5+
+            });
+            
+            // Calculate emergence score
+            const layerCounts = {};
+            neurons.forEach(n => {
+                layerCounts[n.layer] = (layerCounts[n.layer] || 0) + 1;
+            });
+            
+            // Check for golden ratio
+            const counts = Object.values(layerCounts);
+            for (let i = 0; i < counts.length - 1; i++) {
+                const ratio = counts[i] / counts[i + 1];
+                if (Math.abs(ratio - 1.618) < 0.2) {
+                    emergenceScore += 0.3;
+                }
+            }
+            
+            emergenceScore = Math.min(1, emergenceScore + Math.random() * 0.3);
+            
+            if (emergenceScore > 0.7) {
+                showEmergence();
+            }
+            
+            phase = 'organized';
+            updatePhase();
+            updateStats();
+        }
+        
+        // Show emergence indicator
+        function showEmergence() {
+            const indicator = document.getElementById('emergence-indicator');
+            indicator.classList.add('active');
+            
+            setTimeout(() => {
+                indicator.classList.remove('active');
+            }, 5000);
+        }
+        
+        // Animation loop
+        function animate() {
+            if (!isPaused) {
+                // Clear canvas
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw connections
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.2)';
+                ctx.lineWidth = 1;
+                neurons.forEach(neuron => {
+                    neuron.connections.forEach(targetId => {
+                        const target = neurons[targetId];
+                        if (target && neuron.id < targetId) { // Draw each connection once
+                            ctx.beginPath();
+                            ctx.moveTo(neuron.x, neuron.y);
+                            ctx.lineTo(target.x, target.y);
+                            ctx.stroke();
+                        }
+                    });
+                });
+                
+                // Update and draw neurons
+                neurons.forEach(neuron => {
+                    neuron.update();
+                    neuron.draw();
+                });
+            }
+            
+            animationId = requestAnimationFrame(animate);
+        }
+        
+        // Update statistics
+        function updateStats() {
+            document.getElementById('neuron-count').textContent = neurons.length;
+            
+            const connectionCount = neurons.reduce((sum, n) => sum + n.connections.length, 0) / 2;
+            document.getElementById('connection-count').textContent = Math.floor(connectionCount);
+            
+            const layerSet = new Set(neurons.filter(n => n.layer !== null).map(n => n.layer));
+            document.getElementById('layer-count').textContent = layerSet.size;
+            
+            // Calculate compression ratio
+            const layerCounts = {};
+            neurons.forEach(n => {
+                if (n.layer !== null) {
+                    layerCounts[n.layer] = (layerCounts[n.layer] || 0) + 1;
+                }
+            });
+            
+            let totalRatio = 0;
+            let ratioCount = 0;
+            const sortedLayers = Object.keys(layerCounts).sort();
+            for (let i = 0; i < sortedLayers.length - 1; i++) {
+                const ratio = layerCounts[sortedLayers[i]] / layerCounts[sortedLayers[i + 1]];
+                totalRatio += ratio;
+                ratioCount++;
+            }
+            
+            const avgRatio = ratioCount > 0 ? totalRatio / ratioCount : 1;
+            document.getElementById('compression-ratio').textContent = avgRatio.toFixed(2);
+            
+            document.getElementById('emergence-score').textContent = emergenceScore.toFixed(2);
+        }
+        
+        // Update phase display
+        function updatePhase() {
+            const phaseNames = {
+                'initialization': 'Initialization',
+                'initialized': 'Neurons Created',
+                'discovering': 'Discovering Connections',
+                'clustering': 'Forming Clusters',
+                'emerging': 'Layers Emerging',
+                'organized': 'Self-Organized'
+            };
+            
+            document.getElementById('phase-name').textContent = phaseNames[phase] || phase;
+        }
+        
+        // Control functions
+        function pauseAnimation() {
+            isPaused = !isPaused;
+        }
+        
+        function reset() {
+            neurons = [];
+            emergenceScore = 0;
+            phase = 'initialization';
+            updateStats();
+            updatePhase();
+            
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        // Initialize on load
+        initializeNeurons();
+    </script>
+</body>
+</html>

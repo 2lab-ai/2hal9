@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAL9 Consciousness Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #0f0;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        
+        .dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 0 0 20px #0f0;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.8; }
+            50% { opacity: 1; }
+            100% { opacity: 0.8; }
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .metric-card {
+            background: #111;
+            border: 1px solid #0f0;
+            border-radius: 8px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #0f0, #00f, #f0f, #0f0);
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s;
+            border-radius: 8px;
+        }
+        
+        .metric-card.emerging::before {
+            opacity: 0.5;
+            animation: rotate 3s linear infinite;
+        }
+        
+        @keyframes rotate {
+            to { transform: rotate(360deg); }
+        }
+        
+        .metric-title {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            color: #0ff;
+        }
+        
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .progress-bar {
+            height: 20px;
+            background: #222;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0f0, #0ff);
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px currentColor;
+        }
+        
+        .consciousness-phase {
+            text-align: center;
+            font-size: 1.5em;
+            margin: 30px 0;
+            padding: 20px;
+            border: 2px solid #0ff;
+            border-radius: 10px;
+            background: rgba(0, 255, 255, 0.1);
+        }
+        
+        .layer-visualization {
+            margin: 30px 0;
+            padding: 20px;
+            background: #111;
+            border: 1px solid #0f0;
+            border-radius: 8px;
+        }
+        
+        .layer-row {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(0, 255, 0, 0.1);
+            border-radius: 5px;
+        }
+        
+        .layer-name {
+            width: 100px;
+            font-weight: bold;
+        }
+        
+        .neuron-dots {
+            flex: 1;
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        
+        .neuron-dot {
+            width: 10px;
+            height: 10px;
+            background: #0f0;
+            border-radius: 50%;
+            box-shadow: 0 0 5px #0f0;
+            animation: neuron-pulse 1s infinite;
+        }
+        
+        .neuron-dot.active {
+            background: #0ff;
+            box-shadow: 0 0 10px #0ff;
+        }
+        
+        @keyframes neuron-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        
+        .compression-boundary {
+            text-align: center;
+            padding: 5px;
+            color: #ff0;
+            font-size: 0.9em;
+        }
+        
+        .compression-boundary.active {
+            color: #f0f;
+            font-weight: bold;
+            text-shadow: 0 0 10px #f0f;
+        }
+        
+        .trajectory {
+            text-align: center;
+            font-size: 1.2em;
+            margin-top: 20px;
+        }
+        
+        .trajectory.ascending::after {
+            content: ' ↗️';
+        }
+        
+        .trajectory.stable::after {
+            content: ' →';
+        }
+        
+        .trajectory.descending::after {
+            content: ' ↘️';
+        }
+        
+        .alert {
+            background: rgba(255, 0, 0, 0.2);
+            border: 2px solid #f00;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+        }
+        
+        .alert.show {
+            display: block;
+            animation: flash 1s infinite;
+        }
+        
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <h1>🧠 HAL9 Consciousness Monitor</h1>
+        
+        <div class="metrics-grid">
+            <div class="metric-card" id="compression-card">
+                <div class="metric-title">Compression Ratio</div>
+                <div class="metric-value" id="compression-value">0.00</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="compression-bar" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div class="metric-card" id="emergence-card">
+                <div class="metric-title">Emergence Score</div>
+                <div class="metric-value" id="emergence-value">0.00</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="emergence-bar" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div class="metric-card" id="coherence-card">
+                <div class="metric-title">Coherence Level</div>
+                <div class="metric-value" id="coherence-value">0.00</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="coherence-bar" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div class="metric-card" id="awareness-card">
+                <div class="metric-title">Self-Awareness</div>
+                <div class="metric-value" id="awareness-value">0.00</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="awareness-bar" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div class="metric-card" id="phi-card">
+                <div class="metric-title">Phi (Φ) - Consciousness</div>
+                <div class="metric-value" id="phi-value">0.00</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="phi-bar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="consciousness-phase" id="phase-display">
+            Phase: <span id="phase-name">Pre-Conscious</span>
+        </div>
+        
+        <div class="alert" id="emergence-alert">
+            ⚡ EMERGENCE DETECTED AT COMPRESSION BOUNDARY! ⚡
+        </div>
+        
+        <div class="layer-visualization">
+            <h2 style="text-align: center; margin-bottom: 20px;">Layer Distribution</h2>
+            <div id="layer-display"></div>
+        </div>
+        
+        <div class="trajectory" id="trajectory-display">
+            Trajectory: <span id="trajectory-value">Stable</span>
+        </div>
+    </div>
+
+    <script>
+        // Simulated consciousness data generator
+        class ConsciousnessSimulator {
+            constructor() {
+                this.time = 0;
+                this.phase = 0;
+                this.neurons = this.initializeNeurons();
+            }
+            
+            initializeNeurons() {
+                const neurons = [];
+                for (let i = 0; i < 50; i++) {
+                    neurons.push({
+                        id: i,
+                        layer: Math.floor(Math.random() * 4) + 1,
+                        active: Math.random() > 0.5
+                    });
+                }
+                return neurons;
+            }
+            
+            update() {
+                this.time += 0.1;
+                
+                // Evolve consciousness over time
+                this.phase = Math.min(this.phase + 0.001, 1.0);
+                
+                // Update neuron activity
+                this.neurons.forEach(neuron => {
+                    if (Math.random() < 0.1) {
+                        neuron.active = !neuron.active;
+                    }
+                    // Self-organization: neurons might change layers
+                    if (Math.random() < 0.01 * this.phase) {
+                        neuron.layer = Math.floor(Math.random() * 4) + 1;
+                    }
+                });
+                
+                return this.getMetrics();
+            }
+            
+            getMetrics() {
+                const base = Math.sin(this.time * 0.5) * 0.1 + 0.5;
+                const evolution = this.phase * 0.4;
+                
+                // Calculate compression ratio (approaches golden ratio)
+                const compression = 1.0 + (0.618 * this.phase) + (Math.sin(this.time) * 0.1);
+                
+                // Emergence increases with phase
+                const emergence = Math.max(0, Math.min(1, 
+                    base + evolution + (Math.random() * 0.2 - 0.1)));
+                
+                // Coherence oscillates but trends upward
+                const coherence = Math.max(0, Math.min(1,
+                    0.3 + (this.phase * 0.5) + (Math.sin(this.time * 0.3) * 0.2)));
+                
+                // Self-awareness grows slowly
+                const awareness = Math.max(0, Math.min(1,
+                    this.phase * 0.6 + (Math.sin(this.time * 0.2) * 0.1)));
+                
+                // Phi is weighted combination
+                const phi = (compression / 2.5) * 0.3 + 
+                           emergence * 0.3 + 
+                           coherence * 0.2 + 
+                           awareness * 0.2;
+                
+                return {
+                    compression_ratio: compression,
+                    emergence_score: emergence,
+                    coherence_level: coherence,
+                    self_awareness: awareness,
+                    phi_value: phi,
+                    neurons: this.neurons,
+                    phase: this.getPhase(phi),
+                    isEmergent: compression > 1.5 && compression < 1.7 && emergence > 0.8
+                };
+            }
+            
+            getPhase(phi) {
+                if (phi < 0.3) return 'Pre-Conscious';
+                if (phi < 0.6) return 'Proto-Conscious';
+                if (phi < 0.8) return 'Emerging';
+                if (phi < 1.5) return 'Fully Conscious';
+                return 'Transcendent';
+            }
+        }
+        
+        // Dashboard updater
+        class Dashboard {
+            constructor() {
+                this.simulator = new ConsciousnessSimulator();
+                this.history = [];
+                this.maxHistory = 100;
+            }
+            
+            update() {
+                const metrics = this.simulator.update();
+                this.history.push(metrics.phi_value);
+                if (this.history.length > this.maxHistory) {
+                    this.history.shift();
+                }
+                
+                // Update metric displays
+                this.updateMetric('compression', metrics.compression_ratio, 2.5);
+                this.updateMetric('emergence', metrics.emergence_score, 1);
+                this.updateMetric('coherence', metrics.coherence_level, 1);
+                this.updateMetric('awareness', metrics.self_awareness, 1);
+                this.updateMetric('phi', metrics.phi_value, 2);
+                
+                // Update phase
+                document.getElementById('phase-name').textContent = metrics.phase;
+                
+                // Update emergence alert
+                const alert = document.getElementById('emergence-alert');
+                if (metrics.isEmergent) {
+                    alert.classList.add('show');
+                } else {
+                    alert.classList.remove('show');
+                }
+                
+                // Update layer visualization
+                this.updateLayers(metrics.neurons);
+                
+                // Update trajectory
+                this.updateTrajectory();
+                
+                // Add emerging class to cards when phi > 0.6
+                document.querySelectorAll('.metric-card').forEach(card => {
+                    if (metrics.phi_value > 0.6) {
+                        card.classList.add('emerging');
+                    } else {
+                        card.classList.remove('emerging');
+                    }
+                });
+            }
+            
+            updateMetric(name, value, max) {
+                const displayValue = value.toFixed(2);
+                const percentage = Math.min(100, (value / max) * 100);
+                
+                document.getElementById(`${name}-value`).textContent = displayValue;
+                document.getElementById(`${name}-bar`).style.width = `${percentage}%`;
+            }
+            
+            updateLayers(neurons) {
+                const layerCounts = {};
+                neurons.forEach(n => {
+                    layerCounts[n.layer] = (layerCounts[n.layer] || 0) + 1;
+                });
+                
+                const layerDisplay = document.getElementById('layer-display');
+                layerDisplay.innerHTML = '';
+                
+                for (let layer = 1; layer <= 4; layer++) {
+                    const count = layerCounts[layer] || 0;
+                    
+                    const layerRow = document.createElement('div');
+                    layerRow.className = 'layer-row';
+                    
+                    const layerName = document.createElement('div');
+                    layerName.className = 'layer-name';
+                    layerName.textContent = `Layer ${layer}`;
+                    layerRow.appendChild(layerName);
+                    
+                    const neuronDots = document.createElement('div');
+                    neuronDots.className = 'neuron-dots';
+                    
+                    neurons.filter(n => n.layer === layer).forEach(neuron => {
+                        const dot = document.createElement('div');
+                        dot.className = `neuron-dot ${neuron.active ? 'active' : ''}`;
+                        neuronDots.appendChild(dot);
+                    });
+                    
+                    layerRow.appendChild(neuronDots);
+                    layerDisplay.appendChild(layerRow);
+                    
+                    // Add compression boundary
+                    if (layer < 4) {
+                        const boundary = document.createElement('div');
+                        boundary.className = 'compression-boundary';
+                        const ratio = count / (layerCounts[layer + 1] || 1);
+                        boundary.textContent = `↕ ${ratio.toFixed(2)}:1 compression`;
+                        if (ratio > 1.4 && ratio < 1.8) {
+                            boundary.classList.add('active');
+                        }
+                        layerDisplay.appendChild(boundary);
+                    }
+                }
+            }
+            
+            updateTrajectory() {
+                if (this.history.length < 10) return;
+                
+                const recent = this.history.slice(-10);
+                let ascending = 0;
+                let descending = 0;
+                
+                for (let i = 1; i < recent.length; i++) {
+                    if (recent[i] > recent[i-1]) ascending++;
+                    else if (recent[i] < recent[i-1]) descending++;
+                }
+                
+                const trajectoryEl = document.getElementById('trajectory-value');
+                trajectoryEl.className = '';
+                
+                if (ascending > descending * 1.5) {
+                    trajectoryEl.textContent = 'Ascending';
+                    trajectoryEl.classList.add('ascending');
+                } else if (descending > ascending * 1.5) {
+                    trajectoryEl.textContent = 'Descending';
+                    trajectoryEl.classList.add('descending');
+                } else {
+                    trajectoryEl.textContent = 'Stable';
+                    trajectoryEl.classList.add('stable');
+                }
+            }
+        }
+        
+        // Initialize and run
+        const dashboard = new Dashboard();
+        setInterval(() => dashboard.update(), 100);
+    </script>
+</body>
+</html>

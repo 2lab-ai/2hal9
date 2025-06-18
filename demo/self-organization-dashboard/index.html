@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAL9 Self-Organization Monitoring Dashboard</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-panel: rgba(20, 20, 30, 0.8);
+            --border-color: rgba(100, 200, 255, 0.3);
+            --primary-blue: #00b4ff;
+            --primary-green: #00ff88;
+            --primary-red: #ff4444;
+            --primary-yellow: #ffcc00;
+            --text-dim: #888;
+        }
+        
+        body {
+            background: var(--bg-dark);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            grid-template-rows: 80px 1fr 100px;
+            height: 100vh;
+            gap: 2px;
+            background: #111;
+        }
+        
+        .header {
+            grid-column: 1 / -1;
+            background: linear-gradient(180deg, rgba(20, 20, 30, 0.9) 0%, rgba(10, 10, 20, 0.9) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            border-bottom: 2px solid var(--border-color);
+        }
+        
+        .logo {
+            font-family: 'Orbitron', monospace;
+            font-size: 32px;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-green) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .status-indicators {
+            display: flex;
+            gap: 30px;
+        }
+        
+        .indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .indicator-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .indicator-dot.active {
+            background: var(--primary-green);
+            box-shadow: 0 0 10px var(--primary-green);
+        }
+        
+        .indicator-dot.warning {
+            background: var(--primary-yellow);
+            box-shadow: 0 0 10px var(--primary-yellow);
+        }
+        
+        .indicator-dot.error {
+            background: var(--primary-red);
+            box-shadow: 0 0 10px var(--primary-red);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(0.9); }
+        }
+        
+        .sidebar {
+            background: var(--bg-panel);
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid var(--border-color);
+        }
+        
+        .main-view {
+            position: relative;
+            overflow: hidden;
+            background: #000;
+        }
+        
+        .sidebar-right {
+            background: var(--bg-panel);
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 1px solid var(--border-color);
+        }
+        
+        .footer {
+            grid-column: 1 / -1;
+            background: var(--bg-panel);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .panel {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .panel-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--primary-blue);
+            margin-bottom: 15px;
+        }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .metric:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .metric-label {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+        
+        .metric-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary-green);
+        }
+        
+        .chart-container {
+            height: 150px;
+            margin-top: 10px;
+            position: relative;
+        }
+        
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .neuron-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .neuron-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 5px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .neuron-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+        
+        .neuron-id {
+            font-family: 'Orbitron', monospace;
+            font-size: 12px;
+            color: var(--primary-blue);
+        }
+        
+        .neuron-layer {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--primary-blue);
+            text-shadow: 0 0 20px currentColor;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-top: 10px;
+            letter-spacing: 1px;
+        }
+        
+        .control-btn {
+            padding: 10px 20px;
+            font-family: 'Orbitron', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            background: transparent;
+            border: 2px solid var(--primary-blue);
+            color: var(--primary-blue);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .control-btn:hover {
+            background: var(--primary-blue);
+            color: black;
+            box-shadow: 0 0 20px var(--primary-blue);
+        }
+        
+        .control-btn.active {
+            background: var(--primary-green);
+            border-color: var(--primary-green);
+            color: black;
+        }
+        
+        .control-btn.danger {
+            border-color: var(--primary-red);
+            color: var(--primary-red);
+        }
+        
+        .control-btn.danger:hover {
+            background: var(--primary-red);
+            color: white;
+        }
+        
+        .layer-visualization {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .layer-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .layer-label {
+            font-family: 'Orbitron', monospace;
+            font-size: 12px;
+            width: 60px;
+            text-align: right;
+            color: var(--text-dim);
+        }
+        
+        .layer-progress {
+            flex: 1;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .layer-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-blue) 0%, var(--primary-green) 100%);
+            transition: width 0.5s ease-out;
+        }
+        
+        .layer-count {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-left: 10px;
+            min-width: 30px;
+        }
+        
+        .connection-matrix {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 2px;
+            margin-top: 10px;
+        }
+        
+        .matrix-cell {
+            aspect-ratio: 1;
+            background: rgba(0, 255, 255, 0.1);
+            border-radius: 2px;
+            transition: all 0.2s;
+        }
+        
+        .matrix-cell.active {
+            background: var(--primary-blue);
+            box-shadow: 0 0 10px var(--primary-blue);
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <header class="header">
+            <h1 class="logo">HAL9 자기조직화 모니터</h1>
+            <div class="status-indicators">
+                <div class="indicator">
+                    <div class="indicator-dot active" id="system-status"></div>
+                    <span>시스템 상태</span>
+                </div>
+                <div class="indicator">
+                    <div class="indicator-dot active" id="network-status"></div>
+                    <span>네트워크</span>
+                </div>
+                <div class="indicator">
+                    <div class="indicator-dot warning" id="performance-status"></div>
+                    <span>성능</span>
+                </div>
+            </div>
+        </header>
+        
+        <aside class="sidebar">
+            <div class="panel">
+                <h3 class="panel-title">시스템 메트릭</h3>
+                <div class="metric">
+                    <span class="metric-label">활성 뉴런</span>
+                    <span class="metric-value" id="active-neurons">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">총 연결</span>
+                    <span class="metric-value" id="total-connections">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">레이어 수</span>
+                    <span class="metric-value" id="layer-count">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">클러스터</span>
+                    <span class="metric-value" id="cluster-count">0</span>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3 class="panel-title">성능 차트</h3>
+                <div class="chart-container">
+                    <canvas id="performance-chart"></canvas>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3 class="panel-title">레이어 분포</h3>
+                <div class="layer-visualization" id="layer-viz"></div>
+            </div>
+        </aside>
+        
+        <main class="main-view">
+            <canvas id="network-canvas"></canvas>
+        </main>
+        
+        <aside class="sidebar-right">
+            <div class="panel">
+                <h3 class="panel-title">활성 뉴런 목록</h3>
+                <div class="neuron-list" id="neuron-list"></div>
+            </div>
+            
+            <div class="panel">
+                <h3 class="panel-title">연결 매트릭스</h3>
+                <div class="connection-matrix" id="connection-matrix"></div>
+            </div>
+            
+            <div class="panel">
+                <h3 class="panel-title">제어</h3>
+                <button class="control-btn" id="start-btn" onclick="toggleMonitoring()">모니터링 시작</button>
+                <button class="control-btn" onclick="addNeurons()">뉴런 추가</button>
+                <button class="control-btn danger" onclick="resetSystem()">시스템 리셋</button>
+            </div>
+        </aside>
+        
+        <footer class="footer">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="ops-per-sec">0</div>
+                    <div class="stat-label">Ops/sec</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="emergence-time">0</div>
+                    <div class="stat-label">출현 시간 (μs)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="compression-ratio">1.0</div>
+                    <div class="stat-label">압축 비율</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="fps">0</div>
+                    <div class="stat-label">FPS</div>
+                </div>
+            </div>
+        </footer>
+    </div>
+    
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('network-canvas');
+        const ctx = canvas.getContext('2d');
+        const perfCanvas = document.getElementById('performance-chart');
+        const perfCtx = perfCanvas.getContext('2d');
+        
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            perfCanvas.width = perfCanvas.offsetWidth;
+            perfCanvas.height = perfCanvas.offsetHeight;
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
+        // System state
+        let neurons = [];
+        let connections = [];
+        let layers = [];
+        let isMonitoring = false;
+        let frameCount = 0;
+        let lastTime = Date.now();
+        let performanceHistory = [];
+        const maxHistoryPoints = 60;
+        
+        // Metrics
+        let metrics = {
+            activeNeurons: 0,
+            totalConnections: 0,
+            layerCount: 0,
+            clusterCount: 0,
+            opsPerSec: 0,
+            emergenceTime: 0,
+            compressionRatio: 1.0,
+            fps: 0
+        };
+        
+        class Neuron {
+            constructor(id) {
+                this.id = id;
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.layer = null;
+                this.connections = new Set();
+                this.speed = 0.5 + Math.random() * 2;
+                this.complexity = Math.random();
+                this.activity = Math.random();
+                this.color = `hsl(${Math.random() * 360}, 70%, 50%)`;
+            }
+            
+            update() {
+                // Simple physics
+                this.x += this.vx * this.speed;
+                this.y += this.vy * this.speed;
+                
+                // Bounce off edges
+                if (this.x < 20 || this.x > canvas.width - 20) this.vx *= -1;
+                if (this.y < 20 || this.y > canvas.height - 20) this.vy *= -1;
+                
+                // Activity changes
+                this.activity = Math.max(0, Math.min(1, this.activity + (Math.random() - 0.5) * 0.1));
+            }
+            
+            distanceTo(other) {
+                const dx = this.x - other.x;
+                const dy = this.y - other.y;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+        }
+        
+        function initializeNeurons(count = 50) {
+            neurons = [];
+            for (let i = 0; i < count; i++) {
+                neurons.push(new Neuron(`N${i + 1}`));
+            }
+            findConnections();
+            selfOrganize();
+        }
+        
+        function findConnections() {
+            connections = [];
+            const maxDistance = 120;
+            
+            neurons.forEach(n => n.connections.clear());
+            
+            for (let i = 0; i < neurons.length; i++) {
+                for (let j = i + 1; j < neurons.length; j++) {
+                    const dist = neurons[i].distanceTo(neurons[j]);
+                    if (dist < maxDistance) {
+                        const compatibility = 1 - Math.abs(neurons[i].complexity - neurons[j].complexity);
+                        if (Math.random() < compatibility * 0.4) {
+                            connections.push({ from: i, to: j, strength: compatibility });
+                            neurons[i].connections.add(j);
+                            neurons[j].connections.add(i);
+                        }
+                    }
+                }
+            }
+            
+            metrics.totalConnections = connections.length;
+        }
+        
+        function selfOrganize() {
+            const startTime = performance.now();
+            
+            // Reset layers
+            layers = [];
+            neurons.forEach(n => n.layer = null);
+            
+            // Clustering algorithm
+            const clusters = [];
+            const visited = new Set();
+            
+            for (let i = 0; i < neurons.length; i++) {
+                if (visited.has(i)) continue;
+                
+                const cluster = [i];
+                visited.add(i);
+                
+                // Find similar neurons
+                for (let j = i + 1; j < neurons.length; j++) {
+                    if (visited.has(j)) continue;
+                    
+                    const speedDiff = Math.abs(neurons[i].speed - neurons[j].speed);
+                    const complexityDiff = Math.abs(neurons[i].complexity - neurons[j].complexity);
+                    
+                    if (speedDiff < 0.5 && complexityDiff < 0.3) {
+                        cluster.push(j);
+                        visited.add(j);
+                    }
+                }
+                
+                if (cluster.length > 2) {
+                    clusters.push(cluster);
+                }
+            }
+            
+            // Sort clusters by average speed
+            clusters.sort((a, b) => {
+                const avgSpeedA = a.reduce((sum, idx) => sum + neurons[idx].speed, 0) / a.length;
+                const avgSpeedB = b.reduce((sum, idx) => sum + neurons[idx].speed, 0) / b.length;
+                return avgSpeedB - avgSpeedA;
+            });
+            
+            // Assign layers
+            clusters.forEach((cluster, layerIdx) => {
+                layers.push({
+                    id: layerIdx,
+                    neurons: cluster,
+                    color: `hsl(${layerIdx * 40}, 70%, 50%)`
+                });
+                
+                cluster.forEach(idx => {
+                    neurons[idx].layer = layerIdx;
+                });
+            });
+            
+            const endTime = performance.now();
+            metrics.emergenceTime = Math.round((endTime - startTime) * 1000); // Convert to microseconds
+            metrics.layerCount = layers.length;
+            metrics.clusterCount = clusters.length;
+            
+            // Calculate compression ratio
+            if (layers.length > 1) {
+                metrics.compressionRatio = (layers[0].neurons.length / layers[layers.length - 1].neurons.length).toFixed(2);
+            }
+            
+            updateUI();
+        }
+        
+        function updateUI() {
+            // Update metrics
+            document.getElementById('active-neurons').textContent = metrics.activeNeurons;
+            document.getElementById('total-connections').textContent = metrics.totalConnections;
+            document.getElementById('layer-count').textContent = metrics.layerCount;
+            document.getElementById('cluster-count').textContent = metrics.clusterCount;
+            document.getElementById('ops-per-sec').textContent = Math.round(metrics.opsPerSec).toLocaleString();
+            document.getElementById('emergence-time').textContent = metrics.emergenceTime;
+            document.getElementById('compression-ratio').textContent = metrics.compressionRatio;
+            document.getElementById('fps').textContent = metrics.fps;
+            
+            // Update neuron list
+            updateNeuronList();
+            
+            // Update layer visualization
+            updateLayerVisualization();
+            
+            // Update connection matrix
+            updateConnectionMatrix();
+        }
+        
+        function updateNeuronList() {
+            const list = document.getElementById('neuron-list');
+            const topNeurons = neurons
+                .filter(n => n.layer !== null)
+                .sort((a, b) => b.connections.size - a.connections.size)
+                .slice(0, 10);
+            
+            list.innerHTML = topNeurons.map(neuron => `
+                <div class="neuron-item" onclick="highlightNeuron('${neuron.id}')">
+                    <span class="neuron-id">${neuron.id}</span>
+                    <span class="neuron-layer" style="background: ${layers[neuron.layer]?.color || '#444'}">
+                        Layer ${neuron.layer + 1}
+                    </span>
+                </div>
+            `).join('');
+        }
+        
+        function updateLayerVisualization() {
+            const viz = document.getElementById('layer-viz');
+            viz.innerHTML = layers.map(layer => `
+                <div class="layer-bar">
+                    <span class="layer-label">Layer ${layer.id + 1}</span>
+                    <div class="layer-progress">
+                        <div class="layer-fill" style="width: ${(layer.neurons.length / neurons.length) * 100}%; background: ${layer.color}"></div>
+                    </div>
+                    <span class="layer-count">${layer.neurons.length}</span>
+                </div>
+            `).join('');
+        }
+        
+        function updateConnectionMatrix() {
+            const matrix = document.getElementById('connection-matrix');
+            const cells = [];
+            
+            for (let i = 0; i < 100; i++) {
+                const isActive = Math.random() < (connections.length / (neurons.length * neurons.length)) * 10;
+                cells.push(`<div class="matrix-cell ${isActive ? 'active' : ''}"></div>`);
+            }
+            
+            matrix.innerHTML = cells.join('');
+        }
+        
+        function drawNetwork() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw connections
+            ctx.strokeStyle = 'rgba(0, 180, 255, 0.2)';
+            ctx.lineWidth = 1;
+            
+            connections.forEach(conn => {
+                const from = neurons[conn.from];
+                const to = neurons[conn.to];
+                
+                ctx.beginPath();
+                ctx.moveTo(from.x, from.y);
+                ctx.lineTo(to.x, to.y);
+                ctx.globalAlpha = conn.strength * 0.3;
+                ctx.stroke();
+            });
+            
+            // Draw neurons
+            ctx.globalAlpha = 1;
+            neurons.forEach(neuron => {
+                const radius = 5 + neuron.activity * 10;
+                
+                ctx.beginPath();
+                ctx.arc(neuron.x, neuron.y, radius, 0, Math.PI * 2);
+                
+                if (neuron.layer !== null && layers[neuron.layer]) {
+                    ctx.fillStyle = layers[neuron.layer].color;
+                } else {
+                    ctx.fillStyle = neuron.color;
+                }
+                
+                ctx.globalAlpha = 0.5 + neuron.activity * 0.5;
+                ctx.fill();
+                
+                // Glow effect for active neurons
+                if (neuron.activity > 0.7) {
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = ctx.fillStyle;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+                
+                // Draw neuron ID for highlighted ones
+                if (neuron.highlighted) {
+                    ctx.fillStyle = 'white';
+                    ctx.font = '12px Orbitron';
+                    ctx.fillText(neuron.id, neuron.x - 10, neuron.y - 15);
+                }
+            });
+        }
+        
+        function drawPerformanceChart() {
+            perfCtx.clearRect(0, 0, perfCanvas.width, perfCanvas.height);
+            
+            if (performanceHistory.length < 2) return;
+            
+            const width = perfCanvas.width;
+            const height = perfCanvas.height;
+            const step = width / maxHistoryPoints;
+            
+            // Draw grid
+            perfCtx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            perfCtx.lineWidth = 1;
+            
+            for (let i = 0; i <= 4; i++) {
+                const y = (height / 4) * i;
+                perfCtx.beginPath();
+                perfCtx.moveTo(0, y);
+                perfCtx.lineTo(width, y);
+                perfCtx.stroke();
+            }
+            
+            // Draw performance line
+            perfCtx.strokeStyle = '#00ff88';
+            perfCtx.lineWidth = 2;
+            perfCtx.beginPath();
+            
+            performanceHistory.forEach((value, index) => {
+                const x = index * step;
+                const y = height - (value / 150) * height; // Normalize to 150 FPS max
+                
+                if (index === 0) {
+                    perfCtx.moveTo(x, y);
+                } else {
+                    perfCtx.lineTo(x, y);
+                }
+            });
+            
+            perfCtx.stroke();
+            
+            // Draw current value
+            const lastValue = performanceHistory[performanceHistory.length - 1];
+            perfCtx.fillStyle = '#00ff88';
+            perfCtx.font = '12px Orbitron';
+            perfCtx.fillText(`${lastValue} FPS`, width - 60, 20);
+        }
+        
+        function monitor() {
+            if (!isMonitoring) return;
+            
+            // Update neurons
+            let activeCount = 0;
+            neurons.forEach(neuron => {
+                neuron.update();
+                if (neuron.activity > 0.5) activeCount++;
+            });
+            metrics.activeNeurons = activeCount;
+            
+            // Periodic reorganization
+            if (frameCount % 120 === 0) {
+                findConnections();
+                selfOrganize();
+            }
+            
+            // Calculate metrics
+            frameCount++;
+            const currentTime = Date.now();
+            if (currentTime - lastTime > 1000) {
+                metrics.fps = frameCount;
+                metrics.opsPerSec = frameCount * neurons.length * 10; // Approximate operations
+                
+                performanceHistory.push(metrics.fps);
+                if (performanceHistory.length > maxHistoryPoints) {
+                    performanceHistory.shift();
+                }
+                
+                frameCount = 0;
+                lastTime = currentTime;
+                updateUI();
+            }
+            
+            // Draw everything
+            drawNetwork();
+            drawPerformanceChart();
+            
+            requestAnimationFrame(monitor);
+        }
+        
+        function toggleMonitoring() {
+            isMonitoring = !isMonitoring;
+            const btn = document.getElementById('start-btn');
+            btn.textContent = isMonitoring ? '모니터링 중지' : '모니터링 시작';
+            btn.classList.toggle('active', isMonitoring);
+            
+            if (isMonitoring) {
+                monitor();
+            }
+        }
+        
+        function addNeurons() {
+            const count = 20;
+            for (let i = 0; i < count; i++) {
+                neurons.push(new Neuron(`N${neurons.length + 1}`));
+            }
+            findConnections();
+            selfOrganize();
+        }
+        
+        function resetSystem() {
+            if (confirm('시스템을 리셋하시겠습니까?')) {
+                isMonitoring = false;
+                document.getElementById('start-btn').textContent = '모니터링 시작';
+                document.getElementById('start-btn').classList.remove('active');
+                performanceHistory = [];
+                initializeNeurons(50);
+                updateUI();
+                drawNetwork();
+            }
+        }
+        
+        function highlightNeuron(id) {
+            neurons.forEach(n => n.highlighted = n.id === id);
+        }
+        
+        // Initialize
+        initializeNeurons(50);
+        updateUI();
+        drawNetwork();
+        
+        // Update status indicators
+        setInterval(() => {
+            // Simulate status changes
+            const systemStatus = document.getElementById('system-status');
+            const networkStatus = document.getElementById('network-status');
+            const perfStatus = document.getElementById('performance-status');
+            
+            if (metrics.fps > 30) {
+                perfStatus.className = 'indicator-dot active';
+            } else if (metrics.fps > 15) {
+                perfStatus.className = 'indicator-dot warning';
+            } else {
+                perfStatus.className = 'indicator-dot error';
+            }
+            
+            if (metrics.totalConnections > 50) {
+                networkStatus.className = 'indicator-dot active';
+            } else {
+                networkStatus.className = 'indicator-dot warning';
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

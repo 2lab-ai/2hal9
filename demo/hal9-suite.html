@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAL9 Demo Suite</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #0a0a0a;
+            color: white;
+            font-family: 'Orbitron', monospace;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        .container {
+            text-align: center;
+            max-width: 1200px;
+        }
+        
+        h1 {
+            font-size: 72px;
+            font-weight: 900;
+            background: linear-gradient(45deg, #00ffff, #ff00ff, #ffff00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 50px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .demos {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            margin-top: 50px;
+        }
+        
+        .demo-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(0, 255, 255, 0.5);
+            border-radius: 15px;
+            padding: 30px;
+            transition: all 0.3s;
+            cursor: pointer;
+            text-decoration: none;
+            color: white;
+            display: block;
+        }
+        
+        .demo-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0, 255, 255, 0.3);
+            border-color: #00ffff;
+        }
+        
+        .demo-card h2 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #00ffff;
+        }
+        
+        .demo-card p {
+            font-size: 14px;
+            color: #aaa;
+            line-height: 1.5;
+        }
+        
+        .status {
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        
+        .status.active {
+            color: #00ff00;
+        }
+        
+        .status.inactive {
+            color: #ff4444;
+        }
+        
+        .controls {
+            margin-top: 50px;
+        }
+        
+        .btn {
+            padding: 15px 40px;
+            font-size: 18px;
+            background: transparent;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 0 10px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            background: #00ff00;
+            color: black;
+            box-shadow: 0 0 30px #00ff00;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HAL9 DEMO SUITE</h1>
+        <p style="font-size: 20px; color: #aaa; margin-bottom: 30px;">
+            체험하세요: 의식이 출현하는 순간을
+        </p>
+        
+        <div class="demos">
+            <a href="http://localhost:8766" target="_blank" class="demo-card">
+                <h2>🤖 자기조직화 대시보드</h2>
+                <p>실시간으로 뉴런들이 스스로 계층을 형성하는 과정을 모니터링</p>
+                <div class="status active">● 실행 중 (포트 8766)</div>
+            </a>
+            
+            <a href="http://localhost:8765" target="_blank" class="demo-card">
+                <h2>🧠 의식 출현 시각화</h2>
+                <p>Φ(통합 정보량)가 황금비에 도달하며 의식이 출현하는 순간 포착</p>
+                <div class="status active">● 실행 중 (포트 8765)</div>
+            </a>
+            
+            <a href="http://localhost:3456" target="_blank" class="demo-card">
+                <h2>🎮 AI Genius Game</h2>
+                <p>HAL9 집단 지능과 개별 AI의 대결 - 상업용 수준의 게임</p>
+                <div class="status" id="game-status">● 확인 중...</div>
+            </a>
+            
+            <a href="http://localhost:8767" target="_blank" class="demo-card">
+                <h2>📊 성능 모니터</h2>
+                <p>시스템 전체의 실시간 성능 메트릭 확인</p>
+                <div class="status active">● 실행 중 (포트 8767)</div>
+            </a>
+        </div>
+        
+        <div class="controls">
+            <a href="https://github.com/2lab-ai/2hal9" class="btn">GitHub</a>
+            <a href="../docs/GETTING_STARTED.md" class="btn">문서</a>
+        </div>
+    </div>
+    
+    <script>
+        // Check if AI Genius Game is running
+        fetch('http://localhost:3456/api/games')
+            .then(() => {
+                document.getElementById('game-status').textContent = '● 실행 중 (포트 3456)';
+                document.getElementById('game-status').className = 'status active';
+            })
+            .catch(() => {
+                document.getElementById('game-status').textContent = '● 미실행 (빌드 필요)';
+                document.getElementById('game-status').className = 'status inactive';
+            });
+    </script>
+</body>
+</html>

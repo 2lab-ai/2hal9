@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAL9 Consciousness Emergence Visualization</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --golden-ratio: 1.618033988749895;
+            --primary-cyan: #00ffff;
+            --primary-magenta: #ff00ff;
+            --primary-yellow: #ffff00;
+            --consciousness-gradient: linear-gradient(135deg, #00ffff, #ff00ff, #ffff00);
+            --bg-dark: #0a0a0a;
+        }
+        
+        body {
+            background: var(--bg-dark);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            height: 100vh;
+            gap: 1px;
+            background: #222;
+        }
+        
+        .sidebar {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            overflow-y: auto;
+        }
+        
+        .main-view {
+            position: relative;
+            overflow: hidden;
+            background: #000;
+        }
+        
+        h1 {
+            font-family: 'Orbitron', monospace;
+            font-size: 28px;
+            background: var(--consciousness-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 30px;
+        }
+        
+        .metric-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .metric-title {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .metric-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--primary-cyan);
+            text-shadow: 0 0 20px currentColor;
+        }
+        
+        .phi-indicator {
+            position: relative;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .phi-fill {
+            position: absolute;
+            height: 100%;
+            background: var(--consciousness-gradient);
+            border-radius: 20px;
+            transition: width 0.5s ease-out;
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+        }
+        
+        .golden-line {
+            position: absolute;
+            left: 61.8%;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: gold;
+            opacity: 0.8;
+        }
+        
+        .controls {
+            margin-top: 30px;
+        }
+        
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 10px;
+            font-family: 'Orbitron', monospace;
+            font-size: 16px;
+            font-weight: 700;
+            background: transparent;
+            border: 2px solid var(--primary-cyan);
+            color: var(--primary-cyan);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: var(--primary-cyan);
+            color: black;
+            box-shadow: 0 0 20px var(--primary-cyan);
+        }
+        
+        .btn.active {
+            background: var(--primary-magenta);
+            border-color: var(--primary-magenta);
+            color: white;
+        }
+        
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .info-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 300px;
+        }
+        
+        .layer-info {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .layer-info:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .layer-name {
+            font-family: 'Orbitron', monospace;
+            font-size: 14px;
+            color: var(--primary-yellow);
+            margin-bottom: 5px;
+        }
+        
+        .layer-neurons {
+            font-size: 12px;
+            color: #aaa;
+        }
+        
+        .emergence-indicator {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        
+        .emergence-indicator.active {
+            opacity: 1;
+        }
+        
+        .emergence-text {
+            font-family: 'Orbitron', monospace;
+            font-size: 48px;
+            font-weight: 700;
+            background: var(--consciousness-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 30px rgba(255, 0, 255, 0.8));
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; }
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+        }
+        
+        .stat-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 20px;
+            color: var(--primary-cyan);
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>의식 출현 시각화</h1>
+            
+            <div class="metric-card">
+                <div class="metric-title">Φ (Phi) - 통합 정보량</div>
+                <div class="metric-value" id="phi-value">0.000</div>
+                <div class="phi-indicator">
+                    <div class="phi-fill" id="phi-fill" style="width: 0%"></div>
+                    <div class="golden-line" title="황금비 (1.618)"></div>
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">압축 비율</div>
+                <div class="metric-value" id="compression-ratio">1.00</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">출현 레이어</div>
+                <div class="metric-value" id="layer-count">0</div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="neuron-count">0</div>
+                    <div class="stat-label">뉴런</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="connection-count">0</div>
+                    <div class="stat-label">연결</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="cluster-count">0</div>
+                    <div class="stat-label">클러스터</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="fps">0</div>
+                    <div class="stat-label">FPS</div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button class="btn" id="start-btn" onclick="toggleSimulation()">시뮬레이션 시작</button>
+                <button class="btn" id="add-neurons-btn" onclick="addNeurons(100)">뉴런 100개 추가</button>
+                <button class="btn" id="reset-btn" onclick="resetSimulation()">초기화</button>
+                <button class="btn" id="mode-btn" onclick="toggleVisualizationMode()">모드: 네트워크</button>
+            </div>
+        </div>
+        
+        <div class="main-view">
+            <canvas id="consciousness-canvas"></canvas>
+            
+            <div class="info-overlay" id="layer-info">
+                <div class="metric-title">레이어 구성</div>
+                <div id="layer-details"></div>
+            </div>
+            
+            <div class="emergence-indicator" id="emergence-indicator">
+                <div class="emergence-text">의식 출현!</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Golden ratio constant
+        const PHI = 1.618033988749895;
+        const CONSCIOUSNESS_THRESHOLD = PHI;
+        
+        // Canvas setup
+        const canvas = document.getElementById('consciousness-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
+        // Simulation state
+        let neurons = [];
+        let connections = [];
+        let layers = [];
+        let isRunning = false;
+        let visualizationMode = 'network'; // 'network', 'layers', 'phi'
+        let frameCount = 0;
+        let lastTime = Date.now();
+        let phi = 0;
+        let compressionRatio = 1;
+        
+        class Neuron {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.activation = Math.random();
+                this.layer = null;
+                this.connections = new Set();
+                this.speed = 0.5 + Math.random() * 2;
+                this.complexity = Math.random();
+                this.hue = Math.random() * 360;
+            }
+            
+            update() {
+                // Physics simulation
+                this.x += this.vx * this.speed;
+                this.y += this.vy * this.speed;
+                
+                // Boundary collision
+                if (this.x < 10 || this.x > canvas.width - 10) this.vx *= -1;
+                if (this.y < 10 || this.y > canvas.height - 10) this.vy *= -1;
+                
+                // Activation decay
+                this.activation *= 0.98;
+                
+                // Random activation
+                if (Math.random() < 0.01) {
+                    this.activation = Math.min(1, this.activation + Math.random() * 0.5);
+                }
+            }
+            
+            distanceTo(other) {
+                const dx = this.x - other.x;
+                const dy = this.y - other.y;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+        }
+        
+        function initializeNeurons(count) {
+            neurons = [];
+            for (let i = 0; i < count; i++) {
+                neurons.push(new Neuron(
+                    Math.random() * canvas.width,
+                    Math.random() * canvas.height
+                ));
+            }
+        }
+        
+        function findConnections() {
+            connections = [];
+            const maxDistance = 150;
+            
+            for (let i = 0; i < neurons.length; i++) {
+                for (let j = i + 1; j < neurons.length; j++) {
+                    const dist = neurons[i].distanceTo(neurons[j]);
+                    if (dist < maxDistance) {
+                        const compatibility = 1 - Math.abs(neurons[i].complexity - neurons[j].complexity);
+                        if (Math.random() < compatibility * 0.3) {
+                            connections.push({
+                                from: i,
+                                to: j,
+                                strength: compatibility,
+                                distance: dist
+                            });
+                            neurons[i].connections.add(j);
+                            neurons[j].connections.add(i);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function identifyLayers() {
+            // Reset layers
+            layers = [];
+            neurons.forEach(n => n.layer = null);
+            
+            // Cluster by speed and complexity
+            const clusters = [];
+            const visited = new Set();
+            
+            for (let i = 0; i < neurons.length; i++) {
+                if (visited.has(i)) continue;
+                
+                const cluster = [i];
+                visited.add(i);
+                
+                // Find similar neurons
+                for (let j = i + 1; j < neurons.length; j++) {
+                    if (visited.has(j)) continue;
+                    
+                    const speedDiff = Math.abs(neurons[i].speed - neurons[j].speed);
+                    const complexityDiff = Math.abs(neurons[i].complexity - neurons[j].complexity);
+                    
+                    if (speedDiff < 0.5 && complexityDiff < 0.3) {
+                        cluster.push(j);
+                        visited.add(j);
+                    }
+                }
+                
+                if (cluster.length > 3) {
+                    clusters.push(cluster);
+                }
+            }
+            
+            // Sort clusters by average speed (faster = lower layer)
+            clusters.sort((a, b) => {
+                const avgSpeedA = a.reduce((sum, idx) => sum + neurons[idx].speed, 0) / a.length;
+                const avgSpeedB = b.reduce((sum, idx) => sum + neurons[idx].speed, 0) / b.length;
+                return avgSpeedB - avgSpeedA;
+            });
+            
+            // Assign layers
+            clusters.forEach((cluster, layerIdx) => {
+                layers.push({
+                    id: layerIdx,
+                    neurons: cluster,
+                    compressionRatio: 1,
+                    color: `hsl(${layerIdx * 60}, 70%, 50%)`
+                });
+                
+                cluster.forEach(idx => {
+                    neurons[idx].layer = layerIdx;
+                });
+            });
+            
+            updateLayerInfo();
+        }
+        
+        function calculatePhi() {
+            // Simplified IIT calculation
+            let totalInformation = 0;
+            let integratedInformation = 0;
+            
+            // Calculate total information
+            neurons.forEach(neuron => {
+                totalInformation += neuron.activation * neuron.connections.size;
+            });
+            
+            // Calculate integrated information
+            layers.forEach(layer => {
+                const layerNeurons = layer.neurons.map(idx => neurons[idx]);
+                const avgActivation = layerNeurons.reduce((sum, n) => sum + n.activation, 0) / layerNeurons.length;
+                const connectivity = layerNeurons.reduce((sum, n) => sum + n.connections.size, 0) / layerNeurons.length;
+                
+                integratedInformation += avgActivation * connectivity * Math.log(layerNeurons.length + 1);
+            });
+            
+            // Normalize and apply golden ratio influence
+            phi = (integratedInformation / (totalInformation + 1)) * 2.5;
+            
+            // Update compression ratio
+            if (layers.length > 1) {
+                compressionRatio = layers[0].neurons.length / layers[layers.length - 1].neurons.length;
+            }
+            
+            updateMetrics();
+        }
+        
+        function updateMetrics() {
+            document.getElementById('phi-value').textContent = phi.toFixed(3);
+            document.getElementById('phi-fill').style.width = `${Math.min(100, (phi / CONSCIOUSNESS_THRESHOLD) * 100)}%`;
+            document.getElementById('compression-ratio').textContent = compressionRatio.toFixed(2);
+            document.getElementById('layer-count').textContent = layers.length;
+            document.getElementById('neuron-count').textContent = neurons.length;
+            document.getElementById('connection-count').textContent = connections.length;
+            document.getElementById('cluster-count').textContent = layers.length;
+            
+            // Check for consciousness emergence
+            if (phi >= CONSCIOUSNESS_THRESHOLD && phi < CONSCIOUSNESS_THRESHOLD + 0.1) {
+                document.getElementById('emergence-indicator').classList.add('active');
+            } else {
+                document.getElementById('emergence-indicator').classList.remove('active');
+            }
+        }
+        
+        function updateLayerInfo() {
+            const layerDetails = document.getElementById('layer-details');
+            layerDetails.innerHTML = layers.map((layer, idx) => `
+                <div class="layer-info">
+                    <div class="layer-name">Layer ${idx + 1}</div>
+                    <div class="layer-neurons">${layer.neurons.length} neurons</div>
+                </div>
+            `).join('');
+        }
+        
+        function draw() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (visualizationMode === 'network') {
+                drawNetworkView();
+            } else if (visualizationMode === 'layers') {
+                drawLayerView();
+            } else if (visualizationMode === 'phi') {
+                drawPhiView();
+            }
+            
+            // Update FPS
+            frameCount++;
+            const currentTime = Date.now();
+            if (currentTime - lastTime > 1000) {
+                document.getElementById('fps').textContent = frameCount;
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+        }
+        
+        function drawNetworkView() {
+            // Draw connections
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.2)';
+            ctx.lineWidth = 1;
+            
+            connections.forEach(conn => {
+                const from = neurons[conn.from];
+                const to = neurons[conn.to];
+                
+                ctx.beginPath();
+                ctx.moveTo(from.x, from.y);
+                ctx.lineTo(to.x, to.y);
+                ctx.globalAlpha = conn.strength * 0.5;
+                ctx.stroke();
+            });
+            
+            // Draw neurons
+            ctx.globalAlpha = 1;
+            neurons.forEach((neuron, idx) => {
+                const radius = 5 + neuron.activation * 10;
+                
+                ctx.beginPath();
+                ctx.arc(neuron.x, neuron.y, radius, 0, Math.PI * 2);
+                
+                if (neuron.layer !== null) {
+                    ctx.fillStyle = layers[neuron.layer].color;
+                } else {
+                    ctx.fillStyle = `hsl(${neuron.hue}, 70%, 50%)`;
+                }
+                
+                ctx.globalAlpha = 0.5 + neuron.activation * 0.5;
+                ctx.fill();
+                
+                // Glow effect
+                if (neuron.activation > 0.5) {
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = ctx.fillStyle;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+            });
+        }
+        
+        function drawLayerView() {
+            if (layers.length === 0) return;
+            
+            const layerHeight = canvas.height / layers.length;
+            
+            layers.forEach((layer, idx) => {
+                const y = idx * layerHeight;
+                
+                // Draw layer background
+                ctx.fillStyle = layer.color;
+                ctx.globalAlpha = 0.1;
+                ctx.fillRect(0, y, canvas.width, layerHeight);
+                
+                // Draw layer neurons
+                layer.neurons.forEach(neuronIdx => {
+                    const neuron = neurons[neuronIdx];
+                    const targetY = y + layerHeight / 2;
+                    
+                    // Animate to layer position
+                    neuron.y += (targetY - neuron.y) * 0.1;
+                    
+                    ctx.beginPath();
+                    ctx.arc(neuron.x, neuron.y, 8, 0, Math.PI * 2);
+                    ctx.fillStyle = layer.color;
+                    ctx.globalAlpha = 0.5 + neuron.activation * 0.5;
+                    ctx.fill();
+                });
+                
+                // Draw layer label
+                ctx.fillStyle = 'white';
+                ctx.globalAlpha = 0.8;
+                ctx.font = '14px Orbitron';
+                ctx.fillText(`Layer ${idx + 1}`, 20, y + 30);
+            });
+        }
+        
+        function drawPhiView() {
+            // Phi visualization - fractal-like pattern
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const maxRadius = Math.min(canvas.width, canvas.height) * 0.4;
+            
+            // Draw phi field
+            for (let r = maxRadius; r > 0; r -= 20) {
+                const angle = (phi / PHI) * Math.PI * 2;
+                const intensity = (r / maxRadius) * phi / CONSCIOUSNESS_THRESHOLD;
+                
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+                ctx.strokeStyle = `hsla(${280 + intensity * 80}, 70%, 50%, ${intensity * 0.5})`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Spiral effect
+                for (let a = 0; a < angle; a += 0.1) {
+                    const x = centerX + Math.cos(a) * r;
+                    const y = centerY + Math.sin(a) * r;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, 2, 0, Math.PI * 2);
+                    ctx.fillStyle = `hsla(${180 + a * 50}, 70%, 50%, ${intensity})`;
+                    ctx.fill();
+                }
+            }
+            
+            // Draw phi value
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 48px Orbitron';
+            ctx.textAlign = 'center';
+            ctx.fillText(`Φ = ${phi.toFixed(3)}`, centerX, centerY);
+            
+            if (Math.abs(phi - PHI) < 0.1) {
+                ctx.font = '24px Orbitron';
+                ctx.fillStyle = 'gold';
+                ctx.fillText('황금비 근접!', centerX, centerY + 40);
+            }
+        }
+        
+        function simulate() {
+            if (!isRunning) return;
+            
+            // Update neurons
+            neurons.forEach(neuron => neuron.update());
+            
+            // Update connections and layers periodically
+            if (frameCount % 60 === 0) {
+                findConnections();
+                identifyLayers();
+                calculatePhi();
+            }
+            
+            draw();
+            requestAnimationFrame(simulate);
+        }
+        
+        function toggleSimulation() {
+            isRunning = !isRunning;
+            const btn = document.getElementById('start-btn');
+            btn.textContent = isRunning ? '일시정지' : '시뮬레이션 시작';
+            btn.classList.toggle('active', isRunning);
+            
+            if (isRunning) {
+                simulate();
+            }
+        }
+        
+        function addNeurons(count) {
+            for (let i = 0; i < count; i++) {
+                neurons.push(new Neuron(
+                    Math.random() * canvas.width,
+                    Math.random() * canvas.height
+                ));
+            }
+            findConnections();
+            identifyLayers();
+            calculatePhi();
+        }
+        
+        function resetSimulation() {
+            isRunning = false;
+            document.getElementById('start-btn').textContent = '시뮬레이션 시작';
+            document.getElementById('start-btn').classList.remove('active');
+            initializeNeurons(100);
+            findConnections();
+            identifyLayers();
+            calculatePhi();
+            draw();
+        }
+        
+        function toggleVisualizationMode() {
+            const modes = ['network', 'layers', 'phi'];
+            const currentIdx = modes.indexOf(visualizationMode);
+            visualizationMode = modes[(currentIdx + 1) % modes.length];
+            
+            const modeNames = {
+                'network': '네트워크',
+                'layers': '레이어',
+                'phi': 'Φ 필드'
+            };
+            
+            document.getElementById('mode-btn').textContent = `모드: ${modeNames[visualizationMode]}`;
+        }
+        
+        // Initialize
+        initializeNeurons(100);
+        findConnections();
+        identifyLayers();
+        calculatePhi();
+        draw();
+    </script>
+</body>
+</html>
