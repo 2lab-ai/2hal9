@@ -4,6 +4,7 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
+use std::str::FromStr;
 use tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
 
@@ -30,15 +31,20 @@ impl Region {
         }
     }
     
-    pub fn from_str(s: &str) -> Option<Self> {
+}
+
+impl FromStr for Region {
+    type Err = anyhow::Error;
+    
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "us-west" => Some(Region::UsWest),
-            "us-east" => Some(Region::UsEast),
-            "eu-central" => Some(Region::EuCentral),
-            "eu-west" => Some(Region::EuWest),
-            "ap-south" => Some(Region::ApSouth),
-            "ap-northeast" => Some(Region::ApNortheast),
-            _ => None,
+            "us-west" => Ok(Region::UsWest),
+            "us-east" => Ok(Region::UsEast),
+            "eu-central" => Ok(Region::EuCentral),
+            "eu-west" => Ok(Region::EuWest),
+            "ap-south" => Ok(Region::ApSouth),
+            "ap-northeast" => Ok(Region::ApNortheast),
+            _ => Err(anyhow::anyhow!("Invalid region: {}", s)),
         }
     }
 }
@@ -98,10 +104,17 @@ pub struct GeoRouter {
 #[derive(Debug, Clone, Default)]
 struct RegionMetrics {
     pub active_connections: u32,
+    #[allow(dead_code)]
     pub requests_per_second: f32,
     pub average_latency_ms: f32,
     pub error_rate: f32,
     pub last_health_check: Option<std::time::Instant>,
+}
+
+impl Default for GeoRouter {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GeoRouter {

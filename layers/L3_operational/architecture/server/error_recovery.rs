@@ -2,24 +2,23 @@
 
 use axum::{
     extract::Request,
-    http::{StatusCode, HeaderMap},
+    http::StatusCode,
     middleware::Next,
     response::{IntoResponse, Response},
     Json,
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::{
     collections::HashMap,
     sync::Arc,
     time::{Duration, Instant},
 };
 use tokio::sync::RwLock;
-use tracing::{error, warn, info, debug};
+use tracing::{error, warn, debug};
 use uuid::Uuid;
 
 use crate::{
     error::ServerError,
-    circuit_breaker::{CircuitBreaker, CircuitState},
     middleware::extract_trace_id,
 };
 
@@ -58,7 +57,7 @@ pub struct ErrorDetails {
 }
 
 /// Recovery strategy for different error types
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum RecoveryStrategy {
     /// Retry with exponential backoff
     Retry {
@@ -87,6 +86,41 @@ pub enum RecoveryStrategy {
     FailFast,
 }
 
+impl std::fmt::Debug for RecoveryStrategy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Retry { max_attempts, initial_delay, max_delay, jitter } => {
+                f.debug_struct("Retry")
+                    .field("max_attempts", max_attempts)
+                    .field("initial_delay", initial_delay)
+                    .field("max_delay", max_delay)
+                    .field("jitter", jitter)
+                    .finish()
+            }
+            Self::CircuitBreaker { failure_threshold, recovery_timeout, half_open_requests } => {
+                f.debug_struct("CircuitBreaker")
+                    .field("failure_threshold", failure_threshold)
+                    .field("recovery_timeout", recovery_timeout)
+                    .field("half_open_requests", half_open_requests)
+                    .finish()
+            }
+            Self::Fallback { .. } => {
+                f.debug_struct("Fallback")
+                    .field("fallback_fn", &"<function>")
+                    .finish()
+            }
+            Self::RateLimit { requests_per_second, burst_size, queue_size } => {
+                f.debug_struct("RateLimit")
+                    .field("requests_per_second", requests_per_second)
+                    .field("burst_size", burst_size)
+                    .field("queue_size", queue_size)
+                    .finish()
+            }
+            Self::FailFast => write!(f, "FailFast"),
+        }
+    }
+}
+
 /// Error recovery middleware
 pub async fn error_recovery_middleware(
     req: Request,
@@ -96,6 +130,9 @@ pub async fn error_recovery_middleware(
     let method = req.method().clone();
     let path = req.uri().path().to_string();
     let trace_id = extract_trace_id(&req);
+    
+    // Get error store before moving req
+    let error_store = req.extensions().get::<Arc<ErrorStore>>().cloned();
     
     // Process request
     let result = next.run(req).await;
@@ -131,7 +168,7 @@ pub async fn error_recovery_middleware(
             };
             
             // Store error context for debugging
-            if let Some(error_store) = req.extensions().get::<Arc<ErrorStore>>() {
+            if let Some(store) = error_store.as_ref() {
                 let context = ErrorContext {
                     error_id,
                     trace_id,
@@ -144,7 +181,7 @@ pub async fn error_recovery_middleware(
                     metadata: HashMap::new(),
                 };
                 
-                error_store.store_error(context).await;
+                store.store_error(context).await;
             }
             
             (result.status(), Json(error_response)).into_response()
@@ -245,7 +282,8 @@ impl ErrorStore {
         
         // Keep only recent errors
         if errors.len() > self.max_errors {
-            errors.drain(0..errors.len() - self.max_errors);
+            let drain_count = errors.len() - self.max_errors;
+            errors.drain(0..drain_count);
         }
     }
     
@@ -269,6 +307,12 @@ impl ErrorStore {
 /// Fallback handler for service degradation
 pub struct FallbackHandler {
     fallbacks: HashMap<String, Arc<dyn Fn() -> Response + Send + Sync>>,
+}
+
+impl Default for FallbackHandler {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FallbackHandler {
@@ -319,7 +363,6 @@ pub fn setup_panic_handler() {
 }
 
 /// Helper functions
-
 fn map_status_to_error_code(status: StatusCode) -> String {
     match status {
         StatusCode::BAD_REQUEST => "BAD_REQUEST",
@@ -346,13 +389,12 @@ fn calculate_retry_after(status: StatusCode) -> Option<u64> {
 }
 
 fn is_retryable_error(error: &ServerError) -> bool {
-    match error {
-        ServerError::IoError(_) => true,
-        ServerError::ClaudeError(_) => true,
-        ServerError::Internal(_) => true,
-        ServerError::RoutingError(_) => true,
-        _ => false,
-    }
+    matches!(error, 
+        ServerError::IoError(_) | 
+        ServerError::ClaudeError(_) | 
+        ServerError::Internal(_) | 
+        ServerError::RoutingError(_)
+    )
 }
 
 /// Extension trait for ServerError
@@ -387,12 +429,11 @@ impl ServerError {
     
     /// Check if error is recoverable
     pub fn is_recoverable(&self) -> bool {
-        match self {
-            ServerError::NotFound(_) => false,
-            ServerError::InvalidInput(_) => false,
-            ServerError::ConfigError(_) => false,
-            _ => true,
-        }
+        !matches!(self, 
+            ServerError::NotFound(_) | 
+            ServerError::InvalidInput(_) | 
+            ServerError::ConfigError(_)
+        )
     }
     
     /// Get suggested recovery strategy

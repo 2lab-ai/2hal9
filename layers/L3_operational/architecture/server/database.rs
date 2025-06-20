@@ -1,11 +1,12 @@
 //! Database abstraction layer supporting both SQLite and PostgreSQL
 
 use anyhow::Result;
-use sqlx::{Any, AnyPool, Pool, Postgres, Sqlite};
+use sqlx::AnyPool;
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
 use std::time::Duration;
-use tracing::{info, warn};
+use std::str::FromStr;
+use tracing::info;
 
 /// Database configuration
 #[derive(Debug, Clone)]
@@ -53,13 +54,14 @@ pub enum DatabaseType {
     Postgres,
 }
 
-impl DatabaseType {
-    /// Parse from string
-    pub fn from_str(s: &str) -> Option<Self> {
+impl FromStr for DatabaseType {
+    type Err = anyhow::Error;
+    
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "sqlite" => Some(Self::Sqlite),
-            "postgres" | "postgresql" => Some(Self::Postgres),
-            _ => None,
+            "sqlite" => Ok(Self::Sqlite),
+            "postgres" | "postgresql" => Ok(Self::Postgres),
+            _ => Err(anyhow::anyhow!("Invalid database type: {}", s)),
         }
     }
 }
@@ -140,19 +142,40 @@ impl DatabasePool {
     }
     
     /// Get as Any pool for generic operations
+    /// Note: This requires re-connecting to the database with the Any driver
     pub async fn as_any_pool(&self) -> Result<AnyPool> {
-        match self {
-            Self::Sqlite(pool) => {
-                // Create AnyPool from SQLite
-                let any_pool = AnyPool::from(pool.clone());
-                Ok(any_pool)
-            }
-            Self::Postgres(pool) => {
-                // Create AnyPool from PostgreSQL  
-                let any_pool = AnyPool::from(pool.clone());
-                Ok(any_pool)
-            }
-        }
+        let config = match self {
+            Self::Sqlite(_) => DatabaseConfig {
+                database_type: DatabaseType::Sqlite,
+                url: std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:hal9.db".to_string()),
+                max_connections: 10,
+                min_connections: 1,
+                connection_timeout: Duration::from_secs(30),
+                idle_timeout: Duration::from_secs(600),
+                max_lifetime: Duration::from_secs(1800),
+            },
+            Self::Postgres(_) => DatabaseConfig {
+                database_type: DatabaseType::Postgres,
+                url: std::env::var("DATABASE_URL").unwrap_or_else(|_| "postgresql://localhost/hal9".to_string()),
+                max_connections: 10,
+                min_connections: 1,
+                connection_timeout: Duration::from_secs(30),
+                idle_timeout: Duration::from_secs(600),
+                max_lifetime: Duration::from_secs(1800),
+            },
+        };
+        
+        // Connect using the Any driver
+        let pool = sqlx::any::AnyPoolOptions::new()
+            .max_connections(config.max_connections)
+            .min_connections(config.min_connections)
+            .acquire_timeout(config.connection_timeout)
+            .idle_timeout(Some(config.idle_timeout))
+            .max_lifetime(Some(config.max_lifetime))
+            .connect(&config.url)
+            .await?;
+            
+        Ok(pool)
     }
     
     /// Run migrations
@@ -178,12 +201,12 @@ impl DatabasePool {
     pub fn metrics(&self) -> PoolMetrics {
         match self {
             Self::Sqlite(pool) => PoolMetrics {
-                size: pool.size() as u32,
+                size: pool.size(),
                 idle: pool.num_idle() as u32,
                 max_size: pool.options().get_max_connections(),
             },
             Self::Postgres(pool) => PoolMetrics {
-                size: pool.size() as u32,
+                size: pool.size(),
                 idle: pool.num_idle() as u32,
                 max_size: pool.options().get_max_connections(),
             },
@@ -227,7 +250,6 @@ pub trait DatabaseOperations {
 }
 
 use hal9_core::NeuronSignal;
-use sqlx::Row;
 
 #[async_trait::async_trait]
 impl DatabaseOperations for DatabasePool {
@@ -301,7 +323,7 @@ impl DatabaseOperations for DatabasePool {
         Ok(())
     }
     
-    async fn get_recent_signals(&self, limit: i64) -> Result<Vec<NeuronSignal>> {
+    async fn get_recent_signals(&self, _limit: i64) -> Result<Vec<NeuronSignal>> {
         // Implementation would query and deserialize
         Ok(vec![])
     }
@@ -353,19 +375,19 @@ impl<'a> BatchOperations<'a> {
                 // For now, use batch inserts
                 for chunk in signals.chunks(self.batch_size) {
                     for signal in chunk {
-                        sqlx::query!(
+                        sqlx::query(
                             r#"
                             INSERT INTO signals (id, from_neuron, to_neuron, layer_from, layer_to, content, timestamp)
                             VALUES ($1, $2, $3, $4, $5, $6, $7)
-                            "#,
-                            signal.signal_id,
-                            signal.from_neuron,
-                            signal.to_neuron,
-                            signal.layer_from,
-                            signal.layer_to,
-                            signal.payload.activation.content,
-                            signal.timestamp
+                            "#
                         )
+                        .bind(signal.signal_id)
+                        .bind(&signal.from_neuron)
+                        .bind(&signal.to_neuron)
+                        .bind(&signal.layer_from)
+                        .bind(&signal.layer_to)
+                        .bind(&signal.payload.activation.content)
+                        .bind(signal.timestamp)
                         .execute(&mut *tx)
                         .await?;
                     }
@@ -378,19 +400,21 @@ impl<'a> BatchOperations<'a> {
                 let mut tx = pool.begin().await?;
                 
                 for signal in signals {
-                    sqlx::query!(
+                    let signal_id = signal.signal_id.to_string();
+                    let timestamp = signal.timestamp.timestamp();
+                    sqlx::query(
                         r#"
                         INSERT INTO signals (id, from_neuron, to_neuron, layer_from, layer_to, content, timestamp)
                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-                        "#,
-                        signal.signal_id.to_string(),
-                        signal.from_neuron,
-                        signal.to_neuron,
-                        signal.layer_from,
-                        signal.layer_to,
-                        signal.payload.activation.content,
-                        signal.timestamp.timestamp()
+                        "#
                     )
+                    .bind(&signal_id)
+                    .bind(&signal.from_neuron)
+                    .bind(&signal.to_neuron)
+                    .bind(&signal.layer_from)
+                    .bind(&signal.layer_to)
+                    .bind(&signal.payload.activation.content)
+                    .bind(timestamp)
                     .execute(&mut *tx)
                     .await?;
                 }
@@ -408,10 +432,10 @@ mod tests {
 
     #[test]
     fn test_database_type_parsing() {
-        assert_eq!(DatabaseType::from_str("sqlite"), Some(DatabaseType::Sqlite));
-        assert_eq!(DatabaseType::from_str("postgres"), Some(DatabaseType::Postgres));
-        assert_eq!(DatabaseType::from_str("postgresql"), Some(DatabaseType::Postgres));
-        assert_eq!(DatabaseType::from_str("mysql"), None);
+        assert_eq!(DatabaseType::from_str("sqlite").ok(), Some(DatabaseType::Sqlite));
+        assert_eq!(DatabaseType::from_str("postgres").ok(), Some(DatabaseType::Postgres));
+        assert_eq!(DatabaseType::from_str("postgresql").ok(), Some(DatabaseType::Postgres));
+        assert!(DatabaseType::from_str("mysql").is_err());
     }
     
     #[tokio::test]

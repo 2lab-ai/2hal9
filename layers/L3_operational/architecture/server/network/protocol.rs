@@ -15,7 +15,7 @@ pub enum NetworkMessage {
     },
     
     /// Signal forwarding
-    Signal(NeuronSignal),
+    Signal(Box<NeuronSignal>),
     
     /// Heartbeat/keepalive
     Ping,
@@ -201,7 +201,7 @@ mod tests {
             "test content".to_string(),
         );
         
-        let msg = NetworkMessage::Signal(signal.clone());
+        let msg = NetworkMessage::Signal(Box::new(signal.clone()));
         let encoded = MessageCodec::encode(&msg).unwrap();
         let decoded = MessageCodec::decode(&encoded).unwrap();
         

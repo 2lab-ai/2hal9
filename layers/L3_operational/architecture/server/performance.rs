@@ -8,6 +8,7 @@ use tokio::sync::{Semaphore, mpsc};
 use tracing::debug;
 
 /// Connection pool for reusing resources
+#[allow(dead_code)]
 pub struct ConnectionPool<T: Clone + Send + Sync + 'static> {
     pool: Vec<T>,
     available: Arc<Semaphore>,
@@ -95,7 +96,7 @@ impl ResponseCache {
     fn evict_lru(&self) {
         let mut entries: Vec<_> = self.cache.iter()
             .map(|entry| {
-                let score = Self::calculate_eviction_score(&entry);
+                let score = Self::calculate_eviction_score(entry.value());
                 (entry.key().clone(), score)
             })
             .collect();
@@ -113,7 +114,7 @@ impl ResponseCache {
     }
     
     /// Calculate eviction score (higher = keep longer)
-    fn calculate_eviction_score(entry: &dashmap::mapref::one::Ref<String, CachedResponse>) -> f64 {
+    fn calculate_eviction_score(entry: &CachedResponse) -> f64 {
         let age_minutes = entry.timestamp.elapsed().as_secs_f64() / 60.0;
         let last_access_minutes = entry.last_accessed.elapsed().as_secs_f64() / 60.0;
         let hit_rate = entry.hit_count as f64 / age_minutes.max(1.0);
@@ -149,6 +150,7 @@ pub struct CacheStats {
 }
 
 /// Batch processor for aggregating multiple signals
+#[allow(dead_code)]
 pub struct BatchProcessor<T> {
     batch_size: usize,
     batch_timeout: Duration,
@@ -194,6 +196,7 @@ impl<T: Send + 'static> BatchProcessor<T> {
 }
 
 /// Parallel executor for concurrent processing
+#[allow(dead_code)]
 pub struct ParallelExecutor {
     max_concurrency: usize,
     semaphore: Arc<Semaphore>,
@@ -251,6 +254,12 @@ struct PerformanceMetric {
     total_duration: Duration,
     min_duration: Duration,
     max_duration: Duration,
+}
+
+impl Default for PerformanceMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PerformanceMonitor {
@@ -360,11 +369,22 @@ impl<T: Send + Sync + 'static> SignalBuffer<T> {
     pub fn len(&self) -> usize {
         self.buffer.read().len()
     }
+    
+    /// Check if the buffer is empty
+    pub fn is_empty(&self) -> bool {
+        self.buffer.read().is_empty()
+    }
 }
 
 /// Zero-copy string interner for reducing memory usage
 pub struct StringInterner {
     strings: Arc<DashMap<String, Arc<str>>>,
+}
+
+impl Default for StringInterner {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StringInterner {

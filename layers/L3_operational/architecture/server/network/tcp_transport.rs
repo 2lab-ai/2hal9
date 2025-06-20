@@ -339,7 +339,7 @@ impl TcpTransport {
                     metrics.record_signal_sent(); // Track as received from network
                 }
                 
-                signal_tx.send((peer_id.to_string(), signal)).await
+                signal_tx.send((peer_id.to_string(), *signal)).await
                     .map_err(|_| Error::Communication("Failed to queue signal".to_string()))?;
             }
             NetworkMessage::Ping => {
@@ -418,7 +418,7 @@ impl TcpTransport {
         let connection = self.connections.get(server_id)
             .ok_or_else(|| Error::Network(format!("Not connected to {}", server_id)))?;
             
-        let msg = NetworkMessage::Signal(signal);
+        let msg = NetworkMessage::Signal(Box::new(signal));
         let encoded = MessageCodec::encode(&msg)?;
         
         let stream = connection.stream.write().await;
@@ -491,7 +491,7 @@ impl TcpTransport {
         // Close all connections
         for entry in self.connections.iter() {
             let connection = entry.value();
-            if let Ok(_) = connection.stream.write().await.shutdown().await {
+            if connection.stream.write().await.shutdown().await.is_ok() {
                 debug!("Closed connection to {}", entry.key());
             }
         }

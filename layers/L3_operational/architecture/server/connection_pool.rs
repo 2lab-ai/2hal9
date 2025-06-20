@@ -9,7 +9,7 @@ use tokio::sync::RwLock;
 use anyhow::{Result, anyhow};
 use tracing::{info, warn, error};
 use crate::database::{DatabasePool, DatabaseConfig};
-use crate::circuit_breaker::{CircuitBreaker, CircuitState};
+use crate::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitState};
 
 /// Connection pool with circuit breaker protection
 pub struct ResilientConnectionPool {
@@ -27,7 +27,7 @@ pub struct ResilientConnectionPool {
 }
 
 /// Pool health metrics
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct PoolHealthMetrics {
     /// Total connection attempts
     pub total_attempts: u64,
@@ -66,9 +66,13 @@ impl ResilientConnectionPool {
         
         // Configure circuit breaker
         let circuit_breaker = Arc::new(CircuitBreaker::new(
-            5,                          // failure_threshold
-            Duration::from_secs(60),    // timeout_duration
-            Duration::from_secs(30),    // half_open_duration
+            "connection_pool".to_string(),
+            CircuitBreakerConfig {
+                failure_threshold: 5,
+                success_threshold: 3,
+                timeout: Duration::from_secs(60),
+                window: Duration::from_secs(60),
+            }
         ));
         
         Ok(Self {
@@ -82,7 +86,7 @@ impl ResilientConnectionPool {
     /// Get the primary pool with circuit breaker protection
     pub async fn get_pool(&self) -> Result<Arc<DatabasePool>> {
         // Check circuit breaker state
-        match self.circuit_breaker.state() {
+        match self.circuit_breaker.state().await {
             CircuitState::Closed => {
                 // Normal operation
                 self.record_attempt().await;
@@ -117,12 +121,12 @@ impl ResilientConnectionPool {
         
         match operation(pool).await {
             Ok(result) => {
-                self.circuit_breaker.record_success();
+                self.circuit_breaker.record_success().await;
                 self.record_success().await;
                 Ok(result)
             }
             Err(err) => {
-                self.circuit_breaker.record_failure();
+                self.circuit_breaker.record_failure().await;
                 self.record_failure().await;
                 
                 // Log the error with context
@@ -143,12 +147,12 @@ impl ResilientConnectionPool {
     
     /// Check if pool is healthy
     pub async fn is_healthy(&self) -> bool {
-        matches!(self.circuit_breaker.state(), CircuitState::Closed)
+        matches!(self.circuit_breaker.state().await, CircuitState::Closed)
     }
     
     /// Force circuit breaker to close (for testing/recovery)
-    pub fn reset_circuit_breaker(&self) {
-        self.circuit_breaker.reset();
+    pub async fn reset_circuit_breaker(&self) {
+        self.circuit_breaker.reset().await;
     }
     
     // Internal metric recording methods
@@ -177,6 +181,7 @@ impl ResilientConnectionPool {
 }
 
 /// Extension trait for DatabasePool to add resilience features
+#[allow(async_fn_in_trait)]
 pub trait DatabasePoolExt {
     /// Execute with retry logic
     async fn execute_with_retry<F, T>(&self, operation: F, max_retries: u32) -> Result<T>

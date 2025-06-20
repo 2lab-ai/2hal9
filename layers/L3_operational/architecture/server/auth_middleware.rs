@@ -4,11 +4,10 @@ use axum::{
     extract::{Request, State},
     http::{header, StatusCode},
     middleware::Next,
-    response::{IntoResponse, Response},
-    Extension,
+    response::Response,
 };
 use std::sync::Arc;
-use hal9_core::auth::{JwtClaims, JwtManager, ApiKeyManager, Permissions, AuthError};
+use hal9_core::auth::{JwtManager, ApiKeyManager, Permissions, AuthError};
 
 /// Authentication state
 #[derive(Clone)]
@@ -32,11 +31,7 @@ fn extract_bearer_token(req: &Request) -> Option<String> {
         .get(header::AUTHORIZATION)
         .and_then(|header| header.to_str().ok())
         .and_then(|auth| {
-            if auth.starts_with("Bearer ") {
-                Some(auth[7..].to_string())
-            } else {
-                None
-            }
+            auth.strip_prefix("Bearer ").map(|token| token.to_string())
         })
 }
 
@@ -143,7 +138,7 @@ pub fn require_permission(permission: hal9_core::auth::Permission) -> impl Fn(Re
 
 /// Get permissions for a role
 fn get_role_permissions(role: &str) -> Permissions {
-    use hal9_core::auth::{UserRole, Permission};
+    use hal9_core::auth::UserRole;
     
     match role {
         "admin" => UserRole::Admin.default_permissions(),

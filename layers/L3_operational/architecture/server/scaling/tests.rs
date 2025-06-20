@@ -2,66 +2,76 @@
 
 #[cfg(test)]
 mod tests {
-    use super::super::*;
-    use std::sync::Arc;
-    use tokio::sync::RwLock;
+    
+    
+    
+    use uuid::Uuid;
+    use chrono::Utc;
     
     mod connection_pool_tests {
-        use super::*;
-        use crate::scaling::connection_pool::{
-            ConnectionPool, ConnectionPoolConfig, ConnectionState
-        };
+        
+        use crate::scaling::connection_pool::PoolConfig;
+        
         
         #[tokio::test]
         async fn test_connection_pool_creation() {
-            let config = ConnectionPoolConfig {
+            let config = PoolConfig {
                 min_connections: 10,
                 max_connections: 100,
-                connection_timeout: std::time::Duration::from_secs(5),
+                connect_timeout: std::time::Duration::from_secs(5),
                 idle_timeout: std::time::Duration::from_secs(300),
-                health_check_interval: std::time::Duration::from_secs(30),
+                max_lifetime: std::time::Duration::from_secs(3600),
+                statement_cache_capacity: 1000,
+                test_before_acquire: true,
+                connect_retry_count: 3,
+                connect_retry_backoff: 2.0,
             };
             
-            let pool = ConnectionPool::new(config);
-            assert!(pool.min_connections() == 10);
-            assert!(pool.max_connections() == 100);
+            // Test config creation
+            assert_eq!(config.min_connections, 10);
+            assert_eq!(config.max_connections, 100);
         }
         
         #[tokio::test]
-        async fn test_connection_acquisition() {
-            let config = ConnectionPoolConfig::default();
-            let pool = ConnectionPool::new(config);
+        async fn test_pool_config_default() {
+            let config = PoolConfig::default();
             
-            // Simulate getting a connection
-            // In real implementation, this would acquire from pool
-            assert!(true);
+            assert_eq!(config.max_connections, 100);
+            assert_eq!(config.min_connections, 10);
+            assert_eq!(config.statement_cache_capacity, 1000);
+            assert!(config.test_before_acquire);
         }
         
-        #[test]
-        fn test_connection_states() {
-            let idle = ConnectionState::Idle;
-            let active = ConnectionState::Active;
-            let closing = ConnectionState::Closing;
+        #[tokio::test]
+        async fn test_pool_statistics() {
+            use crate::scaling::connection_pool::PoolStats;
             
-            // Test state transitions
-            assert_ne!(
-                format!("{:?}", idle),
-                format!("{:?}", active)
-            );
+            let stats = PoolStats {
+                total_connections: 100,
+                idle_connections: 20,
+                active_connections: 80,
+                wait_count: 5,
+                wait_duration_ms: 1500,
+                timeout_count: 2,
+            };
+            
+            assert_eq!(stats.total_connections, 100);
+            assert_eq!(stats.active_connections, 80);
         }
     }
     
     mod load_balancer_tests {
-        use super::*;
+        
         use crate::scaling::load_balancer::{
-            LoadBalancer, LoadBalancingStrategy, ServerInfo
+            LoadBalancer, LoadBalancingStrategy, ServerInstance
         };
+        use std::net::{SocketAddr, IpAddr, Ipv4Addr};
         
         #[test]
         fn test_load_balancing_strategies() {
             let round_robin = LoadBalancingStrategy::RoundRobin;
             let least_conn = LoadBalancingStrategy::LeastConnections;
-            let weighted = LoadBalancingStrategy::WeightedRoundRobin;
+            let _weighted = LoadBalancingStrategy::WeightedRoundRobin;
             
             // Test strategy distinction
             assert_ne!(
@@ -73,45 +83,55 @@ mod tests {
         #[tokio::test]
         async fn test_server_selection() {
             let servers = vec![
-                ServerInfo {
+                ServerInstance {
                     id: "server1".to_string(),
-                    address: "192.168.1.1:8080".to_string(),
-                    weight: 1.0,
-                    active_connections: 5,
-                    healthy: true,
+                    address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1)), 8080),
+                    weight: 1,
+                    region: "us-west".to_string(),
+                    health_check_url: "http://192.168.1.1:8080/health".to_string(),
+                    max_connections: 100,
                 },
-                ServerInfo {
+                ServerInstance {
                     id: "server2".to_string(),
-                    address: "192.168.1.2:8080".to_string(),
-                    weight: 2.0,
-                    active_connections: 3,
-                    healthy: true,
+                    address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 1, 2)), 8080),
+                    weight: 2,
+                    region: "us-west".to_string(),
+                    health_check_url: "http://192.168.1.2:8080/health".to_string(),
+                    max_connections: 100,
                 },
             ];
             
-            let balancer = LoadBalancer::new(LoadBalancingStrategy::LeastConnections);
+            let balancer = LoadBalancer::new(
+                LoadBalancingStrategy::LeastConnections,
+                servers,
+                std::time::Duration::from_secs(30),
+            );
             
-            // Test that least connections strategy works
-            // Server 2 should be selected (3 < 5 connections)
-            assert!(true); // Placeholder for actual implementation
+            // Test server selection
+            let selected = balancer.select_server(None).await;
+            assert!(selected.is_ok());
         }
     }
     
     mod session_manager_tests {
         use super::*;
-        use crate::scaling::session_manager::{SessionManager, Session};
-        use uuid::Uuid;
-        use chrono::Utc;
+        use crate::scaling::session_manager::{Session};
+        use std::collections::HashMap;
+        use std::net::{IpAddr, Ipv4Addr};
         
         #[test]
         fn test_session_creation() {
             let session = Session {
                 id: Uuid::new_v4(),
                 user_id: Uuid::new_v4(),
-                data: Default::default(),
+                organization_id: None,
+                region: "us-west".to_string(),
                 created_at: Utc::now(),
-                expires_at: Utc::now() + chrono::Duration::hours(24),
                 last_accessed: Utc::now(),
+                expires_at: Utc::now() + chrono::Duration::hours(24),
+                data: HashMap::new(),
+                ip_address: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                user_agent: "Mozilla/5.0".to_string(),
             };
             
             assert!(session.expires_at > session.created_at);
@@ -120,7 +140,7 @@ mod tests {
         #[tokio::test]
         async fn test_session_encryption() {
             // Test that sessions are properly encrypted
-            let session_data = serde_json::json!({
+            let _session_data = serde_json::json!({
                 "role": "admin",
                 "permissions": ["read", "write"]
             });
@@ -132,45 +152,56 @@ mod tests {
     
     mod sharding_tests {
         use super::*;
-        use crate::scaling::sharding::{ShardingStrategy, ShardManager, ShardConfig};
+        use crate::scaling::sharding::{ShardingConfig, ShardConfig, KeyRange, ReadPreference};
         
         #[test]
-        fn test_sharding_strategies() {
-            let hash_based = ShardingStrategy::HashBased;
-            let range_based = ShardingStrategy::RangeBased;
-            let geo_based = ShardingStrategy::GeoBased;
+        fn test_sharding_config() {
+            let config = ShardingConfig {
+                shards: vec![
+                    ShardConfig {
+                        id: 0,
+                        name: "shard0".to_string(),
+                        primary_url: "postgres://localhost/shard0".to_string(),
+                        replica_urls: vec![],
+                        key_range: KeyRange { start: 0, end: u64::MAX / 2 },
+                    },
+                    ShardConfig {
+                        id: 1,
+                        name: "shard1".to_string(),
+                        primary_url: "postgres://localhost/shard1".to_string(),
+                        replica_urls: vec![],
+                        key_range: KeyRange { start: u64::MAX / 2, end: u64::MAX },
+                    },
+                ],
+                replication_factor: 1,
+                read_preference: ReadPreference::Primary,
+            };
             
-            // Test strategy types
-            assert_ne!(
-                format!("{:?}", hash_based),
-                format!("{:?}", range_based)
-            );
+            assert_eq!(config.shards.len(), 2);
+            assert_eq!(config.replication_factor, 1);
         }
         
         #[test]
-        fn test_shard_selection() {
-            let config = ShardConfig {
-                total_shards: 16,
-                replication_factor: 3,
-                strategy: ShardingStrategy::HashBased,
-            };
-            
+        fn test_shard_key_ranges() {
             // Test hash-based shard selection
             let user_id = Uuid::new_v4();
-            let shard_id = (user_id.as_bytes()[0] as usize) % config.total_shards;
+            let hash_value = user_id.as_bytes()[0] as usize;
+            let shard_count = 16;
+            let shard_id = hash_value % shard_count;
             
-            assert!(shard_id < config.total_shards);
+            assert!(shard_id < shard_count);
         }
     }
     
     mod health_check_tests {
         use super::*;
-        use crate::scaling::health_check::{HealthChecker, HealthStatus, ComponentHealth};
+        use crate::scaling::health_check::{HealthStatus, HealthCheckResult, ComponentType};
+        use std::collections::HashMap;
         
         #[test]
         fn test_health_status() {
             let healthy = HealthStatus::Healthy;
-            let degraded = HealthStatus::Degraded;
+            let _degraded = HealthStatus::Degraded;
             let unhealthy = HealthStatus::Unhealthy;
             
             // Test status ordering
@@ -181,36 +212,43 @@ mod tests {
         }
         
         #[tokio::test]
-        async fn test_component_health_check() {
-            let component = ComponentHealth {
-                name: "database".to_string(),
+        async fn test_health_check_result() {
+            let result = HealthCheckResult {
+                component: "database".to_string(),
+                component_type: ComponentType::Database,
                 status: HealthStatus::Healthy,
-                latency_ms: Some(5),
-                last_check: Utc::now(),
-                details: None,
+                latency_ms: 5,
+                message: None,
+                metadata: HashMap::new(),
+                checked_at: Utc::now(),
             };
             
-            assert_eq!(component.name, "database");
-            assert!(matches!(component.status, HealthStatus::Healthy));
-            assert!(component.latency_ms.unwrap() < 10);
+            assert_eq!(result.component, "database");
+            assert!(matches!(result.status, HealthStatus::Healthy));
+            assert!(result.latency_ms < 10);
         }
     }
     
     mod geo_routing_tests {
-        use super::*;
-        use crate::scaling::geo_routing::{GeoRouter, Region, GeoLocation};
+        
+        use crate::scaling::geo_routing::{Region, GeoLocation};
         
         #[test]
         fn test_region_mapping() {
-            let us_east = Region::UsEast;
-            let eu_west = Region::EuWest;
-            let asia_pac = Region::AsiaPacific;
+            let us_west = Region::UsWest;
+            let eu_central = Region::EuCentral;
+            let _ap_south = Region::ApSouth;
             
             // Test region distinction
             assert_ne!(
-                format!("{:?}", us_east),
-                format!("{:?}", eu_west)
+                format!("{:?}", us_west),
+                format!("{:?}", eu_central)
             );
+            
+            // Test string conversion
+            assert_eq!(us_west.as_str(), "us-west");
+            use std::str::FromStr;
+            assert_eq!(Region::from_str("us-west").ok(), Some(Region::UsWest));
         }
         
         #[test]
@@ -218,11 +256,15 @@ mod tests {
             let loc1 = GeoLocation {
                 latitude: 37.7749, // San Francisco
                 longitude: -122.4194,
+                city: "San Francisco".to_string(),
+                country: "USA".to_string(),
             };
             
             let loc2 = GeoLocation {
                 latitude: 40.7128, // New York
                 longitude: -74.0060,
+                city: "New York".to_string(),
+                country: "USA".to_string(),
             };
             
             // Calculate distance (should be ~4000km)
@@ -248,7 +290,7 @@ mod tests {
 // Performance tests
 #[cfg(test)]
 mod performance_tests {
-    use super::*;
+    
     use std::time::Instant;
     
     #[tokio::test]
@@ -270,17 +312,17 @@ mod performance_tests {
     #[tokio::test]
     async fn test_session_lookup_performance() {
         // Test session lookup speed with 10k sessions
-        let sessions = std::collections::HashMap::new();
+        let _sessions: std::collections::HashMap<String, String> = std::collections::HashMap::new();
         
         // Populate with test sessions
-        for i in 0..10_000 {
+        for _i in 0..10_000 {
             // Add session
         }
         
         let start = Instant::now();
         
         // Perform 1000 lookups
-        for i in 0..1000 {
+        for _i in 0..1000 {
             // Lookup session
         }
         
