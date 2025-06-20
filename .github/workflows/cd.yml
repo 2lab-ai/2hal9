@@ -1,0 +1,201 @@
+name: CD - Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-
+      
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging' || github.event_name == 'push'
+    environment:
+      name: staging
+      url: https://staging.hal9.ai
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+      
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region us-west-2 --name hal9-staging
+      
+      - name: Deploy to Kubernetes
+        run: |
+          # Update image in deployment
+          kubectl set image deployment/hal9-server \
+            hal9-server=${{ needs.build-and-push.outputs.image-tag }} \
+            -n hal9-staging
+          
+          # Wait for rollout to complete
+          kubectl rollout status deployment/hal9-server -n hal9-staging
+      
+      - name: Run smoke tests
+        run: |
+          STAGING_URL=$(kubectl get ingress hal9-ingress -n hal9-staging -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          ./scripts/smoke-test.sh https://${STAGING_URL}
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-and-push, deploy-staging]
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
+    environment:
+      name: production
+      url: https://hal9.ai
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region us-east-1 --name hal9-production
+      
+      - name: Create backup
+        run: |
+          kubectl create job backup-$(date +%Y%m%d-%H%M%S) \
+            --from=cronjob/database-backup \
+            -n hal9-production
+      
+      - name: Deploy to Kubernetes (Canary)
+        run: |
+          # Deploy canary version (10% traffic)
+          kubectl apply -f - <<EOF
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: hal9-server-canary
+            namespace: hal9-production
+          spec:
+            selector:
+              app: hal9-server
+              version: canary
+            ports:
+            - port: 8080
+              targetPort: 8080
+          EOF
+          
+          # Update canary deployment
+          kubectl set image deployment/hal9-server-canary \
+            hal9-server=${{ needs.build-and-push.outputs.image-tag }} \
+            -n hal9-production
+          
+          # Wait for canary rollout
+          kubectl rollout status deployment/hal9-server-canary -n hal9-production
+      
+      - name: Run canary tests
+        run: |
+          CANARY_URL=$(kubectl get service hal9-server-canary -n hal9-production -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          ./scripts/canary-test.sh https://${CANARY_URL}
+      
+      - name: Promote to full production
+        run: |
+          # Update main deployment
+          kubectl set image deployment/hal9-server \
+            hal9-server=${{ needs.build-and-push.outputs.image-tag }} \
+            -n hal9-production
+          
+          # Wait for rollout
+          kubectl rollout status deployment/hal9-server -n hal9-production
+          
+          # Remove canary
+          kubectl delete deployment hal9-server-canary -n hal9-production
+          kubectl delete service hal9-server-canary -n hal9-production
+      
+      - name: Notify deployment
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: 'Production deployment completed for version ${{ github.ref }}'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        if: always()

@@ -1,4 +1,4 @@
-name: CI
+name: CI - Continuous Integration
 
 on:
   push:
@@ -9,6 +9,8 @@ on:
 env:
   RUST_VERSION: stable
   CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  SQLX_OFFLINE: true
 
 jobs:
   test:

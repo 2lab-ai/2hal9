@@ -1,0 +1,246 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    name: Performance Benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-bench-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-bench-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Run benchmarks
+        run: |
+          cargo bench --workspace -- --output-format bencher | tee output.txt
+      
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Rust Benchmark
+          tool: 'cargo'
+          output-file-path: output.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: '110%'
+          comment-on-alert: true
+          fail-on-alert: true
+          alert-comment-cc-users: '@maintainers'
+
+  neuron-benchmark:
+    name: Neuron Self-Organization Benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-neuron-bench-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Build benchmarks
+        run: cargo build --release --examples
+      
+      - name: Run neuron benchmarks
+        run: |
+          echo "# Neuron Self-Organization Benchmarks" > neuron-bench.md
+          echo "" >> neuron-bench.md
+          
+          # Test different neuron counts
+          for count in 10 25 50 100 250 500 1000 2500 5000 10000; do
+            echo "## $count Neurons" >> neuron-bench.md
+            ./target/release/examples/benchmark_self_organization $count >> neuron-bench.md 2>&1
+            echo "" >> neuron-bench.md
+          done
+      
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: neuron-benchmarks
+          path: neuron-bench.md
+      
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const results = fs.readFileSync('neuron-bench.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: results
+            });
+
+  load-test:
+    name: Load Testing
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: hal9
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: hal9_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-load-test-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Build server
+        run: cargo build --release --bin hal9-server
+      
+      - name: Start server
+        env:
+          DATABASE_URL: postgresql://hal9:testpass@localhost:5432/hal9_test
+          REDIS_URL: redis://localhost:6379
+          CLAUDE_MODE: mock
+        run: |
+          ./target/release/hal9-server &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          
+          # Wait for server to start
+          for i in {1..30}; do
+            if curl -f http://localhost:8080/health; then
+              echo "Server is ready"
+              break
+            fi
+            sleep 1
+          done
+      
+      - name: Install k6
+        run: |
+          sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+      
+      - name: Run load tests
+        run: |
+          cat > load-test.js << 'EOF'
+          import http from 'k6/http';
+          import { check, sleep } from 'k6';
+          
+          export let options = {
+            stages: [
+              { duration: '30s', target: 10 },
+              { duration: '1m', target: 50 },
+              { duration: '2m', target: 100 },
+              { duration: '1m', target: 50 },
+              { duration: '30s', target: 0 },
+            ],
+            thresholds: {
+              http_req_duration: ['p(95)<500', 'p(99)<1000'],
+              http_req_failed: ['rate<0.1'],
+            },
+          };
+          
+          export default function() {
+            let response = http.get('http://localhost:8080/health');
+            check(response, {
+              'status is 200': (r) => r.status === 200,
+              'response time < 500ms': (r) => r.timings.duration < 500,
+            });
+            sleep(1);
+          }
+          EOF
+          
+          k6 run --out json=results.json load-test.js
+      
+      - name: Process results
+        run: |
+          # Parse k6 results and create summary
+          cat results.json | jq -s '
+            map(select(.type == "Point" and .metric == "http_req_duration" and .data.tags.status == "200"))
+            | {
+                count: length,
+                avg: (map(.data.value) | add / length),
+                min: (map(.data.value) | min),
+                max: (map(.data.value) | max),
+                p95: (sort_by(.data.value) | .[length * 0.95 | floor].data.value),
+                p99: (sort_by(.data.value) | .[length * 0.99 | floor].data.value)
+              }
+          ' > summary.json
+          
+          echo "Load test results:"
+          cat summary.json
+      
+      - name: Stop server
+        if: always()
+        run: |
+          if [ ! -z "$SERVER_PID" ]; then
+            kill $SERVER_PID || true
+          fi
+      
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-test-results
+          path: |
+            results.json
+            summary.json
