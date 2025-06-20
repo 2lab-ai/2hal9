@@ -60,11 +60,18 @@ pub struct EmergenceDetector {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ActivityPattern {
     timestamp: chrono::DateTime<chrono::Utc>,
     layer: CognitiveLayer,
     pattern_hash: u64,
     complexity: f32,
+}
+
+impl Default for EmergenceDetector {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl EmergenceDetector {
@@ -138,7 +145,7 @@ impl EmergenceDetector {
         for pattern in buffer.iter() {
             layer_complexities
                 .entry(pattern.layer)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(pattern.complexity);
         }
         
@@ -190,7 +197,7 @@ impl EmergenceDetector {
         for pattern in buffer.iter() {
             layer_patterns
                 .entry(pattern.layer)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(pattern.pattern_hash);
         }
         

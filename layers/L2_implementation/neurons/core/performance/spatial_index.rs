@@ -75,7 +75,7 @@ impl SpatialIndex {
         
         // Insert at new position
         let cell = self.point_to_cell(&position);
-        self.grid.entry(cell).or_insert_with(HashSet::new).insert(id);
+        self.grid.entry(cell).or_default().insert(id);
         self.positions.insert(id, position);
     }
     
@@ -167,6 +167,11 @@ impl SpatialIndex {
         self.positions.len()
     }
     
+    /// Check if the index is empty
+    pub fn is_empty(&self) -> bool {
+        self.positions.is_empty()
+    }
+    
     /// Clear the index
     pub fn clear(&mut self) {
         self.grid.clear();
@@ -186,6 +191,12 @@ impl SpatialIndex {
 /// Builder for spatial index with automatic cell size selection
 pub struct SpatialIndexBuilder {
     neurons: Vec<(NeuronId, NeuronPoint)>,
+}
+
+impl Default for SpatialIndexBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SpatialIndexBuilder {

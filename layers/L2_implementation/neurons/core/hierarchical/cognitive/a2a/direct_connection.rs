@@ -7,7 +7,6 @@
 
 use crate::hierarchical::cognitive::{CognitiveLayer, CognitiveUnit, CognitiveInput, CognitiveOutput};
 use crate::Result;
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -25,10 +24,15 @@ pub struct DirectNeuralConnection {
     pub established_at: chrono::DateTime<chrono::Utc>,
 }
 
+// Type alias for cognitive unit storage
+type CognitiveUnitBox = Box<dyn CognitiveUnit<Input = CognitiveInput, Output = CognitiveOutput, State = crate::hierarchical::cognitive::BasicCognitiveState>>;
+type SharedCognitiveUnit = Arc<RwLock<CognitiveUnitBox>>;
+type UnitsMap = Arc<RwLock<HashMap<Uuid, SharedCognitiveUnit>>>;
+
 /// Peer-to-peer neural network without central coordination
 pub struct DirectNeuralNetwork {
     /// All neural units in the network
-    units: Arc<RwLock<HashMap<Uuid, Arc<RwLock<Box<dyn CognitiveUnit<Input = CognitiveInput, Output = CognitiveOutput, State = crate::hierarchical::cognitive::BasicCognitiveState>>>>>>>,
+    units: UnitsMap,
     
     /// Direct connections between units
     connections: Arc<RwLock<HashMap<Uuid, Vec<DirectNeuralConnection>>>>,
@@ -124,7 +128,7 @@ impl DirectNeuralNetwork {
         let units = self.units.read().await;
         let connections = self.connections.read().await;
         
-        let source_unit = units.get(&source).ok_or_else(|| crate::Error::NotFound("Source unit not found".to_string()))?;
+        let _source_unit = units.get(&source).ok_or_else(|| crate::Error::NotFound("Source unit not found".to_string()))?;
         let source_connections = connections.get(&source).cloned().unwrap_or_default();
         
         let mut outputs = Vec::new();
@@ -159,7 +163,7 @@ impl DirectNeuralNetwork {
         let units = self.units.read().await;
         
         // Track activity correlations
-        let mut activity_correlations: HashMap<(Uuid, Uuid), f32> = HashMap::new();
+        let activity_correlations: HashMap<(Uuid, Uuid), f32> = HashMap::new();
         
         // Hebbian learning: "Neurons that fire together, wire together"
         for (source, unit_connections) in connections.iter_mut() {
@@ -180,7 +184,7 @@ impl DirectNeuralNetwork {
                 connection.strength = (connection.strength + delta).clamp(0.0, 1.0);
                 
                 // Adapt plasticity based on stability
-                if (delta.abs() < 0.01) {
+                if delta.abs() < 0.01 {
                     connection.plasticity *= 0.95; // Reduce plasticity for stable connections
                 } else {
                     connection.plasticity = (connection.plasticity * 1.05).min(0.5);
@@ -245,7 +249,7 @@ impl DirectNeuralNetwork {
     /// Discover potential new connections based on activity
     async fn discover_new_connections(
         &self,
-        units: &HashMap<Uuid, Arc<RwLock<Box<dyn CognitiveUnit<Input = CognitiveInput, Output = CognitiveOutput, State = crate::hierarchical::cognitive::BasicCognitiveState>>>>>,
+        units: &HashMap<Uuid, SharedCognitiveUnit>,
         correlations: &HashMap<(Uuid, Uuid), f32>
     ) -> Vec<(Uuid, Uuid, f32)> {
         let mut new_connections = Vec::new();
@@ -385,7 +389,7 @@ impl DirectNeuralNetwork {
         // Group units by layer
         let mut layers: HashMap<u8, Vec<Uuid>> = HashMap::new();
         for (id, unit) in units.iter() {
-            layers.entry(unit.read().await.layer().depth()).or_insert_with(Vec::new).push(*id);
+            layers.entry(unit.read().await.layer().depth()).or_default().push(*id);
         }
         
         // Draw units grouped by layer
@@ -481,7 +485,7 @@ impl DiscoveryService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hierarchical::cognitive::{BasicCognitiveState, CognitiveConfig};
+    use crate::hierarchical::cognitive::BasicCognitiveState;
     
     // Mock cognitive unit for testing
     struct MockUnit {
@@ -489,7 +493,7 @@ mod tests {
         layer: CognitiveLayer,
     }
     
-    #[async_trait]
+    #[async_trait::async_trait]
     impl CognitiveUnit for MockUnit {
         type Input = CognitiveInput;
         type Output = CognitiveOutput;

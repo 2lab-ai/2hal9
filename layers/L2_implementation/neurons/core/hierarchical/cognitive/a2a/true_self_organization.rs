@@ -5,12 +5,7 @@
 //! 
 //! "Like the universe organizing itself into galaxies, stars, and life"
 
-use crate::hierarchical::cognitive::{
-    CognitiveLayer, CognitiveUnit, CognitiveInput, CognitiveOutput,
-    BasicCognitiveState, CognitiveConfig, StateMetrics, LearningGradient,
-};
 use crate::Result;
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
@@ -27,6 +22,12 @@ pub struct PrimordialNeuron {
     pub complexity_capacity: f32,   // Randomly initialized
     pub energy_level: f32,
     pub last_active: std::time::Instant,
+}
+
+impl Default for PrimordialNeuron {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PrimordialNeuron {
@@ -420,7 +421,7 @@ impl TrueSelfOrganizingNetwork {
         tracing::info!("🔬 Analyzing communication patterns for emergent hierarchy...");
         
         let neurons = self.neurons.read().await;
-        let graph = self.comm_graph.read().await;
+        let _graph = self.comm_graph.read().await;
         
         // Collect neuron characteristics
         let mut neuron_profiles = Vec::new();

@@ -20,15 +20,17 @@ pub struct BatchConfig {
     pub urgent_threshold: usize,
 }
 
-impl BatchConfig {
-    /// Default configuration
-    pub fn default() -> Self {
+impl Default for BatchConfig {
+    fn default() -> Self {
         Self {
             max_batch_size: 100,
             max_wait_time: Duration::from_millis(10),
             urgent_threshold: 1000,
         }
     }
+}
+
+impl BatchConfig {
     
     /// Configuration for low latency
     pub fn low_latency() -> Self {
@@ -196,6 +198,12 @@ pub struct PrioritySignalBatcher {
     
     /// Low priority batcher (high throughput)
     low: SignalBatcher,
+}
+
+impl Default for PrioritySignalBatcher {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PrioritySignalBatcher {

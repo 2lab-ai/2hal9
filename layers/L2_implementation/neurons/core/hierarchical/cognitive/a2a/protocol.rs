@@ -5,13 +5,12 @@
 //! 
 //! Based on L9 philosophy: "Each layer is a universe unto itself"
 
-use crate::hierarchical::cognitive::{CognitiveLayer, CognitiveInput, CognitiveOutput};
+use crate::hierarchical::cognitive::{CognitiveLayer, CognitiveInput};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentMessage {
@@ -46,6 +45,12 @@ pub trait A2AAgent: Send + Sync {
 pub struct A2AProtocol {
     agents: Arc<RwLock<HashMap<CognitiveLayer, Arc<dyn A2AAgent>>>>,
     message_buffer: Arc<RwLock<Vec<AgentMessage>>>,
+}
+
+impl Default for A2AProtocol {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl A2AProtocol {
@@ -138,6 +143,12 @@ impl A2AProtocol {
 // Example L9 Agent Implementation
 pub struct L9PhilosophyAgent {
     wisdom: Arc<RwLock<Vec<String>>>,
+}
+
+impl Default for L9PhilosophyAgent {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl L9PhilosophyAgent {

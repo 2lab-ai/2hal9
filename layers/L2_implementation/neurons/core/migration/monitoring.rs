@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::collections::VecDeque;
 use parking_lot::RwLock;
 use serde::{Serialize, Deserialize};
-use crate::{Result, Error};
+use crate::Result;
 
 /// Migration metrics for monitoring
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -49,6 +49,12 @@ pub struct MigrationMonitor {
     history: Arc<RwLock<MetricsHistory>>,
     alerts: Arc<RwLock<Vec<Alert>>>,
     health_checker: Arc<HealthChecker>,
+}
+
+impl Default for MigrationMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MigrationMonitor {
@@ -343,8 +349,8 @@ impl HealthChecker {
         
         // Deduct points for issues
         score -= (metrics.hierarchical_error_rate / self.thresholds.max_error_rate).min(0.3);
-        score -= ((metrics.cpu_usage - 50.0) / 50.0).max(0.0).min(0.2);
-        score -= ((metrics.memory_usage - 50.0) / 50.0).max(0.0).min(0.2);
+        score -= ((metrics.cpu_usage - 50.0) / 50.0).clamp(0.0, 0.2);
+        score -= ((metrics.memory_usage - 50.0) / 50.0).clamp(0.0, 0.2);
         score -= (1.0 - metrics.output_parity).min(0.3);
         
         score.max(0.0)
@@ -379,6 +385,7 @@ struct HealthStatus {
 
 /// Alert for monitoring
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct Alert {
     level: AlertLevel,
     message: String,
@@ -387,6 +394,7 @@ struct Alert {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 enum AlertLevel {
     Info,
     Warning,

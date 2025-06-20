@@ -12,17 +12,21 @@
 
 use crate::hierarchical::cognitive::{
     CognitiveLayer, CognitiveUnit, CognitiveInput, CognitiveOutput,
-    BasicCognitiveState, CognitiveConfig, StateMetrics, LearningGradient,
+    BasicCognitiveState,
 };
 use super::direct_connection::DirectNeuralConnection;
 use super::protocol::A2AProtocol;
 use crate::Result;
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 use uuid::Uuid;
+
+// Type aliases to reduce complexity
+type CognitiveUnitBox = Box<dyn CognitiveUnit<Input = CognitiveInput, Output = CognitiveOutput, State = BasicCognitiveState>>;
+type SharedCognitiveUnit = Arc<RwLock<CognitiveUnitBox>>;
+type UnitsMap = Arc<RwLock<HashMap<Uuid, SharedCognitiveUnit>>>;
 
 /// Reorganization event types
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,9 +70,10 @@ pub enum ReorganizationEvent {
 }
 
 /// Self-reorganizing neural network
+#[allow(dead_code)]
 pub struct SelfReorganizingNetwork {
     /// All units in the network
-    units: Arc<RwLock<HashMap<Uuid, Arc<RwLock<Box<dyn CognitiveUnit<Input = CognitiveInput, Output = CognitiveOutput, State = BasicCognitiveState>>>>>>>,
+    units: UnitsMap,
     
     /// Dynamic connections between units
     connections: Arc<RwLock<HashMap<Uuid, Vec<DirectNeuralConnection>>>>,
@@ -112,6 +117,7 @@ struct ActivityMetrics {
 }
 
 #[derive(Default, Clone)]
+#[allow(dead_code)]
 struct ConnectionStats {
     usage_count: u64,
     average_signal_strength: f32,
@@ -121,6 +127,7 @@ struct ConnectionStats {
 
 /// Emergent cluster of units
 #[derive(Clone)]
+#[allow(dead_code)]
 struct EmergentCluster {
     cluster_id: Uuid,
     member_units: HashSet<Uuid>,
@@ -131,6 +138,7 @@ struct EmergentCluster {
 
 /// Network performance metrics
 #[derive(Default)]
+#[allow(dead_code)]
 struct NetworkPerformance {
     overall_efficiency: f32,
     reorganization_count: u64,
@@ -406,7 +414,7 @@ impl SelfReorganizingNetwork {
         let inactive_threshold = chrono::Duration::seconds(300); // 5 minutes
         
         connection_usage.iter()
-            .filter(|((source, target), stats)| {
+            .filter(|((_source, _target), stats)| {
                 now.signed_duration_since(stats.last_used) > inactive_threshold ||
                 stats.usage_count < 10
             })
@@ -569,8 +577,8 @@ impl SelfReorganizingNetwork {
         for (source, unit_connections) in connections.iter() {
             for connection in unit_connections {
                 if connection.strength > 0.5 {
-                    graph.entry(*source).or_insert_with(HashSet::new).insert(connection.target_unit);
-                    graph.entry(connection.target_unit).or_insert_with(HashSet::new).insert(*source);
+                    graph.entry(*source).or_default().insert(connection.target_unit);
+                    graph.entry(connection.target_unit).or_default().insert(*source);
                 }
             }
         }
@@ -616,7 +624,7 @@ impl SelfReorganizingNetwork {
         for node in graph.keys() {
             if !visited.contains(node) {
                 let mut component = HashSet::new();
-                self.dfs(node, graph, &mut visited, &mut component);
+                Self::dfs(node, graph, &mut visited, &mut component);
                 
                 if component.len() >= 3 {
                     components.push(component);
@@ -628,14 +636,14 @@ impl SelfReorganizingNetwork {
     }
     
     /// Depth-first search for component detection
-    fn dfs(&self, node: &Uuid, graph: &HashMap<Uuid, HashSet<Uuid>>, visited: &mut HashSet<Uuid>, component: &mut HashSet<Uuid>) {
+    fn dfs(node: &Uuid, graph: &HashMap<Uuid, HashSet<Uuid>>, visited: &mut HashSet<Uuid>, component: &mut HashSet<Uuid>) {
         visited.insert(*node);
         component.insert(*node);
         
         if let Some(neighbors) = graph.get(node) {
             for neighbor in neighbors {
                 if !visited.contains(neighbor) {
-                    self.dfs(neighbor, graph, visited, component);
+                    Self::dfs(neighbor, graph, visited, component);
                 }
             }
         }
@@ -772,7 +780,8 @@ impl ReorganizationReport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hierarchical::cognitive::factory::NeuronFactory;
+    use crate::hierarchical::cognitive::factory::DefaultCognitiveFactory;
+    use crate::hierarchical::cognitive::{CognitiveConfig, CognitiveFactory, ConnectionConfig};
     
     #[tokio::test]
     async fn test_self_reorganization() {
@@ -780,7 +789,7 @@ mod tests {
         let (network, mut event_rx) = SelfReorganizingNetwork::new(a2a_protocol);
         
         // Create units at different layers
-        let factory = NeuronFactory::new(CognitiveConfig::default());
+        let factory = DefaultCognitiveFactory::new();
         
         for layer in &[
             CognitiveLayer::Reflexive,
@@ -788,7 +797,17 @@ mod tests {
             CognitiveLayer::Operational,
         ] {
             for _ in 0..3 {
-                let unit = factory.create_neuron(*layer).await.unwrap();
+                let config = CognitiveConfig {
+                    id: Uuid::new_v4(),
+                    layer: *layer,
+                    initial_parameters: HashMap::new(),
+                    connections: ConnectionConfig {
+                        upward_connections: vec![],
+                        lateral_connections: vec![],
+                        downward_connections: vec![],
+                    },
+                };
+                let unit = factory.create_unit(*layer, config).unwrap();
                 network.add_unit(unit).await.unwrap();
             }
         }

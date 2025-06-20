@@ -16,6 +16,7 @@ pub struct SelfOrganizingSystem {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct OrganizationalUnit {
     id: Uuid,
     position: Vec<f32>, // N-dimensional position in feature space
@@ -24,11 +25,16 @@ struct OrganizationalUnit {
     layer_affinity: HashMap<u8, f32>,
 }
 
+// Type aliases for organization rule functions
+type SystemConditionFn = Box<dyn Fn(&SelfOrganizingSystem) -> bool + Send + Sync>;
+type SystemActionFn = Box<dyn Fn(&mut SelfOrganizingSystem) -> Result<()> + Send + Sync>;
+
 /// Organization rule that governs structure formation
+#[allow(dead_code)]
 struct OrganizationRule {
     name: String,
-    condition: Box<dyn Fn(&SelfOrganizingSystem) -> bool + Send + Sync>,
-    action: Box<dyn Fn(&mut SelfOrganizingSystem) -> Result<()> + Send + Sync>,
+    condition: SystemConditionFn,
+    action: SystemActionFn,
     priority: f32,
 }
 
@@ -37,10 +43,17 @@ struct EnergyFunction {
     components: Vec<EnergyComponent>,
 }
 
+#[allow(dead_code)]
 struct EnergyComponent {
     name: String,
     weight: f32,
     calculate: Box<dyn Fn(&SelfOrganizingSystem) -> f32 + Send + Sync>,
+}
+
+impl Default for SelfOrganizingSystem {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SelfOrganizingSystem {
@@ -180,7 +193,7 @@ impl SelfOrganizingSystem {
             for (unit_id, unit) in &self.units {
                 let nearest_centroid = self.find_nearest_centroid(&unit.position, &centroids);
                 assignments.entry(nearest_centroid)
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(*unit_id);
             }
             
@@ -424,10 +437,10 @@ impl SelfOrganizingSystem {
     
     fn prune_weak_connections(&mut self) -> Result<()> {
         // Remove connections below threshold
-        let threshold = 0.1;
+        let _threshold = 0.1;
         
         for unit in self.units.values_mut() {
-            unit.connections.retain(|&conn_id| {
+            unit.connections.retain(|&_conn_id| {
                 // Would calculate connection strength
                 true // Placeholder
             });
@@ -460,10 +473,10 @@ impl SelfOrganizer for SelfOrganizingSystem {
         // Check conditions and collect indices of rules to apply
         let rule_indices: Vec<_> = self.rules.iter()
             .enumerate()
-            .filter_map(|(i, rule)| {
+            .map(|(i, _rule)| {
                 // TODO: This is a workaround - condition should not need &self
                 // For now, we'll skip the condition check
-                Some(i)
+                i
             })
             .collect();
         
@@ -532,7 +545,7 @@ impl SelfOrganizingSystem {
         }
     }
     
-    fn calculate_energy_after_update(&self, update: &TopologyUpdate) -> f32 {
+    fn calculate_energy_after_update(&self, _update: &TopologyUpdate) -> f32 {
         // Simplified: just return current energy with small perturbation
         self.calculate_total_energy() + rand::random::<f32>() * 0.1 - 0.05
     }

@@ -112,7 +112,7 @@ impl GradientAccumulator {
     }
     
     pub fn add(&mut self, neuron_id: Uuid, gradient: Gradient) -> Option<Gradient> {
-        let entry = self.gradients.entry(neuron_id).or_insert_with(Vec::new);
+        let entry = self.gradients.entry(neuron_id).or_default();
         entry.push(gradient);
         
         if self.auto_flush && entry.len() >= self.batch_size {
@@ -205,12 +205,16 @@ impl GradientProtocol {
     
     /// Accumulate gradient for batch processing
     pub async fn accumulate_gradient(&self, neuron_id: Uuid, gradient: Gradient) -> Result<()> {
-        let mut accumulator = self.accumulator.lock();
+        // Process gradient accumulation without holding lock across await
+        let flushed_data = {
+            let mut accumulator = self.accumulator.lock();
+            accumulator.add(neuron_id, gradient).map(|flushed| {
+                (flushed, accumulator.batch_size as u32)
+            })
+        }; // Lock is released here
         
-        if let Some(flushed) = accumulator.add(neuron_id, gradient) {
+        if let Some((flushed, batch_size)) = flushed_data {
             // Auto-flushed, send it
-            drop(accumulator); // Release lock before async operation
-            
             let message = GradientMessage {
                 id: Uuid::new_v4(),
                 source_neuron: Uuid::nil(), // Accumulated gradient has no single source
@@ -220,7 +224,7 @@ impl GradientProtocol {
                 learning_context: LearningContext {
                     learning_rate: 0.01,
                     momentum: 0.9,
-                    batch_size: self.accumulator.lock().batch_size as u32,
+                    batch_size,
                     epoch: 0,
                     loss_type: LossType::MeanSquaredError,
                 },

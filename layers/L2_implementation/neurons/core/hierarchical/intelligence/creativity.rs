@@ -8,6 +8,7 @@ use crate::Result;
 use super::*;
 
 /// Creative system for generating novel ideas and solutions
+#[allow(dead_code)]
 pub struct CreativeSystem {
     idea_generator: IdeaGenerator,
     concept_blender: ConceptBlender,
@@ -22,6 +23,7 @@ struct IdeaGenerator {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct InspirationSource {
     id: Uuid,
     source_type: SourceType,
@@ -31,6 +33,7 @@ struct InspirationSource {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum SourceType {
     Memory,
     Pattern,
@@ -39,6 +42,7 @@ enum SourceType {
     CrossDomain,
 }
 
+#[allow(dead_code)]
 enum GenerationMethod {
     Combination,
     Mutation,
@@ -47,11 +51,13 @@ enum GenerationMethod {
     Metaphor,
 }
 
+#[allow(dead_code)]
 struct ConceptBlender {
     blending_strategies: Vec<BlendingStrategy>,
     compatibility_matrix: HashMap<(Uuid, Uuid), f32>,
 }
 
+#[allow(dead_code)]
 enum BlendingStrategy {
     Intersection,     // Common features
     Union,           // All features
@@ -60,12 +66,14 @@ enum BlendingStrategy {
     Emergence,       // New features from interaction
 }
 
+#[allow(dead_code)]
 struct NoveltyEvaluator {
     knowledge_base: KnowledgeBase,
     similarity_threshold: f32,
     evaluation_criteria: Vec<NoveltyMetric>,
 }
 
+#[allow(dead_code)]
 struct KnowledgeBase {
     existing_concepts: HashMap<Uuid, Concept>,
     relationships: Vec<ConceptRelationship>,
@@ -73,6 +81,7 @@ struct KnowledgeBase {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ConceptRelationship {
     from: Uuid,
     to: Uuid,
@@ -81,6 +90,7 @@ struct ConceptRelationship {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum RelationType {
     IsA,
     PartOf,
@@ -91,6 +101,7 @@ enum RelationType {
     EnabledBy,
 }
 
+#[allow(dead_code)]
 struct DomainBoundary {
     domain_name: String,
     core_concepts: Vec<Uuid>,
@@ -98,11 +109,13 @@ struct DomainBoundary {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct DomainConstraint {
     constraint_type: String,
     parameters: HashMap<String, f32>,
 }
 
+#[allow(dead_code)]
 enum NoveltyMetric {
     Uniqueness,      // How different from existing
     Surprise,        // Unexpectedness
@@ -111,12 +124,14 @@ enum NoveltyMetric {
     Elegance,        // Simplicity despite complexity
 }
 
+#[allow(dead_code)]
 struct SolutionSynthesizer {
     synthesis_methods: Vec<SynthesisMethod>,
     evaluation_engine: EvaluationEngine,
     refinement_strategies: Vec<RefinementStrategy>,
 }
 
+#[allow(dead_code)]
 enum SynthesisMethod {
     TopDown,         // Start from goal, decompose
     BottomUp,        // Start from components, combine
@@ -125,34 +140,40 @@ enum SynthesisMethod {
     Constraint,      // Satisfy constraints
 }
 
+#[allow(dead_code)]
 struct EvaluationEngine {
     feasibility_checker: FeasibilityChecker,
     impact_analyzer: ImpactAnalyzer,
     risk_assessor: RiskAssessor,
 }
 
+#[allow(dead_code)]
 struct FeasibilityChecker {
     resource_constraints: ResourceConstraints,
     technical_requirements: Vec<TechnicalRequirement>,
 }
 
+#[allow(dead_code)]
 struct ResourceConstraints {
     max_computation: f32,
     max_memory: f32,
     max_time: std::time::Duration,
 }
 
+#[allow(dead_code)]
 struct TechnicalRequirement {
     requirement_type: String,
     minimum_capability: f32,
 }
 
+#[allow(dead_code)]
 struct ImpactAnalyzer {
     impact_dimensions: Vec<ImpactDimension>,
     weighting_scheme: HashMap<String, f32>,
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ImpactDimension {
     name: String,
     measurement_method: MeasurementMethod,
@@ -160,47 +181,60 @@ struct ImpactDimension {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum MeasurementMethod {
     Quantitative(String), // Metric name
     Qualitative(Vec<String>), // Scale levels
     Comparative, // Relative to baseline
 }
 
+#[allow(dead_code)]
 struct RiskAssessor {
     risk_categories: Vec<RiskCategory>,
     mitigation_strategies: HashMap<String, MitigationStrategy>,
 }
 
+#[allow(dead_code)]
 struct RiskCategory {
     name: String,
     probability_model: ProbabilityModel,
     impact_model: ImpactModel,
 }
 
+#[allow(dead_code)]
 enum ProbabilityModel {
     Uniform(f32),
     Normal { mean: f32, std: f32 },
     Exponential { rate: f32 },
 }
 
+#[allow(dead_code)]
 enum ImpactModel {
     Linear { slope: f32 },
     Exponential { base: f32 },
     Threshold { threshold: f32, impact: f32 },
 }
 
+#[allow(dead_code)]
 struct MitigationStrategy {
     strategy_type: String,
     effectiveness: f32,
     cost: f32,
 }
 
+#[allow(dead_code)]
 enum RefinementStrategy {
     Simplification,
     Optimization,
     Generalization,
     Specialization,
     Iteration,
+}
+
+impl Default for CreativeSystem {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CreativeSystem {
@@ -267,7 +301,7 @@ impl CreativeSystem {
         }
     }
     
-    fn generate_raw_ideas(&self, constraints: &[Constraint]) -> Vec<RawIdea> {
+    fn generate_raw_ideas(&self, _constraints: &[Constraint]) -> Vec<RawIdea> {
         let mut ideas = Vec::new();
         let mut rng = thread_rng();
         
@@ -285,8 +319,8 @@ impl CreativeSystem {
                             components: vec![source1.id, source2.id],
                             generation_method: "combination".to_string(),
                             raw_content: format!("Combine {} with {}", 
-                                               source1.source_type.to_string(), 
-                                               source2.source_type.to_string()),
+                                               source1.source_type, 
+                                               source2.source_type),
                         });
                     }
                 }
@@ -297,7 +331,7 @@ impl CreativeSystem {
                             id: Uuid::new_v4(),
                             components: vec![source.id],
                             generation_method: "mutation".to_string(),
-                            raw_content: format!("Mutate {}", source.source_type.to_string()),
+                            raw_content: format!("Mutate {}", source.source_type),
                         });
                     }
                 }
@@ -379,7 +413,7 @@ impl CreativeSystem {
         
         for concept in concepts.iter().skip(1) {
             common.retain(|k, v| {
-                concept.attributes.get(k).map_or(false, |v2| v == v2)
+                concept.attributes.get(k).is_some_and(|v2| v == v2)
             });
         }
         
@@ -411,7 +445,7 @@ impl CreativeSystem {
         }
     }
     
-    fn generate_emergent_properties(&self, concepts: &[Concept]) -> Vec<EmergentProperty> {
+    fn generate_emergent_properties(&self, _concepts: &[Concept]) -> Vec<EmergentProperty> {
         vec![
             EmergentProperty {
                 name: "synergy".to_string(),
@@ -423,6 +457,7 @@ impl CreativeSystem {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct RawIdea {
     id: Uuid,
     components: Vec<Uuid>,
@@ -440,21 +475,23 @@ struct BlendedConcept {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct EmergentProperty {
     name: String,
     description: String,
     strength: f32,
 }
 
-impl SourceType {
-    fn to_string(&self) -> String {
-        match self {
+impl std::fmt::Display for SourceType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
             Self::Memory => "memory",
             Self::Pattern => "pattern",
             Self::Analogy => "analogy",
             Self::Random => "random",
             Self::CrossDomain => "cross_domain",
-        }.to_string()
+        };
+        write!(f, "{}", s)
     }
 }
 
@@ -529,7 +566,7 @@ impl CreativityEngine for CreativeSystem {
 }
 
 impl CreativeSystem {
-    fn calculate_similarity_to_existing(&self, solution: &Solution) -> f32 {
+    fn calculate_similarity_to_existing(&self, _solution: &Solution) -> f32 {
         // Simplified similarity calculation
         0.3 // Placeholder
     }
@@ -549,17 +586,20 @@ impl CreativeSystem {
 }
 
 /// Analogical reasoning for creative problem solving
+#[allow(dead_code)]
 pub struct AnalogicalReasoner {
     analogy_database: AnalogyDatabase,
     mapping_engine: MappingEngine,
 }
 
+#[allow(dead_code)]
 struct AnalogyDatabase {
     source_domains: HashMap<String, Domain>,
     target_domains: HashMap<String, Domain>,
     successful_mappings: Vec<AnalogicalMapping>,
 }
 
+#[allow(dead_code)]
 struct Domain {
     name: String,
     objects: Vec<DomainObject>,
@@ -567,12 +607,14 @@ struct Domain {
     constraints: Vec<DomainConstraint>,
 }
 
+#[allow(dead_code)]
 struct DomainObject {
     id: Uuid,
     object_type: String,
     properties: HashMap<String, f32>,
 }
 
+#[allow(dead_code)]
 struct DomainRelation {
     relation_type: String,
     from_object: Uuid,
@@ -580,6 +622,7 @@ struct DomainRelation {
     strength: f32,
 }
 
+#[allow(dead_code)]
 struct AnalogicalMapping {
     source_domain: String,
     target_domain: String,
@@ -588,11 +631,13 @@ struct AnalogicalMapping {
     confidence: f32,
 }
 
+#[allow(dead_code)]
 struct MappingEngine {
     similarity_metrics: Vec<SimilarityMetric>,
     mapping_constraints: Vec<MappingConstraint>,
 }
 
+#[allow(dead_code)]
 enum SimilarityMetric {
     Structural,
     Functional,
@@ -600,6 +645,7 @@ enum SimilarityMetric {
     Superficial,
 }
 
+#[allow(dead_code)]
 enum MappingConstraint {
     OneToOne,
     PreserveRelations,

@@ -78,6 +78,12 @@ pub struct IdMapper {
     generator: NeuronIdGenerator,
 }
 
+impl Default for IdMapper {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IdMapper {
     /// Create a new ID mapper
     pub fn new() -> Self {

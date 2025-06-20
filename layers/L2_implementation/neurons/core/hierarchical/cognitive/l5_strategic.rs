@@ -8,8 +8,8 @@ use uuid::Uuid;
 use std::collections::HashMap;
 use std::sync::Arc;
 use parking_lot::RwLock;
-use crate::{Result, Error};
-use crate::hierarchical::protocol::{ConsensusProtocol, ConsensusMessage};
+use crate::Result;
+use crate::hierarchical::protocol::ConsensusProtocol;
 use super::*;
 
 /// L5: Strategic Neuron - Vision and strategic direction
@@ -23,31 +23,31 @@ pub struct L5StrategicNeuron {
 
 impl L5StrategicNeuron {
     pub fn new(config: CognitiveConfig) -> Self {
-        let mut initial_goals = Vec::new();
-        
         // Create foundational goals
-        initial_goals.push(Goal {
-            id: Uuid::new_v4(),
-            description: "Achieve artificial general intelligence through hierarchical abstraction".to_string(),
-            priority: 1.0,
-            progress: 0.1,
-            sub_goals: vec![
-                Goal {
-                    id: Uuid::new_v4(),
-                    description: "Develop robust learning mechanisms".to_string(),
-                    priority: 0.9,
-                    progress: 0.2,
-                    sub_goals: vec![],
-                },
-                Goal {
-                    id: Uuid::new_v4(),
-                    description: "Create emergent intelligence patterns".to_string(),
-                    priority: 0.8,
-                    progress: 0.15,
-                    sub_goals: vec![],
-                },
-            ],
-        });
+        let initial_goals = vec![
+            Goal {
+                id: Uuid::new_v4(),
+                description: "Achieve artificial general intelligence through hierarchical abstraction".to_string(),
+                priority: 1.0,
+                progress: 0.1,
+                sub_goals: vec![
+                    Goal {
+                        id: Uuid::new_v4(),
+                        description: "Develop robust learning mechanisms".to_string(),
+                        priority: 0.9,
+                        progress: 0.2,
+                        sub_goals: vec![],
+                    },
+                    Goal {
+                        id: Uuid::new_v4(),
+                        description: "Create emergent intelligence patterns".to_string(),
+                        priority: 0.8,
+                        progress: 0.15,
+                        sub_goals: vec![],
+                    },
+                ],
+            }
+        ];
         
         Self {
             id: config.id,
@@ -101,7 +101,8 @@ impl L5StrategicNeuron {
     }
     
     /// Generate strategic directives for lower layers
-    fn generate_directives(&self, goals: &[Goal]) -> Vec<CognitiveOutput> {
+    #[allow(dead_code)]
+    fn generate_directives(goals: &[Goal]) -> Vec<CognitiveOutput> {
         goals.iter().flat_map(|goal| {
             let mut directives = vec![
                 CognitiveOutput {
@@ -117,7 +118,7 @@ impl L5StrategicNeuron {
             ];
             
             // Add sub-goal directives
-            directives.extend(self.generate_directives(&goal.sub_goals));
+            directives.extend(Self::generate_directives(&goal.sub_goals));
             directives
         }).collect()
     }
@@ -362,10 +363,17 @@ pub struct VisionModel {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct VisionComponent {
     aspect: String,
     description: String,
     importance: f32,
+}
+
+impl Default for VisionModel {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl VisionModel {
@@ -489,15 +497,15 @@ impl GoalHierarchy {
     pub fn get_all_goals(&self) -> Vec<Goal> {
         let mut all_goals = Vec::new();
         for root in &self.root_goals {
-            self.collect_goals(root, &mut all_goals);
+            Self::collect_goals(root, &mut all_goals);
         }
         all_goals
     }
     
-    fn collect_goals(&self, goal: &Goal, collection: &mut Vec<Goal>) {
+    fn collect_goals(goal: &Goal, collection: &mut Vec<Goal>) {
         collection.push(goal.clone());
         for sub_goal in &goal.sub_goals {
-            self.collect_goals(sub_goal, collection);
+            Self::collect_goals(sub_goal, collection);
         }
     }
     

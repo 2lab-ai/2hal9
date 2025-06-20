@@ -15,6 +15,12 @@ pub struct LockFreeNeuronMap<T> {
     size: AtomicUsize,
 }
 
+impl<T> Default for LockFreeNeuronMap<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> LockFreeNeuronMap<T> {
     /// Create a new lock-free map
     pub fn new() -> Self {
@@ -82,6 +88,11 @@ impl<T> LockFreeNeuronMap<T> {
     /// Get the number of neurons
     pub fn len(&self) -> usize {
         self.size.load(Ordering::Relaxed)
+    }
+    
+    /// Check if the map is empty
+    pub fn is_empty(&self) -> bool {
+        self.size.load(Ordering::Relaxed) == 0
     }
     
     /// Clear all neurons
@@ -241,6 +252,12 @@ impl<T> Ord for PriorityItem<T> {
         // Higher priority first, then by ID
         self.priority.cmp(&other.priority)
             .then_with(|| self.id.cmp(&other.id))
+    }
+}
+
+impl<T> Default for LockFreePriorityQueue<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
