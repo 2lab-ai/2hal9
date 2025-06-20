@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hal9-server
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+      - name: hal9-server
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        env:
+        - name: ENVIRONMENT
+          value: "staging"
+        - name: CLAUDE_MODE
+          value: "mock"

@@ -1,0 +1,321 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hal9-server
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: server
+    app.kubernetes.io/instance: production
+    app.kubernetes.io/version: "1.0.0"
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+spec:
+  replicas: 30  # Base replicas for 1000+ concurrent users
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 5         # Allow 5 extra pods during updates
+      maxUnavailable: 2   # Keep most pods running
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hal9-server
+      app.kubernetes.io/component: server
+      app.kubernetes.io/instance: production
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: hal9-server
+        app.kubernetes.io/component: server
+        app.kubernetes.io/instance: production
+        app.kubernetes.io/version: "1.0.0"
+      annotations:
+        # Force pod restart on config change  
+        # Note: In production, use a CI/CD tool to update these checksums
+        checksum/config: "UPDATE_ON_CONFIG_CHANGE"
+        checksum/secret: "UPDATE_ON_SECRET_CHANGE"
+        # Prometheus scraping
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+        # Istio sidecar injection (if using service mesh)
+        sidecar.istio.io/inject: "false"
+    spec:
+      serviceAccountName: hal9-server
+      
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      
+      # Pod topology spread for high availability
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: hal9-server
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: hal9-server
+      
+      # Anti-affinity for spreading pods
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - hal9-server
+              topologyKey: kubernetes.io/hostname
+        # Prefer nodes with SSD
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: node.kubernetes.io/instance-type
+                operator: In
+                values:
+                - m5d.xlarge
+                - m5d.2xlarge
+                - m5d.4xlarge
+      
+      # Priority class for critical workload
+      priorityClassName: system-cluster-critical
+      
+      # DNS policy for faster resolution
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "2"
+        - name: edns0
+      
+      # Graceful shutdown
+      terminationGracePeriodSeconds: 60
+      
+      # Init container for database migration
+      initContainers:
+      - name: db-migrate
+        image: ghcr.io/2lab-ai/hal9-server:1.0.0
+        imagePullPolicy: IfNotPresent
+        command: ["/app/migrate"]
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: hal9-server-secrets
+              key: DATABASE_URL
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 10001
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      
+      containers:
+      - name: hal9-server
+        image: ghcr.io/2lab-ai/hal9-server:1.0.0
+        imagePullPolicy: IfNotPresent
+        
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        
+        # Environment variables from ConfigMap
+        envFrom:
+        - configMapRef:
+            name: hal9-server-config
+        
+        # Sensitive environment variables from Secrets
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: hal9-server-secrets
+              key: DATABASE_URL
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: hal9-server-secrets
+              key: REDIS_URL
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: hal9-server-secrets
+              key: ANTHROPIC_API_KEY
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: hal9-server-secrets
+              key: JWT_SECRET
+        - name: ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: hal9-server-secrets
+              key: ENCRYPTION_KEY
+        # Pod information
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        
+        # Volume mounts
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        - name: cache
+          mountPath: /app/cache
+        - name: tmp
+          mountPath: /tmp
+        - name: tls-certs
+          mountPath: /app/certs
+          readOnly: true
+        
+        # Security context
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+            add:
+            - NET_BIND_SERVICE  # Allow binding to port < 1024 if needed
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 10001
+        
+        # Resource management
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+            ephemeral-storage: "1Gi"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+            ephemeral-storage: "2Gi"
+        
+        # Health checks
+        startupProbe:
+          httpGet:
+            path: /health/startup
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 30
+        
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        
+        # Lifecycle hooks
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - |
+                # Signal graceful shutdown
+                kill -TERM 1
+                # Wait for connections to drain
+                sleep 15
+      
+      # Volumes
+      volumes:
+      - name: config
+        configMap:
+          name: hal9-server-config
+          items:
+          - key: production.yaml
+            path: production.yaml
+      - name: cache
+        emptyDir:
+          sizeLimit: 2Gi
+      - name: tmp
+        emptyDir:
+          sizeLimit: 1Gi
+      - name: tls-certs
+        secret:
+          secretName: hal9-internal-tls
+          defaultMode: 0400
+---
+# PodDisruptionBudget for high availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: hal9-server-pdb
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: server
+spec:
+  minAvailable: 75%
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hal9-server
+      app.kubernetes.io/component: server
+  unhealthyPodEvictionPolicy: IfHealthyBudget

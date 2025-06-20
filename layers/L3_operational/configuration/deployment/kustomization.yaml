@@ -1,0 +1,70 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: hal9-production
+
+resources:
+  - 00-namespace.yaml
+  - 01-configmap.yaml
+  - 02-secrets.yaml
+  - 03-rbac.yaml
+  - 04-deployment.yaml
+  - 05-service.yaml
+  - 06-hpa.yaml
+  - 07-ingress.yaml
+  - 08-monitoring.yaml
+
+# Labels applied to all resources
+labels:
+  - pairs:
+      app.kubernetes.io/managed-by: kustomize
+      app.kubernetes.io/part-of: hal9
+      app.kubernetes.io/version: "1.0.0"
+
+# Common annotations
+commonAnnotations:
+  deployment.hal9.ai/managed-by: "gitops"
+  deployment.hal9.ai/team: "platform"
+
+# Image management
+images:
+  - name: ghcr.io/2lab-ai/hal9-server
+    newTag: "1.0.0"
+
+# Patches for different environments
+patches:
+  # Production-specific patches
+  - target:
+      kind: Deployment
+      name: hal9-server
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 30
+      - op: add
+        path: /spec/template/spec/priorityClassName
+        value: system-cluster-critical
+
+# Config generation
+configMapGenerator:
+  - name: hal9-build-info
+    literals:
+      - build.version=1.0.0
+      - build.commit=HEAD
+      - build.date=2025-06-19
+      - build.by=kustomize
+
+# Secret generation (example - replace with actual secrets)
+secretGenerator:
+  - name: hal9-generated-secrets
+    type: Opaque
+    literals:
+      - jwt.secret=GENERATE_ME_WITH_OPENSSL
+      - encryption.key=GENERATE_ME_WITH_OPENSSL
+
+
+# Resource constraints
+replicas:
+  - name: hal9-server
+    count: 30

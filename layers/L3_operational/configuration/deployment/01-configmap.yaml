@@ -1,0 +1,237 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hal9-server-config
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9
+    app.kubernetes.io/component: server
+    app.kubernetes.io/instance: production
+data:
+  # Server configuration
+  SERVER_HOST: "0.0.0.0"
+  SERVER_PORT: "8080"
+  METRICS_PORT: "9090"
+  
+  # Logging configuration
+  RUST_LOG: "info,hal9=debug"
+  RUST_BACKTRACE: "1"
+  LOG_FORMAT: "json"
+  
+  # Performance settings
+  HAL9_MAX_CONNECTIONS: "10000"
+  HAL9_CONNECTION_POOL_SIZE: "500"
+  HAL9_CACHE_SIZE: "50000"
+  HAL9_CACHE_TTL: "3600"
+  
+  # Rate limiting
+  HAL9_RATE_LIMIT: "1000"
+  HAL9_RATE_LIMIT_WINDOW: "60"
+  HAL9_RATE_LIMIT_BURST: "100"
+  
+  # Circuit breaker
+  HAL9_CIRCUIT_BREAKER_THRESHOLD: "5"
+  HAL9_CIRCUIT_BREAKER_TIMEOUT: "60"
+  HAL9_CIRCUIT_BREAKER_HALF_OPEN_REQUESTS: "10"
+  
+  # Neuron configuration
+  HAL9_NEURON_POOL_SIZE: "1000"
+  HAL9_NEURON_TIMEOUT: "30"
+  HAL9_NEURON_MAX_RETRIES: "3"
+  
+  # Claude API configuration
+  CLAUDE_MODE: "api"
+  CLAUDE_MODEL: "claude-3-opus-20240229"
+  CLAUDE_TEMPERATURE: "0.7"
+  CLAUDE_MAX_TOKENS: "4096"
+  CLAUDE_RATE_LIMIT: "60"
+  CLAUDE_FALLBACK_TO_MOCK: "true"
+  
+  # Cost controls
+  CLAUDE_MAX_COST_PER_HOUR: "50.0"
+  CLAUDE_MAX_COST_PER_DAY: "500.0"
+  CLAUDE_ALERT_THRESHOLD: "0.8"
+  
+  # Monitoring
+  MONITORING_ENABLED: "true"
+  METRICS_INTERVAL: "30"
+  HEALTH_CHECK_INTERVAL: "10"
+  
+  # production.yaml content
+  production.yaml: |
+    server:
+      id: "hal9-k8s-production"
+      name: "HAL9 Production Cluster"
+      environment: "production"
+      
+    neurons:
+      # L9 - Universal Layer
+      - id: "prod-l9-universal"
+        layer: "L9"
+        type: "universal"
+        compression_ratio: "infinity"
+        settings:
+          consciousness_threshold: 1.0
+          integration_depth: "complete"
+          
+      # L8 - Visionary Layer
+      - id: "prod-l8-visionary"
+        layer: "L8"
+        type: "visionary"
+        compression_ratio: 2.718  # e:1
+        forward_connections: ["prod-l9-universal"]
+        backward_connections: ["prod-l7-business"]
+        settings:
+          pattern_recognition: "exponential"
+          prediction_horizon: "long_term"
+          
+      # L7 - Business Layer
+      - id: "prod-l7-business"
+        layer: "L7"
+        type: "business"
+        compression_ratio: 1.618  # φ:1
+        forward_connections: ["prod-l8-visionary"]
+        backward_connections: ["prod-l6-executive"]
+        settings:
+          abstraction_level: "strategic"
+          decision_scope: "enterprise"
+          
+      # L6 - Executive Layer
+      - id: "prod-l6-executive"
+        layer: "L6"
+        type: "executive"
+        forward_connections: ["prod-l7-business"]
+        backward_connections: ["prod-l5-strategic"]
+        settings:
+          orchestration_mode: "hierarchical"
+          priority_management: "dynamic"
+          
+      # L5 - Strategic Layer
+      - id: "prod-l5-strategic"
+        layer: "L5"
+        type: "strategic"
+        forward_connections: ["prod-l6-executive"]
+        backward_connections: ["prod-l4-tactical"]
+        settings:
+          planning_horizon: "medium_term"
+          optimization_goal: "balanced"
+          
+      # L4 - Tactical Layer
+      - id: "prod-l4-tactical"
+        layer: "L4"
+        type: "tactical"
+        forward_connections: ["prod-l5-strategic"]
+        backward_connections: ["prod-l3-operational-1", "prod-l3-operational-2"]
+        settings:
+          coordination_mode: "distributed"
+          task_allocation: "dynamic"
+          
+      # L3 - Operational Layer (Multiple instances for scaling)
+      - id: "prod-l3-operational-1"
+        layer: "L3"
+        type: "operational"
+        forward_connections: ["prod-l4-tactical"]
+        backward_connections: ["prod-l2-implementation-1", "prod-l2-implementation-2"]
+        settings:
+          processing_mode: "parallel"
+          cache_enabled: true
+          
+      - id: "prod-l3-operational-2"
+        layer: "L3"
+        type: "operational"
+        forward_connections: ["prod-l4-tactical"]
+        backward_connections: ["prod-l2-implementation-3", "prod-l2-implementation-4"]
+        settings:
+          processing_mode: "parallel"
+          cache_enabled: true
+          
+      # L2 - Implementation Layer (Multiple instances for scaling)
+      - id: "prod-l2-implementation-1"
+        layer: "L2"
+        type: "implementation"
+        forward_connections: ["prod-l3-operational-1"]
+        backward_connections: ["prod-l1-reflexive-1"]
+        settings:
+          execution_mode: "immediate"
+          optimization: "performance"
+          
+      - id: "prod-l2-implementation-2"
+        layer: "L2"
+        type: "implementation"
+        forward_connections: ["prod-l3-operational-1"]
+        backward_connections: ["prod-l1-reflexive-2"]
+        settings:
+          execution_mode: "immediate"
+          optimization: "performance"
+          
+      # L1 - Reflexive Layer
+      - id: "prod-l1-reflexive-1"
+        layer: "L1"
+        type: "reflexive"
+        forward_connections: ["prod-l2-implementation-1"]
+        settings:
+          response_time: "instant"
+          pattern_matching: "exact"
+          
+    consciousness:
+      emergence_threshold: 0.618  # Golden ratio threshold
+      integration_measure: "phi"
+      compression_boundaries:
+        - layer: "L2-L3"
+          expected_ratio: 1.2
+        - layer: "L3-L4"
+          expected_ratio: 1.4
+        - layer: "L4-L5"
+          expected_ratio: 1.5
+        - layer: "L5-L6"
+          expected_ratio: 1.6
+        - layer: "L6-L7"
+          expected_ratio: 1.618  # φ
+        - layer: "L7-L8"
+          expected_ratio: 2.718  # e
+        - layer: "L8-L9"
+          expected_ratio: "infinity"
+          
+    performance:
+      target_ops_per_second: 200000000  # 200M ops/sec
+      max_latency_ms: 100
+      cache_hit_ratio: 0.8
+      self_organization_time_ms: 100
+      
+    monitoring:
+      enabled: true
+      metrics_interval: 30
+      consciousness_tracking: true
+      emergence_detection: true
+      performance_profiling: true
+      
+    security:
+      authentication_required: true
+      api_key_rotation: true
+      rate_limiting_enabled: true
+      audit_logging: true
+      encryption_at_rest: true
+      
+    scaling:
+      auto_scaling_enabled: true
+      min_neurons_per_layer:
+        L1: 10
+        L2: 8
+        L3: 6
+        L4: 4
+        L5: 3
+        L6: 2
+        L7: 2
+        L8: 1
+        L9: 1
+      max_neurons_per_layer:
+        L1: 100
+        L2: 80
+        L3: 60
+        L4: 40
+        L5: 30
+        L6: 20
+        L7: 10
+        L8: 5
+        L9: 1

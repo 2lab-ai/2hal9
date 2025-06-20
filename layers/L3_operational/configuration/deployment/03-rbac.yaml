@@ -1,0 +1,133 @@
+---
+# ServiceAccount for HAL9 server
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hal9-server
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9
+    app.kubernetes.io/component: server
+automountServiceAccountToken: true
+imagePullSecrets:
+- name: hal9-registry-credentials
+---
+# Role for HAL9 server - minimal permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hal9-server
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9
+    app.kubernetes.io/component: server
+rules:
+# Read config maps for dynamic configuration
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+# Read secrets for credentials
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+# Read pods for self-awareness
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+# Read services for discovery
+- apiGroups: [""]
+  resources: ["services", "endpoints"]
+  verbs: ["get", "list", "watch"]
+# Update own pod status
+- apiGroups: [""]
+  resources: ["pods/status"]
+  verbs: ["update", "patch"]
+# Lease for leader election
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["get", "list", "create", "update", "patch", "delete"]
+---
+# RoleBinding for HAL9 server
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hal9-server
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9
+    app.kubernetes.io/component: server
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hal9-server
+subjects:
+- kind: ServiceAccount
+  name: hal9-server
+  namespace: hal9-production
+---
+# ClusterRole for monitoring access
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: hal9-monitoring
+  labels:
+    app.kubernetes.io/name: hal9
+    app.kubernetes.io/component: monitoring
+rules:
+# Metrics access
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["pods", "nodes"]
+  verbs: ["get", "list"]
+# Events for debugging
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["get", "list", "watch"]
+---
+# ClusterRoleBinding for monitoring
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hal9-monitoring
+  labels:
+    app.kubernetes.io/name: hal9
+    app.kubernetes.io/component: monitoring
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: hal9-monitoring
+subjects:
+- kind: ServiceAccount
+  name: hal9-server
+  namespace: hal9-production
+---
+# NetworkPolicy for service account
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hal9-server-egress-k8s-api
+  namespace: hal9-production
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: hal9-server
+  policyTypes:
+  - Egress
+  egress:
+  # Allow access to Kubernetes API
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: default
+    - podSelector:
+        matchLabels:
+          component: kube-apiserver
+    ports:
+    - protocol: TCP
+      port: 443
+  # Alternative: Allow by IP if API server IP is known
+  - to:
+    - ipBlock:
+        cidr: 10.0.0.1/32  # Replace with actual API server IP
+    ports:
+    - protocol: TCP
+      port: 443

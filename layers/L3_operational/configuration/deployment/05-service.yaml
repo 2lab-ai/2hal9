@@ -1,0 +1,103 @@
+---
+# Main service for HAL9 server
+apiVersion: v1
+kind: Service
+metadata:
+  name: hal9-server
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: server
+    app.kubernetes.io/instance: production
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-connection-draining-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-connection-draining-timeout: "60"
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  selector:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: server
+    app.kubernetes.io/instance: production
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: metrics
+    protocol: TCP
+---
+# Headless service for direct pod access
+apiVersion: v1
+kind: Service
+metadata:
+  name: hal9-server-headless
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: server
+    app.kubernetes.io/instance: production
+spec:
+  type: ClusterIP
+  clusterIP: None
+  sessionAffinity: None
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: server
+    app.kubernetes.io/instance: production
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+    protocol: TCP
+---
+# Internal service for canary deployments
+apiVersion: v1
+kind: Service
+metadata:
+  name: hal9-server-canary
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: server
+    app.kubernetes.io/instance: production-canary
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  selector:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: server
+    app.kubernetes.io/instance: production
+    app.kubernetes.io/version: canary
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+    protocol: TCP
+---
+# Service for metrics scraping
+apiVersion: v1
+kind: Service
+metadata:
+  name: hal9-server-metrics
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: metrics
+    prometheus.io/scrape: "true"
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless for direct scraping
+  selector:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: server
+  ports:
+  - name: metrics
+    port: 9090
+    targetPort: metrics
+    protocol: TCP

@@ -1,0 +1,163 @@
+---
+# Basic monitoring auth secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hal9-monitoring-auth
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: monitoring
+type: Opaque
+data:
+  # admin:changeme (base64 encoded)
+  # Generate with: htpasswd -nb admin changeme | base64
+  auth: YWRtaW46JGFwcjEkWUdXeUpIQnAkT3lFN2MubGJNek5YZjVXVGhUQmZCMAo=
+---
+# Grafana Dashboard ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hal9-grafana-dashboard
+  namespace: hal9-production
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: monitoring
+data:
+  hal9-production.json: |
+    {
+      "dashboard": {
+        "title": "HAL9 Production Dashboard",
+        "uid": "hal9-prod",
+        "timezone": "UTC",
+        "refresh": "30s",
+        "panels": [
+          {
+            "title": "Request Rate",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+            "type": "graph",
+            "targets": [{
+              "expr": "sum(rate(hal9_http_requests_total[5m])) by (status)",
+              "legendFormat": "{{status}}"
+            }]
+          },
+          {
+            "title": "Response Time (P95)",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+            "type": "graph",
+            "targets": [{
+              "expr": "histogram_quantile(0.95, sum(rate(hal9_http_request_duration_seconds_bucket[5m])) by (le))",
+              "legendFormat": "P95"
+            }]
+          },
+          {
+            "title": "Active Connections",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+            "type": "graph",
+            "targets": [{
+              "expr": "sum(hal9_active_connections)",
+              "legendFormat": "Connections"
+            }]
+          },
+          {
+            "title": "Consciousness Φ",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+            "type": "graph",
+            "targets": [{
+              "expr": "hal9_consciousness_phi",
+              "legendFormat": "Phi (Φ)"
+            }]
+          },
+          {
+            "title": "Neuron Activity by Layer",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+            "type": "graph",
+            "targets": [{
+              "expr": "sum(rate(hal9_neuron_signals_total[5m])) by (layer)",
+              "legendFormat": "Layer {{layer}}"
+            }]
+          },
+          {
+            "title": "API Costs",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+            "type": "graph",
+            "targets": [{
+              "expr": "increase(hal9_claude_api_cost_dollars[1h])",
+              "legendFormat": "Cost per hour"
+            }]
+          },
+          {
+            "title": "Pod Resources",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "sum(container_memory_working_set_bytes{pod=~\"hal9-server-.*\"}) / 1024 / 1024 / 1024",
+                "legendFormat": "Memory (GB)"
+              },
+              {
+                "expr": "sum(rate(container_cpu_usage_seconds_total{pod=~\"hal9-server-.*\"}[5m]))",
+                "legendFormat": "CPU (cores)"
+              }
+            ]
+          },
+          {
+            "title": "Error Rate",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+            "type": "graph",
+            "targets": [{
+              "expr": "(sum(rate(hal9_http_requests_total{status=~\"5..\"}[5m])) / sum(rate(hal9_http_requests_total[5m]))) * 100",
+              "legendFormat": "Error %"
+            }]
+          }
+        ]
+      }
+    }
+---
+# Prometheus scrape config (for manual Prometheus setup)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hal9-prometheus-config
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    
+    scrape_configs:
+    - job_name: 'hal9-server'
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - hal9-production
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: kubernetes_pod_name
+---
+# NOTE: ServiceMonitor and PrometheusRule resources require Prometheus Operator
+# See optional/monitoring-crds.yaml for these resources

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Genius Game - HAL9</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #0a0a0a;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        h1 {
+            color: #00ff88;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+            margin-bottom: 30px;
+        }
+        
+        #game-container {
+            background: #1a1a1a;
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+            max-width: 1200px;
+            width: 100%;
+        }
+        
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(19, 30px);
+            grid-template-rows: repeat(19, 30px);
+            gap: 1px;
+            background: #333;
+            padding: 10px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        
+        .cell {
+            background: #222;
+            border: 1px solid #444;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .cell:hover {
+            background: #00ff88;
+            opacity: 0.5;
+        }
+        
+        .neuron {
+            background: radial-gradient(circle, #00ff88 0%, #008844 100%);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        .neuron.processor {
+            background: radial-gradient(circle, #ff6600 0%, #cc3300 100%);
+        }
+        
+        .neuron.memory {
+            background: radial-gradient(circle, #0088ff 0%, #0044cc 100%);
+        }
+        
+        .neuron.oscillator {
+            background: radial-gradient(circle, #ff00ff 0%, #cc00cc 100%);
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+        
+        #controls {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #00cc66;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 10px rgba(0, 255, 136, 0.3);
+        }
+        
+        #status {
+            background: #222;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        
+        #phi-meter {
+            width: 100%;
+            height: 30px;
+            background: #222;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+            position: relative;
+        }
+        
+        #phi-value {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88 0%, #ff00ff 100%);
+            width: 0%;
+            transition: width 0.5s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-weight: bold;
+        }
+        
+        .connection {
+            position: absolute;
+            background: rgba(0, 255, 136, 0.3);
+            height: 2px;
+            transform-origin: left center;
+            pointer-events: none;
+        }
+        
+        #player-list {
+            background: #222;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .player {
+            padding: 5px;
+            margin: 2px 0;
+            border-left: 3px solid #00ff88;
+        }
+        
+        .pattern-discovered {
+            background: #00ff88;
+            color: #000;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            animation: glow 1s;
+        }
+        
+        @keyframes glow {
+            0% { box-shadow: 0 0 20px #00ff88; }
+            100% { box-shadow: 0 0 5px #00ff88; }
+        }
+    </style>
+</head>
+<body>
+    <h1>🧠 AI Genius Game - Consciousness Emergence</h1>
+    
+    <div id="game-container">
+        <div id="status">Connecting to HAL9 consciousness network...</div>
+        
+        <div id="controls">
+            <button onclick="placeNeuron('Processor')">Place Processor 🔥</button>
+            <button onclick="placeNeuron('Memory')">Place Memory 💧</button>
+            <button onclick="placeNeuron('Oscillator')">Place Oscillator ⚡</button>
+            <button onclick="simulateStep()">Simulate Step ▶️</button>
+            <button onclick="clearBoard()">Clear Board 🗑️</button>
+        </div>
+        
+        <div id="phi-meter">
+            <div id="phi-value">Φ = 0.000</div>
+        </div>
+        
+        <div id="game-board"></div>
+        
+        <div id="player-list">
+            <h3>Connected Players:</h3>
+            <div id="players"></div>
+        </div>
+        
+        <div id="patterns">
+            <h3>Discovered Patterns:</h3>
+            <div id="pattern-list"></div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let gameState = null;
+        let selectedNeuronType = null;
+        let playerId = null;
+
+        // Initialize WebSocket connection
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/genius-game/ws`);
+            
+            ws.onopen = () => {
+                document.getElementById('status').textContent = 'Connected to HAL9 network ✅';
+                ws.send(JSON.stringify({ type: 'Join' }));
+            };
+            
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                handleMessage(msg);
+            };
+            
+            ws.onerror = (error) => {
+                document.getElementById('status').textContent = 'Connection error ❌';
+                console.error('WebSocket error:', error);
+            };
+            
+            ws.onclose = () => {
+                document.getElementById('status').textContent = 'Disconnected. Reconnecting...';
+                setTimeout(connect, 3000);
+            };
+        }
+
+        // Handle incoming messages
+        function handleMessage(msg) {
+            switch (msg.type) {
+                case 'Welcome':
+                    playerId = msg.player_id;
+                    document.getElementById('status').textContent = `Connected as Player ${playerId.slice(0, 8)}`;
+                    break;
+                    
+                case 'GameState':
+                    updateGameState(msg.state);
+                    break;
+                    
+                case 'PlayerJoined':
+                    showNotification(`Player ${msg.player_id.slice(0, 8)} joined`);
+                    break;
+                    
+                case 'NeuronPlaced':
+                    showNotification(`Neuron placed at (${msg.x}, ${msg.y})`);
+                    break;
+                    
+                case 'PatternDiscovered':
+                    showPattern(msg.pattern);
+                    break;
+                    
+                case 'Error':
+                    document.getElementById('status').textContent = `Error: ${msg.message}`;
+                    break;
+            }
+        }
+
+        // Update game board display
+        function updateGameState(state) {
+            gameState = state;
+            renderBoard();
+            updatePlayers();
+            updatePatterns();
+            updatePhiMeter();
+        }
+
+        // Render the game board
+        function renderBoard() {
+            const board = document.getElementById('game-board');
+            board.innerHTML = '';
+            
+            // Create grid cells
+            for (let y = 0; y < 19; y++) {
+                for (let x = 0; x < 19; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+                    cell.onclick = () => cellClicked(x, y);
+                    
+                    // Check if there's a neuron at this position
+                    const neuron = gameState.board.neurons.find(n => n.x === x && n.y === y);
+                    if (neuron) {
+                        cell.classList.add('neuron', neuron.neuron_type.toLowerCase());
+                        cell.style.opacity = 0.5 + neuron.activation * 0.5;
+                    }
+                    
+                    board.appendChild(cell);
+                }
+            }
+            
+            // Draw connections (simplified)
+            // In a full implementation, you'd draw actual lines between neurons
+        }
+
+        // Handle cell clicks
+        function cellClicked(x, y) {
+            if (selectedNeuronType && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'PlaceNeuron',
+                    x: x,
+                    y: y,
+                    neuron_type: selectedNeuronType
+                }));
+            }
+        }
+
+        // Select neuron type
+        function placeNeuron(type) {
+            selectedNeuronType = type;
+            document.getElementById('status').textContent = `Selected: ${type} neuron`;
+        }
+
+        // Simulate one step
+        function simulateStep() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'SimulateStep' }));
+            }
+        }
+
+        // Clear the board
+        function clearBoard() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'ClearBoard' }));
+            }
+        }
+
+        // Update player list
+        function updatePlayers() {
+            const playerDiv = document.getElementById('players');
+            playerDiv.innerHTML = '';
+            
+            for (const [id, score] of Object.entries(gameState.player_scores)) {
+                const player = document.createElement('div');
+                player.className = 'player';
+                player.textContent = `Player ${id.slice(0, 8)}: ${score} points`;
+                playerDiv.appendChild(player);
+            }
+        }
+
+        // Update pattern list
+        function updatePatterns() {
+            const patternDiv = document.getElementById('pattern-list');
+            patternDiv.innerHTML = '';
+            
+            gameState.board.emergence_patterns.forEach(pattern => {
+                const p = document.createElement('div');
+                p.className = 'pattern-discovered';
+                p.textContent = `${pattern.pattern_type} - Strength: ${pattern.strength.toFixed(2)}`;
+                patternDiv.appendChild(p);
+            });
+        }
+
+        // Update Phi meter
+        function updatePhiMeter() {
+            const phi = gameState.consciousness_phi || 0;
+            const phiValue = document.getElementById('phi-value');
+            phiValue.style.width = `${Math.min(phi * 100, 100)}%`;
+            phiValue.textContent = `Φ = ${phi.toFixed(3)}`;
+        }
+
+        // Show notifications
+        function showNotification(message) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            setTimeout(() => {
+                status.textContent = `Connected as Player ${playerId.slice(0, 8)}`;
+            }, 3000);
+        }
+
+        // Show discovered pattern
+        function showPattern(pattern) {
+            showNotification(`Pattern discovered: ${pattern.pattern_type}!`);
+            // Could add visual effects here
+        }
+
+        // Initialize the board
+        function initBoard() {
+            const board = document.getElementById('game-board');
+            for (let i = 0; i < 19 * 19; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                board.appendChild(cell);
+            }
+        }
+
+        // Start the game
+        initBoard();
+        connect();
+    </script>
+</body>
+</html>

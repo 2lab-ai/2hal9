@@ -1,0 +1,196 @@
+---
+# Production Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hal9-server-ingress
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: ingress
+  annotations:
+    # Ingress class
+    kubernetes.io/ingress.class: nginx
+    
+    # TLS/SSL
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-protocols: "TLSv1.2 TLSv1.3"
+    nginx.ingress.kubernetes.io/ssl-ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256"
+    
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+      more_set_headers "Content-Security-Policy: default-src 'self'";
+      more_set_headers "Permissions-Policy: camera=(), microphone=(), geolocation=()";
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains; preload";
+    
+    # Rate limiting
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-rpm: "1000"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+    nginx.ingress.kubernetes.io/limit-whitelist: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+    
+    # Timeouts
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    
+    # Buffering
+    nginx.ingress.kubernetes.io/proxy-buffering: "on"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "8k"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "16"
+    
+    # WebSocket support
+    nginx.ingress.kubernetes.io/websocket-services: "hal9-server"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    
+    # CORS
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://hal9.ai,https://app.hal9.ai"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization,X-API-Key"
+    nginx.ingress.kubernetes.io/cors-max-age: "86400"
+    
+    # Canary deployment (10% traffic to canary)
+    nginx.ingress.kubernetes.io/canary: "false"
+    nginx.ingress.kubernetes.io/canary-weight: "10"
+    
+    # Custom error pages
+    nginx.ingress.kubernetes.io/custom-http-errors: "404,500,502,503,504"
+    nginx.ingress.kubernetes.io/default-backend: hal9-error-pages
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - hal9.ai
+    - www.hal9.ai
+    - api.hal9.ai
+    secretName: hal9-production-tls
+  rules:
+  # Main domain
+  - host: hal9.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: hal9-server
+            port:
+              name: http
+  
+  # WWW redirect
+  - host: www.hal9.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: hal9-server
+            port:
+              name: http
+  
+  # API subdomain
+  - host: api.hal9.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: hal9-server
+            port:
+              name: http
+---
+# Canary Ingress (for gradual rollouts)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hal9-server-ingress-canary
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: ingress
+    app.kubernetes.io/instance: canary
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    
+    # Canary configuration
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "10"
+    nginx.ingress.kubernetes.io/canary-by-header: "X-Canary"
+    nginx.ingress.kubernetes.io/canary-by-header-value: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - hal9.ai
+    - api.hal9.ai
+    secretName: hal9-production-tls
+  rules:
+  - host: hal9.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: hal9-server-canary
+            port:
+              name: http
+  - host: api.hal9.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: hal9-server-canary
+            port:
+              name: http
+---
+# Monitoring Ingress (separate for security)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hal9-monitoring-ingress
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: monitoring
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    
+    # Basic auth for metrics
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: hal9-monitoring-auth
+    nginx.ingress.kubernetes.io/auth-realm: 'HAL9 Monitoring'
+    
+    # IP whitelisting
+    nginx.ingress.kubernetes.io/whitelist-source-range: "10.0.0.0/8,172.16.0.0/12"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - metrics.hal9.ai
+    secretName: hal9-monitoring-tls
+  rules:
+  - host: metrics.hal9.ai
+    http:
+      paths:
+      - path: /metrics
+        pathType: Exact
+        backend:
+          service:
+            name: hal9-server-metrics
+            port:
+              name: metrics

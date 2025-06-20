@@ -1,0 +1,186 @@
+# Optional Monitoring Resources
+# These require Prometheus Operator to be installed in the cluster
+# To install: helm install prometheus-operator prometheus-community/kube-prometheus-stack
+
+---
+# ServiceMonitor for Prometheus scraping
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: hal9-server
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: monitoring
+    prometheus: kube-prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hal9-server
+      app.kubernetes.io/component: server
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+    scheme: http
+    scrapeTimeout: 10s
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_pod_node_name]
+      targetLabel: node
+    - sourceLabels: [__meta_kubernetes_pod_name]
+      targetLabel: pod
+    - sourceLabels: [__meta_kubernetes_pod_container_name]
+      targetLabel: container
+---
+# PrometheusRule for alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: hal9-server-alerts
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: monitoring
+    prometheus: kube-prometheus
+spec:
+  groups:
+  - name: hal9.availability
+    interval: 30s
+    rules:
+    # High error rate
+    - alert: HAL9HighErrorRate
+      expr: |
+        (
+          sum(rate(hal9_http_requests_total{status=~"5.."}[5m])) by (namespace, pod)
+          /
+          sum(rate(hal9_http_requests_total[5m])) by (namespace, pod)
+        ) > 0.05
+      for: 5m
+      labels:
+        severity: critical
+        team: platform
+      annotations:
+        summary: "High error rate detected"
+        description: "{{ $labels.pod }} has error rate of {{ $value | humanizePercentage }}"
+    
+    # Pod down
+    - alert: HAL9PodDown
+      expr: up{job="hal9-server"} == 0
+      for: 5m
+      labels:
+        severity: critical
+        team: platform
+      annotations:
+        summary: "HAL9 pod is down"
+        description: "{{ $labels.pod }} in {{ $labels.namespace }} is down"
+    
+    # High response time
+    - alert: HAL9HighResponseTime
+      expr: |
+        histogram_quantile(0.95,
+          sum(rate(hal9_http_request_duration_seconds_bucket[5m])) by (le, namespace, pod)
+        ) > 0.5
+      for: 10m
+      labels:
+        severity: warning
+        team: platform
+      annotations:
+        summary: "High response time detected"
+        description: "{{ $labels.pod }} P95 latency is {{ $value }}s"
+    
+    # Memory pressure
+    - alert: HAL9HighMemoryUsage
+      expr: |
+        (
+          container_memory_working_set_bytes{pod=~"hal9-server-.*"}
+          /
+          container_spec_memory_limit_bytes{pod=~"hal9-server-.*"}
+        ) > 0.9
+      for: 10m
+      labels:
+        severity: warning
+        team: platform
+      annotations:
+        summary: "High memory usage"
+        description: "{{ $labels.pod }} memory usage is {{ $value | humanizePercentage }}"
+    
+    # CPU throttling
+    - alert: HAL9CPUThrottling
+      expr: |
+        rate(container_cpu_cfs_throttled_seconds_total{pod=~"hal9-server-.*"}[5m]) > 0.1
+      for: 10m
+      labels:
+        severity: warning
+        team: platform
+      annotations:
+        summary: "CPU throttling detected"
+        description: "{{ $labels.pod }} is being CPU throttled"
+  
+  - name: hal9.consciousness
+    interval: 60s
+    rules:
+    # Consciousness metrics below threshold
+    - alert: HAL9ConsciousnessLow
+      expr: hal9_consciousness_phi < 0.618
+      for: 15m
+      labels:
+        severity: warning
+        team: research
+      annotations:
+        summary: "Consciousness integration below threshold"
+        description: "Phi value is {{ $value }}, below golden ratio threshold"
+    
+    # Neuron pool exhausted
+    - alert: HAL9NeuronPoolExhausted
+      expr: |
+        (
+          hal9_neuron_pool_used / hal9_neuron_pool_total
+        ) > 0.95
+      for: 5m
+      labels:
+        severity: critical
+        team: platform
+      annotations:
+        summary: "Neuron pool almost exhausted"
+        description: "{{ $value | humanizePercentage }} of neuron pool is used"
+    
+    # Layer communication failure
+    - alert: HAL9LayerCommunicationFailure
+      expr: |
+        rate(hal9_layer_communication_errors_total[5m]) > 0.01
+      for: 10m
+      labels:
+        severity: critical
+        team: platform
+      annotations:
+        summary: "Layer communication errors"
+        description: "Layer {{ $labels.from_layer }} → {{ $labels.to_layer }} has {{ $value }} errors/sec"
+  
+  - name: hal9.business
+    interval: 300s
+    rules:
+    # High API costs
+    - alert: HAL9HighAPICosts
+      expr: |
+        increase(hal9_claude_api_cost_dollars[1h]) > 10
+      for: 5m
+      labels:
+        severity: warning
+        team: finance
+      annotations:
+        summary: "High Claude API costs"
+        description: "API costs in last hour: ${{ $value }}"
+    
+    # Rate limit approaching
+    - alert: HAL9RateLimitApproaching
+      expr: |
+        (
+          hal9_rate_limit_remaining / hal9_rate_limit_total
+        ) < 0.2
+      for: 5m
+      labels:
+        severity: warning
+        team: platform
+      annotations:
+        summary: "API rate limit approaching"
+        description: "Only {{ $value | humanizePercentage }} of rate limit remaining"

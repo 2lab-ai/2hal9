@@ -1,0 +1,115 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hal9-production
+  labels:
+    name: hal9-production
+    environment: production
+    app.kubernetes.io/name: hal9
+    app.kubernetes.io/instance: production
+  annotations:
+    description: "HAL9 Consciousness System - Production Environment"
+---
+# Resource quota for production namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: hal9-production-quota
+  namespace: hal9-production
+spec:
+  hard:
+    requests.cpu: "200"
+    requests.memory: "400Gi"
+    limits.cpu: "400"
+    limits.memory: "800Gi"
+    persistentvolumeclaims: "20"
+    services: "20"
+    configmaps: "50"
+    secrets: "50"
+---
+# Network policies for namespace isolation
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hal9-production-default-deny
+  namespace: hal9-production
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+# Allow ingress from ingress controller
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hal9-production-allow-ingress
+  namespace: hal9-production
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: hal9-server
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8080
+---
+# Allow egress to external services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hal9-production-allow-egress
+  namespace: hal9-production
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: hal9-server
+  policyTypes:
+  - Egress
+  egress:
+  # Allow DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow external HTTPS (Claude API, etc)
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 169.254.169.254/32  # Block AWS metadata service
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+    ports:
+    - protocol: TCP
+      port: 443
+  # Allow PostgreSQL
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgresql
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow Redis
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379

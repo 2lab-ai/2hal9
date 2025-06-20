@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: hal9-staging
+
+resources:
+  - ../../
+
+# Staging-specific patches
+patchesStrategicMerge:
+  - deployment-patch.yaml
+  - hpa-patch.yaml
+
+# Staging configuration
+replicas:
+  - name: hal9-server
+    count: 3
+
+# Override images for staging
+images:
+  - name: ghcr.io/2lab-ai/hal9-server
+    newTag: "staging"
+
+# Staging-specific config
+configMapGenerator:
+  - name: hal9-staging-config
+    behavior: merge
+    literals:
+      - ENVIRONMENT=staging
+      - LOG_LEVEL=debug
+      - CLAUDE_MODE=mock

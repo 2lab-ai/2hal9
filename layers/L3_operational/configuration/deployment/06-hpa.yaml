@@ -1,0 +1,177 @@
+---
+# HorizontalPodAutoscaler for HAL9 server
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hal9-server-hpa
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: autoscaling
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hal9-server
+  
+  # Scaling limits
+  minReplicas: 30   # Minimum for 1000+ concurrent users
+  maxReplicas: 100  # Maximum scaling limit
+  
+  # Metrics for scaling decisions
+  metrics:
+  # CPU utilization
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50  # Scale at 50% CPU
+  
+  # Memory utilization
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70  # Scale at 70% memory
+  
+  # Custom metrics (requires metrics server)
+  - type: Pods
+    pods:
+      metric:
+        name: hal9_active_connections
+      target:
+        type: AverageValue
+        averageValue: "100"  # Scale when avg connections > 100 per pod
+  
+  - type: Pods
+    pods:
+      metric:
+        name: hal9_request_rate
+      target:
+        type: AverageValue
+        averageValue: "1000"  # Scale when request rate > 1000 per pod
+  
+  - type: Pods
+    pods:
+      metric:
+        name: hal9_response_time_p95
+      target:
+        type: AverageValue
+        averageValue: "100m"  # Scale when P95 latency > 100ms
+  
+  # External metrics (e.g., from CloudWatch)
+  - type: External
+    external:
+      metric:
+        name: hal9_queue_depth
+        selector:
+          matchLabels:
+            queue: hal9-production
+      target:
+        type: Value
+        value: "1000"  # Scale when queue depth > 1000
+  
+  # Scaling behavior
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60      # Wait 60s before scaling up again
+      policies:
+      - type: Pods
+        value: 10                         # Add up to 10 pods at once
+        periodSeconds: 60                 # Every 60 seconds
+      - type: Percent
+        value: 50                         # Or increase by 50%
+        periodSeconds: 60                 # Every 60 seconds
+      selectPolicy: Max                   # Use the policy that scales most
+    
+    scaleDown:
+      stabilizationWindowSeconds: 300     # Wait 5 minutes before scaling down
+      policies:
+      - type: Pods
+        value: 5                          # Remove max 5 pods at once
+        periodSeconds: 120                # Every 2 minutes
+      - type: Percent
+        value: 10                         # Or decrease by 10%
+        periodSeconds: 120                # Every 2 minutes
+      selectPolicy: Min                   # Use the policy that scales least
+---
+# VerticalPodAutoscaler for right-sizing pods
+# NOTE: Requires VPA to be installed in the cluster
+# To install: kubectl apply -f https://github.com/kubernetes/autoscaler/releases/latest/download/vertical-pod-autoscaler.yaml
+#
+# Uncomment below if VPA is installed:
+#
+# apiVersion: autoscaling.k8s.io/v1
+# kind: VerticalPodAutoscaler
+# metadata:
+#   name: hal9-server-vpa
+#   namespace: hal9-production
+#   labels:
+#     app.kubernetes.io/name: hal9-server
+#     app.kubernetes.io/component: autoscaling
+# spec:
+#   targetRef:
+#     apiVersion: apps/v1
+#     kind: Deployment
+#     name: hal9-server
+#   
+#   # Update policy
+#   updatePolicy:
+#     updateMode: "Auto"  # Automatically update pod resources
+#   
+#   # Resource policy
+#   resourcePolicy:
+#     containerPolicies:
+#     - containerName: hal9-server
+#       minAllowed:
+#         cpu: 500m
+#         memory: 1Gi
+#       maxAllowed:
+#         cpu: 4000m
+#         memory: 8Gi
+#       controlledResources: ["cpu", "memory"]
+#       controlledValues: RequestsAndLimits
+---
+# Custom metrics for HPA (requires Prometheus Adapter)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hal9-hpa-metrics
+  namespace: hal9-production
+  labels:
+    app.kubernetes.io/name: hal9-server
+    app.kubernetes.io/component: metrics
+data:
+  config.yaml: |
+    rules:
+    - seriesQuery: 'hal9_active_connections{namespace="hal9-production",pod!=""}'
+      resources:
+        overrides:
+          namespace: {resource: "namespace"}
+          pod: {resource: "pod"}
+      name:
+        matches: "^hal9_(.*)$"
+        as: "${1}"
+      metricsQuery: 'avg_over_time(<<.Series>>{<<.LabelMatchers>>}[2m])'
+    
+    - seriesQuery: 'hal9_request_rate{namespace="hal9-production",pod!=""}'
+      resources:
+        overrides:
+          namespace: {resource: "namespace"}
+          pod: {resource: "pod"}
+      name:
+        matches: "^hal9_(.*)$"
+        as: "${1}"
+      metricsQuery: 'rate(<<.Series>>{<<.LabelMatchers>>}[1m])'
+    
+    - seriesQuery: 'hal9_response_time_bucket{namespace="hal9-production",pod!=""}'
+      resources:
+        overrides:
+          namespace: {resource: "namespace"}
+          pod: {resource: "pod"}
+      name:
+        matches: "^hal9_(.*)_bucket$"
+        as: "${1}_p95"
+      metricsQuery: 'histogram_quantile(0.95, sum(rate(<<.Series>>{<<.LabelMatchers>>}[2m])) by (le, pod))'
