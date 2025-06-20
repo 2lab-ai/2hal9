@@ -6,8 +6,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use std::time::Duration;
 use metrics::{counter, gauge, histogram};
-use crate::database::{DatabasePool, DatabaseConfig, DatabaseType, PoolMetrics};
-use crate::connection_pool::{ResilientConnectionPool, PoolHealthMetrics};
+use crate::database::{DatabaseConfig, DatabaseType};
+use crate::connection_pool::ResilientConnectionPool;
 
 /// Connection pool configuration
 #[derive(Debug, Clone)]
@@ -68,6 +68,7 @@ pub struct PoolStats {
 }
 
 /// Optimized connection pool manager
+#[allow(dead_code)]
 pub struct OptimizedConnectionPool {
     /// Primary pool for writes
     primary_pool: Arc<ResilientConnectionPool>,
@@ -141,6 +142,7 @@ impl OptimizedConnectionPool {
     }
     
     /// Get the underlying database pool with PostgreSQL-specific features
+    #[allow(dead_code)]
     async fn get_pg_pool(&self, pool: &ResilientConnectionPool) -> Result<sqlx::PgPool> {
         let db_pool = pool.get_pool().await?;
         db_pool.as_pg_pool()
@@ -188,7 +190,7 @@ impl OptimizedConnectionPool {
             }
         }
         
-        best_pool.map(|p| p.clone()).unwrap_or_else(|| self.primary_pool.clone())
+        best_pool.cloned().unwrap_or_else(|| self.primary_pool.clone())
     }
     
     /// Execute with automatic retry
@@ -244,9 +246,9 @@ impl OptimizedConnectionPool {
             stats.insert("primary".to_string(), primary_stats.clone());
             
             // Metrics
-            gauge!("hal9.db.connections.total", primary_stats.total_connections as f64, "pool" => "primary");
-            gauge!("hal9.db.connections.idle", primary_stats.idle_connections as f64, "pool" => "primary");
-            gauge!("hal9.db.connections.active", primary_stats.active_connections as f64, "pool" => "primary");
+            gauge!("hal9.db.connections.total").set(primary_stats.total_connections as f64);
+            gauge!("hal9.db.connections.idle").set(primary_stats.idle_connections as f64);
+            gauge!("hal9.db.connections.active").set(primary_stats.active_connections as f64);
         }
         
         // Update replica pool stats
@@ -263,9 +265,9 @@ impl OptimizedConnectionPool {
                 };
                 stats.insert(region.clone(), pool_stats.clone());
                 
-                gauge!("hal9.db.connections.total", pool_stats.total_connections as f64, "pool" => region.clone());
-                gauge!("hal9.db.connections.idle", pool_stats.idle_connections as f64, "pool" => region.clone());
-                gauge!("hal9.db.connections.active", pool_stats.active_connections as f64, "pool" => region.clone());
+                gauge!("hal9.db.connections.total", "pool" => region.clone()).set(pool_stats.total_connections as f64);
+                gauge!("hal9.db.connections.idle", "pool" => region.clone()).set(pool_stats.idle_connections as f64);
+                gauge!("hal9.db.connections.active", "pool" => region.clone()).set(pool_stats.active_connections as f64);
             }
         }
     }
@@ -335,38 +337,24 @@ pub struct PoolHealth {
 pub struct PoolMetricsMiddleware;
 
 impl PoolMetricsMiddleware {
-    pub async fn track_query<T, F>(pool_name: &str, query_name: &str, f: F) -> Result<T>
+    pub async fn track_query<T, F>(_pool_name: &str, _query_name: &str, f: F) -> Result<T>
     where
         F: futures::Future<Output = Result<T>>,
     {
         let start = std::time::Instant::now();
         
-        counter!("hal9.db.queries.total", 1, 
-            "pool" => pool_name.to_string(),
-            "query" => query_name.to_string()
-        );
+        counter!("hal9.db.queries.total").increment(1);
         
         match f.await {
             Ok(result) => {
                 let duration = start.elapsed();
-                histogram!("hal9.db.query.duration", duration.as_millis() as f64,
-                    "pool" => pool_name.to_string(),
-                    "query" => query_name.to_string(),
-                    "status" => "success"
-                );
+                histogram!("hal9.db.query.duration").record(duration.as_millis() as f64);
                 Ok(result)
             }
             Err(e) => {
                 let duration = start.elapsed();
-                histogram!("hal9.db.query.duration", duration.as_millis() as f64,
-                    "pool" => pool_name.to_string(),
-                    "query" => query_name.to_string(),
-                    "status" => "error"
-                );
-                counter!("hal9.db.queries.errors", 1,
-                    "pool" => pool_name.to_string(),
-                    "query" => query_name.to_string()
-                );
+                histogram!("hal9.db.query.duration").record(duration.as_millis() as f64);
+                counter!("hal9.db.queries.errors").increment(1);
                 Err(e)
             }
         }

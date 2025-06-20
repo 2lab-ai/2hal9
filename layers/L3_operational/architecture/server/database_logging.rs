@@ -4,12 +4,13 @@
 //! consistent logging and performance tracking.
 
 use anyhow::Result;
-use sqlx::{Database, Executor, IntoArguments, Type};
+use sqlx::{Database, Executor, IntoArguments};
 use std::time::Instant;
 use tracing::{debug, warn, instrument};
 use crate::{log_performance, logging::db_span};
 
 /// Trait for logged database queries
+#[allow(async_fn_in_trait)]
 pub trait LoggedQuery<'q, DB: Database> {
     /// Execute a query with logging
     async fn execute_logged<'e, E>(self, executor: E, table: &str) -> Result<DB::QueryResult>
@@ -40,7 +41,7 @@ pub trait LoggedQuery<'q, DB: Database> {
 }
 
 /// Extension trait to add logging to sqlx::Query
-impl<'q, DB, A> LoggedQuery<'q, DB> for sqlx::Query<'q, DB, A>
+impl<'q, DB, A> LoggedQuery<'q, DB> for sqlx::query::Query<'q, DB, A>
 where
     DB: Database,
     A: 'q + IntoArguments<'q, DB>,
@@ -115,7 +116,7 @@ where
         );
         
         match self.fetch_one(executor).await {
-            Ok(result) => {
+            Ok(row) => {
                 let duration = start.elapsed();
                 log_performance!(
                     "db_query",
@@ -124,7 +125,8 @@ where
                     "table" => table,
                     "query_type" => "fetch_one"
                 );
-                Ok(result)
+                // Convert row to O using FromRow trait
+                O::from_row(&row).map_err(|e| e.into())
             }
             Err(e) => {
                 let duration = start.elapsed();
@@ -167,24 +169,35 @@ where
         );
         
         match self.fetch_all(executor).await {
-            Ok(results) => {
+            Ok(rows) => {
                 let duration = start.elapsed();
-                debug!(
-                    target: "db.query",
-                    table = %table,
-                    row_count = results.len(),
-                    duration_ms = duration.as_millis(),
-                    "Fetched rows successfully"
-                );
-                log_performance!(
-                    "db_query",
-                    duration,
-                    true,
-                    "table" => table,
-                    "query_type" => "fetch_all",
-                    "row_count" => results.len()
-                );
-                Ok(results)
+                // Convert rows to Vec<O>
+                let results: Result<Vec<O>> = rows.iter()
+                    .map(|row| O::from_row(row))
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|e| e.into());
+                
+                match results {
+                    Ok(results) => {
+                        debug!(
+                            target: "db.query",
+                            table = %table,
+                            row_count = results.len(),
+                            duration_ms = duration.as_millis(),
+                            "Fetched rows successfully"
+                        );
+                        log_performance!(
+                            "db_query",
+                            duration,
+                            true,
+                            "table" => table,
+                            "query_type" => "fetch_all",
+                            "row_count" => results.len()
+                        );
+                        Ok(results)
+                    }
+                    Err(e) => Err(e)
+                }
             }
             Err(e) => {
                 let duration = start.elapsed();
@@ -227,8 +240,16 @@ where
         );
         
         match self.fetch_optional(executor).await {
-            Ok(result) => {
+            Ok(maybe_row) => {
                 let duration = start.elapsed();
+                // Convert Option<Row> to Option<O>
+                let result = match maybe_row {
+                    Some(row) => {
+                        let parsed: Result<O, sqlx::Error> = O::from_row(&row);
+                        Some(parsed?)
+                    },
+                    None => None,
+                };
                 debug!(
                     target: "db.query",
                     table = %table,
@@ -272,7 +293,7 @@ where
 /// Helper functions for common database operations with logging
 pub mod helpers {
     use super::*;
-    use sqlx::{Pool, Postgres, Sqlite};
+    use sqlx::Pool;
     
     /// Log connection pool metrics
     pub fn log_pool_metrics<DB: Database>(pool: &Pool<DB>, pool_name: &str) {

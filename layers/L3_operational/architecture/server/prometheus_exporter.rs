@@ -2,10 +2,10 @@
 
 use std::fmt::Write as FmtWrite;
 use std::sync::Arc;
-use crate::metrics::Metrics;
 use crate::server::HAL9Server;
 
 /// Prometheus metric types
+#[allow(dead_code)]
 enum MetricType {
     Counter,
     Gauge,

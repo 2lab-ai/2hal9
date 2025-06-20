@@ -90,21 +90,18 @@ impl CircuitBreaker {
     
     /// Record a successful request
     pub async fn record_success(&self) {
-        let state = self.state.read().await.clone();
+        let state = *self.state.read().await;
         
-        match state {
-            CircuitState::HalfOpen => {
-                let mut successes = self.successes.write().await;
-                *successes += 1;
-                
-                if *successes >= self.config.success_threshold {
-                    *self.state.write().await = CircuitState::Closed;
-                    *self.failures.write().await = Vec::new();
-                    info!("Circuit breaker for {} closed after {} successes", 
-                        self.service_name, successes);
-                }
+        if state == CircuitState::HalfOpen {
+            let mut successes = self.successes.write().await;
+            *successes += 1;
+            
+            if *successes >= self.config.success_threshold {
+                *self.state.write().await = CircuitState::Closed;
+                *self.failures.write().await = Vec::new();
+                info!("Circuit breaker for {} closed after {} successes", 
+                    self.service_name, successes);
             }
-            _ => {}
         }
     }
     

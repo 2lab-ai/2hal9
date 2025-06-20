@@ -45,6 +45,7 @@ fn create_test_config() -> ServerConfig {
                 id: "test-neuron-1".to_string(),
                 layer: "L4".to_string(),
                 claude_command: "claude".to_string(),
+                system_prompt: Some("Test L4 neuron".to_string()),
                 forward_connections: vec!["test-neuron-2".to_string()],
                 backward_connections: vec![],
                 settings: HashMap::new(),
@@ -53,6 +54,7 @@ fn create_test_config() -> ServerConfig {
                 id: "test-neuron-2".to_string(),
                 layer: "L3".to_string(),
                 claude_command: "claude".to_string(),
+                system_prompt: Some("Test L3 neuron".to_string()),
                 forward_connections: vec!["test-neuron-3".to_string()],
                 backward_connections: vec!["test-neuron-1".to_string()],
                 settings: HashMap::new(),
@@ -61,6 +63,7 @@ fn create_test_config() -> ServerConfig {
                 id: "test-neuron-3".to_string(),
                 layer: "L2".to_string(),
                 claude_command: "claude".to_string(),
+                system_prompt: Some("Test L2 neuron".to_string()),
                 forward_connections: vec![],
                 backward_connections: vec!["test-neuron-2".to_string()],
                 settings: HashMap::new(),
@@ -82,6 +85,11 @@ fn create_test_config() -> ServerConfig {
             metrics_interval: 1, // Fast metrics for testing
             log_level: "debug".to_string(),
         },
+        network: Default::default(),
+        memory: Default::default(),
+        backward_propagation: Default::default(),
+        auth: Default::default(),
+        browser: None,
     }
 }
 

@@ -6,14 +6,13 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use std::collections::HashMap;
 use std::net::IpAddr;
-use redis::{AsyncCommands, RedisResult};
+use redis::AsyncCommands;
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use aes_gcm::aead::Aead;
 use aes_gcm::KeyInit;
 use rand::{RngCore, SeedableRng};
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 
-use crate::cache::RedisPool;
+use crate::simple_cache::RedisPool;
 
 /// Session data structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -157,8 +156,9 @@ impl DistributedSessionManager {
         // Find and delete from all regions
         for region in self.get_all_regions() {
             let key = self.get_session_key(&region, session_id);
-            let mut conn = self.redis_pool.get().await?;
-            let _: RedisResult<()> = conn.del(&key).await;
+            let mut conn = self.redis_pool.get_connection().await?;
+            let _: () = conn.del(&key).await
+                .unwrap_or(());
         }
         
         // Remove from user's session list
@@ -171,7 +171,7 @@ impl DistributedSessionManager {
     
     /// Get all sessions for a user
     pub async fn get_user_sessions(&self, user_id: Uuid) -> Result<Vec<Session>> {
-        let mut conn = self.redis_pool.get().await?;
+        let mut conn = self.redis_pool.get_connection().await?;
         let key = format!("user_sessions:{}", user_id);
         
         let session_ids: Vec<String> = conn.smembers(&key).await?;
@@ -192,24 +192,22 @@ impl DistributedSessionManager {
     /// Clean expired sessions
     pub async fn clean_expired_sessions(&self) -> Result<usize> {
         let mut cleaned = 0;
-        let mut conn = self.redis_pool.get().await?;
+        let mut conn = self.redis_pool.get_connection().await?;
         
         // Scan for session keys
-        let pattern = format!("session:*");
-        let keys: Vec<String> = redis::cmd("SCAN")
-            .arg(0)
-            .arg("MATCH")
+        let pattern = "session:*".to_string();
+        // Use KEYS for simplicity (SCAN would require more complex iteration)
+        let keys: Vec<String> = redis::cmd("KEYS")
             .arg(&pattern)
-            .arg("COUNT")
-            .arg(1000)
             .query_async(&mut conn)
             .await?;
         
         for key in keys {
-            if let Ok(encrypted_data) = conn.get::<Vec<u8>>(&key).await {
+            if let Ok(encrypted_data) = conn.get::<_, Vec<u8>>(&key).await {
                 if let Ok(session) = self.decrypt_session(&encrypted_data) {
                     if session.expires_at < Utc::now() {
-                        let _: RedisResult<()> = conn.del(&key).await;
+                        let _: () = conn.del(&key).await
+                            .unwrap_or(());
                         self.remove_user_session(session.user_id, session.id).await?;
                         cleaned += 1;
                     }
@@ -225,19 +223,19 @@ impl DistributedSessionManager {
         let key = self.get_session_key(&session.region, session.id);
         let encrypted_data = self.encrypt_session(session)?;
         
-        let mut conn = self.redis_pool.get().await?;
+        let mut conn = self.redis_pool.get_connection().await?;
         let ttl = (session.expires_at - Utc::now()).num_seconds().max(1) as usize;
         
-        conn.setex(&key, encrypted_data, ttl).await?;
+        conn.set_ex::<_, _, ()>(&key, encrypted_data, ttl).await?;
         
         Ok(())
     }
     
     /// Get session from specific key
     async fn get_session_from_key(&self, key: &str) -> Result<Option<Session>> {
-        let mut conn = self.redis_pool.get().await?;
+        let mut conn = self.redis_pool.get_connection().await?;
         
-        if let Ok(encrypted_data) = conn.get::<Vec<u8>>(key).await {
+        if let Ok(encrypted_data) = conn.get::<_, Vec<u8>>(key).await {
             let session = self.decrypt_session(&encrypted_data)?;
             if session.expires_at > Utc::now() {
                 return Ok(Some(session));
@@ -265,8 +263,9 @@ impl DistributedSessionManager {
     async fn migrate_session(&self, mut session: Session, new_region: &str) -> Result<Session> {
         // Delete from old region
         let old_key = self.get_session_key(&session.region, session.id);
-        let mut conn = self.redis_pool.get().await?;
-        let _: RedisResult<()> = conn.del(&old_key).await;
+        let mut conn = self.redis_pool.get_connection().await?;
+        let _: () = conn.del(&old_key).await
+            .unwrap_or(());
         
         // Update region and store in new location
         session.region = new_region.to_string();
@@ -350,21 +349,21 @@ impl DistributedSessionManager {
     
     /// Add session to user's session list
     async fn add_user_session(&self, user_id: Uuid, session_id: Uuid) -> Result<()> {
-        let mut conn = self.redis_pool.get().await?;
+        let mut conn = self.redis_pool.get_connection().await?;
         let key = format!("user_sessions:{}", user_id);
         
-        conn.sadd(&key, session_id.to_string()).await?;
-        conn.expire(&key, 86400 * 30).await?; // 30 days
+        conn.sadd::<_, _, ()>(&key, session_id.to_string()).await?;
+        conn.expire::<_, ()>(&key, 86400 * 30).await?; // 30 days
         
         Ok(())
     }
     
     /// Remove session from user's session list
     async fn remove_user_session(&self, user_id: Uuid, session_id: Uuid) -> Result<()> {
-        let mut conn = self.redis_pool.get().await?;
+        let mut conn = self.redis_pool.get_connection().await?;
         let key = format!("user_sessions:{}", user_id);
         
-        conn.srem(&key, session_id.to_string()).await?;
+        conn.srem::<_, _, ()>(&key, session_id.to_string()).await?;
         
         Ok(())
     }
@@ -428,7 +427,7 @@ mod tests {
         
         // Encrypt
         let json_data = serde_json::to_vec(&session).unwrap();
-        let mut nonce_bytes = [0u8; 12];
+        let nonce_bytes = [0u8; 12];
         let nonce = Nonce::from_slice(&nonce_bytes);
         let encrypted = cipher.encrypt(nonce, json_data.as_ref()).unwrap();
         

@@ -5,6 +5,7 @@ pub mod api_auth;
 pub mod api_codegen;
 pub mod auth_middleware;
 pub mod cache;
+pub mod simple_cache;
 pub mod circuit_breaker;
 pub mod claude;
 pub mod claude_enhanced;
@@ -13,7 +14,8 @@ pub mod cost_tracker;
 pub mod database;
 pub mod database_logging;
 pub mod database_runtime;
-pub mod enterprise;
+// TODO: Fix SQLX Json compatibility issues
+// pub mod enterprise;
 pub mod error;
 pub mod error_recovery;
 pub mod health;

@@ -12,17 +12,17 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     sync::Arc,
-    time::{Duration, Instant},
+    time::Duration,
 };
 use tokio::sync::{broadcast, RwLock, Mutex};
 use tower_http::cors::CorsLayer;
 use uuid::Uuid;
-use hal9_core::{Result, Error};
-use tracing::{info, debug, warn};
+use tracing::info;
 
 // Game Constants
 const BOARD_SIZE: usize = 19;
 const CONSCIOUSNESS_THRESHOLD: f32 = 0.8;
+#[allow(dead_code)]
 const MAX_NEURONS_PER_PLAYER: usize = 50;
 const SIMULATION_TICK_MS: u64 = 100;
 
@@ -157,7 +157,7 @@ pub struct EmergencePattern {
     pub discovered_by: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PatternType {
     Loop,             // Self-reinforcing cycles
     Synchronization,  // Neurons firing together
@@ -217,8 +217,8 @@ pub enum ServerMessage {
 
 /// Application state
 pub struct AppState {
-    games: HashMap<String, Arc<Mutex<GameState>>>,
-    connections: HashMap<String, broadcast::Sender<ServerMessage>>,
+    pub games: HashMap<String, Arc<Mutex<GameState>>>,
+    pub connections: HashMap<String, broadcast::Sender<ServerMessage>>,
 }
 
 type SharedState = Arc<RwLock<AppState>>;
@@ -236,7 +236,7 @@ pub fn create_genius_game_router(state: SharedState) -> Router {
 }
 
 async fn genius_game_index() -> Html<&'static str> {
-    Html(include_str!("../../../genius_game_interface.html"))
+    Html(include_str!("../../genius_game_interface.html"))
 }
 
 async fn genius_websocket_handler(
@@ -402,12 +402,14 @@ async fn place_neuron(
         
         // Auto-connect to nearby neurons
         let mut connections_made = 0;
+        let mut new_connections = Vec::new();
+        
         for (i, other) in game.board.neurons.iter().enumerate() {
             let distance = ((x as f32 - other.x as f32).powi(2) + 
                           (y as f32 - other.y as f32).powi(2)).sqrt();
             
             if distance <= 2.5 && connections_made < 4 {
-                game.board.connections.push(Connection {
+                new_connections.push(Connection {
                     from: neuron_id,
                     to: i,
                     strength: 1.0 / (1.0 + distance),
@@ -415,6 +417,9 @@ async fn place_neuron(
                 connections_made += 1;
             }
         }
+        
+        // Add connections after the loop
+        game.board.connections.extend(new_connections);
         
         // Add to board
         game.board.neurons.push(neuron.clone());
@@ -466,7 +471,7 @@ fn detect_patterns(board: &Board) -> Vec<EmergencePattern> {
     let mut patterns = vec![];
     
     // Detect loops (simplified)
-    for (i, neuron) in board.neurons.iter().enumerate() {
+    for (i, _neuron) in board.neurons.iter().enumerate() {
         // Check for 3-cycles
         for conn in &board.connections {
             if conn.from == i {
@@ -600,8 +605,8 @@ fn simulate_neural_activity(board: &mut Board) {
     let mut new_activations = vec![0.0; board.neurons.len()];
     
     for connection in &board.connections {
-        if let (Some(from_neuron), Some(to_idx)) = 
-            (board.neurons.get(connection.from), connection.to < board.neurons.len()) {
+        if let Some(from_neuron) = board.neurons.get(connection.from) {
+            let to_idx = connection.to;
             
             new_activations[to_idx] += from_neuron.activation * connection.strength;
         }
@@ -624,7 +629,7 @@ fn simulate_neural_activity(board: &mut Board) {
 }
 
 fn create_new_game() -> GameState {
-    let mut grid = vec![vec![None; BOARD_SIZE]; BOARD_SIZE];
+    let grid = vec![vec![None; BOARD_SIZE]; BOARD_SIZE];
     
     GameState {
         id: Uuid::new_v4().to_string(),
@@ -731,7 +736,7 @@ mod tests {
     
     #[test]
     fn test_pattern_detection() {
-        let mut board = Board {
+        let board = Board {
             size: 19,
             neurons: vec![
                 Neuron {

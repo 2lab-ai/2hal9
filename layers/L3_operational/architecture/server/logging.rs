@@ -4,13 +4,12 @@
 //! performance metrics, and request/response tracing.
 
 use std::time::Duration;
-use tracing::{Level, Span};
+use tracing::Span;
 use tracing_subscriber::{
     fmt::{self, format::FmtSpan},
     layer::SubscriberExt,
     util::SubscriberInitExt,
     EnvFilter,
-    Layer,
 };
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
@@ -233,8 +232,8 @@ pub fn db_span(query_type: &str, table: &str) -> Span {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tracing_subscriber::layer::SubscriberExt;
-    use tracing_subscriber::util::SubscriberInitExt;
+    
+    
 
     #[test]
     fn test_performance_log_creation() {

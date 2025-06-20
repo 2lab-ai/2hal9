@@ -13,7 +13,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::time::timeout;
-use tracing::{error, warn, info};
+use tracing::warn;
 
 use crate::{
     server::HAL9Server,
@@ -103,14 +103,15 @@ pub async fn readiness_probe(
     let start = Instant::now();
     
     // Quick database connectivity check
-    if let Some(db) = &server.db {
-        match timeout(Duration::from_secs(2), check_database_ready(db)).await {
-            Ok(Ok(_)) => {},
-            Ok(Err(_)) | Err(_) => {
-                return (StatusCode::SERVICE_UNAVAILABLE, "Database not ready");
-            }
-        }
-    }
+    // TODO: Add database support to HAL9Server
+    // if let Some(db) = &server.db {
+    //     match timeout(Duration::from_secs(2), check_database_ready(db)).await {
+    //         Ok(Ok(_)) => {},
+    //         Ok(Err(_)) | Err(_) => {
+    //             return (StatusCode::SERVICE_UNAVAILABLE, "Database not ready");
+    //         }
+    //     }
+    // }
     
     // Check if neurons are initialized
     let neurons = server.list_neurons().await.unwrap_or_default();
@@ -141,41 +142,42 @@ pub async fn health_check_detailed(
     
     if params.detailed {
         // Database health check
-        if let Some(db) = &server.db {
-            let db_health = timeout(
-                check_timeout,
-                check_database_health(db.clone())
-            ).await;
-            
-            match db_health {
-                Ok(Ok(health)) => {
-                    if health.status != HealthStatus::Healthy {
-                        overall_status = HealthStatus::Degraded;
-                    }
-                    components.push(health);
-                },
-                Ok(Err(e)) => {
-                    overall_status = HealthStatus::Unhealthy;
-                    components.push(ComponentHealth {
-                        name: "database".to_string(),
-                        status: HealthStatus::Unhealthy,
-                        message: Some(format!("Database check failed: {}", e)),
-                        latency_ms: check_timeout.as_millis() as u64,
-                        metadata: HashMap::new(),
-                    });
-                },
-                Err(_) => {
-                    overall_status = HealthStatus::Unhealthy;
-                    components.push(ComponentHealth {
-                        name: "database".to_string(),
-                        status: HealthStatus::Unhealthy,
-                        message: Some("Database check timed out".to_string()),
-                        latency_ms: check_timeout.as_millis() as u64,
-                        metadata: HashMap::new(),
-                    });
-                }
-            }
-        }
+        // TODO: Add database support to HAL9Server
+        // if let Some(db) = &server.db {
+        //     let db_health = timeout(
+        //         check_timeout,
+        //         check_database_health(db.clone())
+        //     ).await;
+        //     
+        //     match db_health {
+        //         Ok(Ok(health)) => {
+        //             if health.status != HealthStatus::Healthy {
+        //                 overall_status = HealthStatus::Degraded;
+        //             }
+        //             components.push(health);
+        //         },
+        //         Ok(Err(e)) => {
+        //             overall_status = HealthStatus::Unhealthy;
+        //             components.push(ComponentHealth {
+        //                 name: "database".to_string(),
+        //                 status: HealthStatus::Unhealthy,
+        //                 message: Some(format!("Database check failed: {}", e)),
+        //                 latency_ms: check_timeout.as_millis() as u64,
+        //                 metadata: HashMap::new(),
+        //             });
+        //         },
+        //         Err(_) => {
+        //             overall_status = HealthStatus::Unhealthy;
+        //             components.push(ComponentHealth {
+        //                 name: "database".to_string(),
+        //                 status: HealthStatus::Unhealthy,
+        //                 message: Some("Database check timed out".to_string()),
+        //                 latency_ms: check_timeout.as_millis() as u64,
+        //                 metadata: HashMap::new(),
+        //             });
+        //         }
+        //     }
+        // }
         
         // Redis health check
         if let Ok(redis_url) = std::env::var("REDIS_URL") {
@@ -216,19 +218,15 @@ pub async fn health_check_detailed(
         
         // Memory health check
         let memory_health = check_memory_health();
-        if memory_health.status != HealthStatus::Healthy {
-            if overall_status == HealthStatus::Healthy {
-                overall_status = HealthStatus::Degraded;
-            }
+        if memory_health.status != HealthStatus::Healthy && overall_status == HealthStatus::Healthy {
+            overall_status = HealthStatus::Degraded;
         }
         components.push(memory_health);
         
         // Disk space health check
         let disk_health = check_disk_health();
-        if disk_health.status != HealthStatus::Healthy {
-            if overall_status == HealthStatus::Healthy {
-                overall_status = HealthStatus::Degraded;
-            }
+        if disk_health.status != HealthStatus::Healthy && overall_status == HealthStatus::Healthy {
+            overall_status = HealthStatus::Degraded;
         }
         components.push(disk_health);
     }
@@ -255,56 +253,24 @@ pub async fn health_check_detailed(
 }
 
 /// Check database health
-async fn check_database_health(db: Arc<DatabasePool>) -> Result<ComponentHealth, ServerError> {
-    let start = Instant::now();
-    let mut metadata = HashMap::new();
-    
-    // Connection pool stats
-    let pool_size = db.size();
-    let num_idle = db.num_idle();
-    metadata.insert("pool_size".to_string(), serde_json::json!(pool_size));
-    metadata.insert("connections_idle".to_string(), serde_json::json!(num_idle));
-    metadata.insert("connections_active".to_string(), serde_json::json!(pool_size - num_idle));
-    
-    // Try a simple query
-    match sqlx::query("SELECT 1").fetch_one(db.as_ref()).await {
-        Ok(_) => {
-            let latency = start.elapsed().as_millis() as u64;
-            metadata.insert("query_latency_ms".to_string(), serde_json::json!(latency));
-            
-            let status = if latency > 100 {
-                HealthStatus::Degraded
-            } else {
-                HealthStatus::Healthy
-            };
-            
-            Ok(ComponentHealth {
-                name: "database".to_string(),
-                status,
-                message: None,
-                latency_ms: latency,
-                metadata,
-            })
-        },
-        Err(e) => {
-            error!("Database health check failed: {}", e);
-            Ok(ComponentHealth {
-                name: "database".to_string(),
-                status: HealthStatus::Unhealthy,
-                message: Some(format!("Query failed: {}", e)),
-                latency_ms: start.elapsed().as_millis() as u64,
-                metadata,
-            })
-        }
-    }
+// TODO: Implement when database support is added to HAL9Server
+#[allow(dead_code)]
+async fn check_database_health(_db: Arc<DatabasePool>) -> Result<ComponentHealth, ServerError> {
+    // Placeholder implementation until database support is added
+    Ok(ComponentHealth {
+        name: "database".to_string(),
+        status: HealthStatus::Healthy,
+        message: Some("Database check not implemented".to_string()),
+        latency_ms: 0,
+        metadata: HashMap::new(),
+    })
 }
 
 /// Quick database readiness check
-async fn check_database_ready(db: &DatabasePool) -> Result<(), ServerError> {
-    sqlx::query("SELECT 1")
-        .fetch_one(db)
-        .await
-        .map_err(|e| ServerError::Internal(format!("Database not ready: {}", e)))?;
+// TODO: Implement when database support is added to HAL9Server
+#[allow(dead_code)]
+async fn check_database_ready(_db: &DatabasePool) -> Result<(), ServerError> {
+    // Placeholder implementation
     Ok(())
 }
 
@@ -327,7 +293,7 @@ async fn check_redis_health(redis_url: &str) -> Result<ComponentHealth, ServerEr
                             // Get Redis info
                             if let Ok(info) = redis::cmd("INFO")
                                 .arg("server")
-                                .query_async(&mut conn)
+                                .query_async::<_, String>(&mut conn)
                                 .await
                             {
                                 // Parse version from info
@@ -379,8 +345,8 @@ async fn check_redis_health(redis_url: &str) -> Result<ComponentHealth, ServerEr
 
 /// Check neuron health
 async fn check_neurons_health(
-    server: &HAL9Server,
-    status: &crate::server::ServerStatus,
+    _server: &HAL9Server,
+    status: &crate::server::ExtendedServerStatus,
 ) -> ComponentHealth {
     let start = Instant::now();
     let mut metadata = HashMap::new();

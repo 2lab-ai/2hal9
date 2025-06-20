@@ -91,7 +91,7 @@ impl Metrics {
     pub fn record_latency(&self, layer: &str, latency: Duration) {
         self.signal_latencies
             .entry(layer.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(latency);
     }
     
@@ -119,7 +119,7 @@ impl Metrics {
     pub fn record_processing_time(&self, neuron_id: &str, duration: Duration) {
         self.processing_times
             .entry(neuron_id.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(duration);
     }
     
@@ -148,10 +148,11 @@ impl Metrics {
     /// Update memory usage
     pub fn update_memory_usage(&self) {
         // Simple memory estimation - in production, use proper memory profiling
-        if let Ok(mem_info) = sys_info::mem_info() {
-            let used_kb = mem_info.total - mem_info.free;
-            self.memory_usage_bytes.store(used_kb as u64 * 1024, Ordering::Relaxed);
-        }
+        use sysinfo::System;
+        let mut sys = System::new_all();
+        sys.refresh_memory();
+        let used_bytes = sys.used_memory() * 1024; // Convert from KB to bytes
+        self.memory_usage_bytes.store(used_bytes, Ordering::Relaxed);
     }
     
     /// Get current metrics snapshot

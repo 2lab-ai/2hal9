@@ -3,7 +3,7 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use hal9_core::NeuronSignal;
-use sqlx::{Any, AnyPool, Row};
+use sqlx::{AnyPool, Row};
 use uuid::Uuid;
 
 /// Database operations that work with both SQLite and PostgreSQL
@@ -196,7 +196,7 @@ impl RuntimeDatabase {
                 ip_address: row.try_get("ip_address")?,
                 user_agent: row.try_get("user_agent")?,
                 timestamp: DateTime::from_timestamp(row.try_get("timestamp")?, 0)
-                    .unwrap_or_else(|| Utc::now()),
+                    .unwrap_or_else(Utc::now),
             });
         }
         

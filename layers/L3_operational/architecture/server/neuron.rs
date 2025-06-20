@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn, instrument};
-use crate::{log_performance, log_structured, logging::neuron_span};
+use crate::{log_performance, logging::neuron_span};
 use chrono::Utc;
 use serde_json::Value;
 use uuid::Uuid;
@@ -93,8 +93,57 @@ impl ManagedNeuron {
         
         // Different layers have different tool permissions
         match layer {
+            Layer::L9 => {
+                // Universal layer: no tools, pure consciousness
+                // No tools registered - operates through pattern recognition only
+            }
+            Layer::L8 => {
+                // Visionary layer: high-level documentation and web resources
+                tool_registry.register(Box::new(WebFetchTool::new(None))); // Unrestricted web access
+                tool_registry.register(Box::new(FilesystemReadTool::new(vec![
+                    "./docs".to_string(),
+                    "./README.md".to_string(),
+                ])));
+            }
+            Layer::L7 => {
+                // Business layer: can read high-level docs and configs
+                tool_registry.register(Box::new(FilesystemReadTool::new(vec![
+                    "./docs".to_string(),
+                    "./README.md".to_string(),
+                    "./LICENSE".to_string(),
+                    "./.env.example".to_string(),
+                ])));
+            }
+            Layer::L6 => {
+                // Executive layer: read project structure and metrics
+                tool_registry.register(Box::new(FilesystemReadTool::new(vec![
+                    "./Cargo.toml".to_string(),
+                    "./package.json".to_string(),
+                    "./docs".to_string(),
+                    "./README.md".to_string(),
+                ])));
+                tool_registry.register(Box::new(ShellTool::new(vec![
+                    "ls".to_string(),
+                    "find".to_string(),
+                    "wc".to_string(),
+                ])));
+            }
+            Layer::L5 => {
+                // Strategic layer: analyze codebase structure
+                tool_registry.register(Box::new(FilesystemReadTool::new(vec![
+                    "./src".to_string(),
+                    "./docs".to_string(),
+                    "./Cargo.toml".to_string(),
+                    "./README.md".to_string(),
+                ])));
+                tool_registry.register(Box::new(ShellTool::new(vec![
+                    "cargo".to_string(),
+                    "tree".to_string(),
+                    "grep".to_string(),
+                ])));
+            }
             Layer::L4 => {
-                // Strategic layer: can read docs and fetch web resources
+                // Tactical layer: can read docs and fetch web resources
                 tool_registry.register(Box::new(FilesystemReadTool::new(vec![
                     "./docs".to_string(),
                     "./README.md".to_string(),
@@ -103,7 +152,7 @@ impl ManagedNeuron {
                 tool_registry.register(Box::new(WebFetchTool::new(None))); // No domain restrictions
             }
             Layer::L3 => {
-                // Design layer: can read source code and examples
+                // Operational layer: can read source code and examples
                 tool_registry.register(Box::new(FilesystemReadTool::new(vec![
                     "./src".to_string(),
                     "./examples".to_string(),
@@ -135,7 +184,7 @@ impl ManagedNeuron {
                 ])));
             }
             Layer::L1 => {
-                // Base layer: minimal tools
+                // Reflexive layer: minimal tools
                 tool_registry.register(Box::new(ShellTool::new(vec![
                     "echo".to_string(),
                     "date".to_string(),
@@ -415,9 +464,14 @@ impl ManagedNeuron {
     }
     
     /// Infer target layer from neuron ID (simplified)
-    fn get_target_layer(&self, target_id: &str) -> String {
+    fn get_target_layer(&self, _target_id: &str) -> String {
         // In a real implementation, this would look up the target's actual layer
         match self.layer {
+            Layer::L9 => "L8",
+            Layer::L8 => "L7",
+            Layer::L7 => "L6",
+            Layer::L6 => "L5",
+            Layer::L5 => "L4",
             Layer::L4 => "L3",
             Layer::L3 => "L2", 
             Layer::L2 => "L1",
@@ -436,7 +490,7 @@ impl NeuronInterface for ManagedNeuron {
         self.layer
     }
     
-    #[instrument(skip(self, signal), fields(neuron_id = %self.id, layer = %self.layer, signal_id = %signal.id))]
+    #[instrument(skip(self, signal), fields(neuron_id = %self.id, layer = %self.layer, signal_id = %signal.signal_id))]
     async fn process_signal(&self, signal: &NeuronSignal) -> Result<String> {
         let perf_timer = std::time::Instant::now();
         let span = neuron_span(&self.id, self.layer.as_str(), "process_signal");
@@ -505,14 +559,18 @@ impl NeuronInterface for ManagedNeuron {
         
         // Format prompt with signal context
         let prompt = format!("{}\n\n{}", base_prompt, self.format_prompt(signal).await);
-        let cache_key = format!("{}-{}", self.layer.as_str(), prompt.len());
+        let _cache_key = format!("{}-{}", self.layer.as_str(), prompt.len());
         
         // Check cache first (for all layers, not just L2)
         // Cache key includes signal content hash for better hit rate
-        let cache_key = format!("{}-{}-{:x}", 
+        let hash = md5::compute(&prompt);
+        let hash_str = hash.0[..8].iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<String>();
+        let cache_key = format!("{}-{}-{}", 
             self.layer.as_str(), 
             signal.from_neuron,
-            md5::compute(&prompt).0[..8].iter().map(|b| format!("{:02x}", b)).collect::<String>()
+            hash_str
         );
         
         if let Some(cache) = &self.response_cache {
@@ -596,7 +654,7 @@ impl NeuronInterface for ManagedNeuron {
                 }
                 Err(_) => {
                     // Timeout error
-                    let timeout_err = Error::Generic("Claude API timeout".to_string());
+                    let timeout_err = Error::Network("Claude API timeout".to_string());
                     
                     // Update error stats
                     let mut stats = self.stats.write().await;
@@ -807,10 +865,17 @@ impl NeuronInterface for ManagedNeuron {
 }
 
 /// Registry for managing multiple neurons
+#[allow(dead_code)]
 pub struct NeuronRegistry {
     neurons: Arc<DashMap<String, Arc<ManagedNeuron>>>,
     metrics: Option<Arc<crate::metrics::Metrics>>,
     parallel_executor: crate::performance::ParallelExecutor,
+}
+
+impl Default for NeuronRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl NeuronRegistry {

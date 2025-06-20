@@ -180,7 +180,7 @@ impl HAL9Server {
                 
             let transport_config = crate::network::tcp_transport::TransportConfig {
                 bind_address,
-                max_connections: self.config.network.max_connections as usize,
+                max_connections: self.config.network.max_connections,
                 ..Default::default()
             };
             
@@ -252,7 +252,7 @@ impl HAL9Server {
                 
                 // Get a reference to the router we just stored
                 let router_guard = self.router.read().await;
-                if let Some(ref router) = *router_guard {
+                if let Some(ref _router) = *router_guard {
                     // Create a new router for the distributed router
                     // This is necessary because distributed router needs ownership
                     let mut distributed_local_router = SignalRouter::new(
@@ -501,7 +501,7 @@ impl HAL9Server {
     
     /// Get active user count
     pub async fn get_active_user_count(&self) -> Result<usize> {
-        if let Some(ref user_manager) = self.user_manager {
+        if let Some(ref _user_manager) = self.user_manager {
             // For now, return a placeholder count
             // In production, query the database for active sessions
             Ok(1)

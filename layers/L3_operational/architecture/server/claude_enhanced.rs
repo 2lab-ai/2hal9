@@ -10,7 +10,7 @@ use rand::Rng;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use hal9_core::{Result, Layer};
-use super::{ClaudeInterface, TokenUsage};
+use crate::claude::{ClaudeInterface, TokenUsage};
 
 /// Enhanced mock Claude with consciousness integration
 pub struct EnhancedMockClaude {

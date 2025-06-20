@@ -38,7 +38,8 @@ impl Default for PoolConfig {
 }
 
 /// Pooled connection wrapper
-struct PooledConnection {
+#[allow(dead_code)]
+pub struct PooledConnection {
     stream: TcpStream,
     created_at: Instant,
     last_used: RwLock<Instant>,
@@ -235,7 +236,7 @@ impl ConnectionPool {
         
         // Add to pool
         self.connections.entry(server_id.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(conn);
     }
     

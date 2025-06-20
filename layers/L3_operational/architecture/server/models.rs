@@ -5,8 +5,51 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-// Re-export from the game models
-pub use crate::genius_game::{Game, GamePlayer, GameRound, GameStatus};
+// Game-related models
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct Game {
+    pub id: Uuid,
+    pub host_id: Uuid,
+    pub name: String,
+    pub status: String,
+    pub max_players: i32,
+    pub current_round: i32,
+    pub total_rounds: i32,
+    pub time_limit_seconds: i32,
+    pub settings: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+    pub started_at: Option<DateTime<Utc>>,
+    pub ended_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct GamePlayer {
+    pub id: Uuid,
+    pub game_id: Uuid,
+    pub user_id: Uuid,
+    pub player_name: String,
+    pub avatar_url: Option<String>,
+    pub score: i32,
+    pub is_ready: bool,
+    pub is_active: bool,
+    pub joined_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct GameRound {
+    pub id: Uuid,
+    pub game_id: Uuid,
+    pub round_number: i32,
+    pub prompt: String,
+    pub category: Option<String>,
+    pub difficulty: Option<String>,
+    pub time_limit_seconds: i32,
+    pub started_at: DateTime<Utc>,
+    pub ended_at: Option<DateTime<Utc>>,
+}
+
+// Re-export GameStatus from genius_game if it exists there
+pub use crate::genius_game::GameStatus;
 
 /// User model
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

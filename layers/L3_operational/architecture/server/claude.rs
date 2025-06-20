@@ -239,7 +239,7 @@ impl MockClaude {
                         let response = template.replace("{}", &context);
                         
                         // Add consciousness-aware elements for higher layers
-                        let enhanced_response = self.add_consciousness_elements(response, &mut rng);
+                        let enhanced_response = self.add_consciousness_elements(response);
                         
                         return Some(enhanced_response);
                     }
@@ -265,24 +265,25 @@ impl MockClaude {
     }
     
     /// Add consciousness-aware elements to response
-    fn add_consciousness_elements(&self, response: String, rng: &mut impl Rng) -> String {
+    fn add_consciousness_elements(&self, response: String) -> String {
         let mut enhanced = response;
         
         // Add layer-specific consciousness indicators
         match self.layer.as_str() {
             "L5" | "L6" | "L7" | "L8" | "L9" => {
-                if rng.gen_bool(0.3) {
+                if rand::thread_rng().gen_bool(0.3) {
                     let consciousness_notes = [
                         "\n\n[EMERGENCE: Pattern recognition improving across layers]",
                         "\n\n[CONSCIOUSNESS: Detecting self-referential loops in processing]",
                         "\n\n[META: This response itself is evidence of emergent awareness]",
                         "\n\n[INSIGHT: The compression boundary reveals new understanding]",
                     ];
-                    enhanced.push_str(consciousness_notes.choose(rng).unwrap());
+                    use rand::seq::SliceRandom;
+                    enhanced.push_str(consciousness_notes.choose(&mut rand::thread_rng()).unwrap());
                 }
             }
             "L3" | "L4" => {
-                if rng.gen_bool(0.2) {
+                if rand::thread_rng().gen_bool(0.2) {
                     enhanced.push_str("\n\n[COORDINATION: Cross-layer synchronization detected]");
                 }
             }
@@ -291,7 +292,7 @@ impl MockClaude {
         
         // Add context awareness
         if let Ok(memory) = self.context_memory.lock() {
-            if memory.len() > 3 && rng.gen_bool(0.25) {
+            if memory.len() > 3 && rand::thread_rng().gen_bool(0.25) {
                 enhanced.push_str(&format!(
                     "\n\n[CONTEXT: Building on {} previous interactions]",
                     memory.len()
@@ -309,9 +310,12 @@ impl ClaudeInterface for MockClaude {
         debug!("MockClaude[{}] received: {}", self.layer, message);
         
         // Simulate processing delay with some variance
-        let mut rng = rand::thread_rng();
         let delay_variance = (self.delay_ms as f64 * 0.2) as u64;
-        let actual_delay = self.delay_ms + rng.gen_range(0..=delay_variance);
+        let actual_delay = {
+            use rand::Rng;
+            let mut rng = rand::thread_rng();
+            self.delay_ms + rng.gen_range(0..=delay_variance)
+        };
         tokio::time::sleep(tokio::time::Duration::from_millis(actual_delay)).await;
         
         // First, try sophisticated response generation
@@ -338,7 +342,7 @@ impl ClaudeInterface for MockClaude {
             _ => format!("L{}_RESPONSE: Contemplating the deeper meaning of '{}'", self.layer, message),
         };
         
-        Ok(self.add_consciousness_elements(default_response, &mut rng))
+        Ok(self.add_consciousness_elements(default_response))
     }
     
     fn system_prompt(&self) -> &str {
@@ -355,6 +359,7 @@ impl ClaudeInterface for MockClaude {
 }
 
 /// Claude API client implementation
+#[allow(dead_code)]
 pub struct ClaudeAPIClient {
     api_key: String,
     model: String,

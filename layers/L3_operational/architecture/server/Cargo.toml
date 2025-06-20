@@ -24,6 +24,7 @@ axum = { version = "0.7", features = ["ws", "macros"] }
 axum-extra = { version = "0.9", features = ["typed-header"] }
 tower = { version = "0.4", features = ["full"] }
 tower-http = { version = "0.5", features = ["fs", "cors", "trace", "timeout"] }
+urlencoding = "2.1"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -65,7 +66,7 @@ dotenv = "0.15"
 prometheus = "0.13"
 
 # Redis
-redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+redis = { version = "0.23", features = ["tokio-comp", "connection-manager"] }
 
 # Random
 rand = "0.8"
@@ -93,7 +94,30 @@ http-body-util = "0.1"
 
 # Concurrency
 parking_lot = "0.12"
+dashmap = "5.5"
+
+# Cryptography
+sha2 = "0.10"
+md5 = "0.7"
+aes-gcm = "0.10"
+
+# Redis connection pool
+bb8 = "0.8"
+bb8-redis = "0.13"
+
+# Metrics
+metrics = "0.23"
+metrics-exporter-prometheus = "0.15"
+
+# CSV handling
+csv = "1.3"
 
 [dev-dependencies]
 criterion = "0.5"
 tempfile = "3.8"
+
+[features]
+default = []
+plugins = []
+blockchain = []
+graphql = []

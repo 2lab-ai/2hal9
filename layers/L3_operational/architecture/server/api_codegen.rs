@@ -1,9 +1,8 @@
 //! Code Generation API endpoints
 
 use axum::{
-    extract::{State, Json, Path, Query},
+    extract::{State, Json, Path},
     response::IntoResponse,
-    http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -14,7 +13,7 @@ use crate::{
     server::HAL9Server,
     error::ServerError,
 };
-use hal9_core::{NeuronSignal, auth::Permissions};
+use hal9_core::NeuronSignal;
 
 /// Code generation API state
 #[derive(Clone)]
@@ -226,12 +225,12 @@ pub async fn generate_project(
 
 /// Get code completion suggestions
 pub async fn code_completion(
-    State(state): State<Arc<CodegenApiState>>,
+    State(_state): State<Arc<CodegenApiState>>,
     Json(request): Json<CodeCompletionRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
     // Determine the appropriate implementation neuron based on file extension
     let language = request.language.or_else(|| {
-        match request.file_path.split('.').last() {
+        match request.file_path.split('.').next_back() {
             Some("rs") => Some("rust".to_string()),
             Some("py") => Some("python".to_string()),
             Some("ts") | Some("tsx") => Some("typescript".to_string()),
@@ -257,7 +256,7 @@ pub async fn code_completion(
         request.context
     );
     
-    let signal = NeuronSignal::forward(
+    let _signal = NeuronSignal::forward(
         "codegen-api",
         target_neuron,
         "API",
@@ -280,7 +279,7 @@ pub async fn code_completion(
 
 /// Review code for issues and improvements
 pub async fn review_code(
-    State(state): State<Arc<CodegenApiState>>,
+    State(_state): State<Arc<CodegenApiState>>,
     Json(request): Json<CodeReviewRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
     // Send to test designer for comprehensive review
@@ -302,7 +301,7 @@ pub async fn review_code(
         request.content
     );
     
-    let signal = NeuronSignal::forward(
+    let _signal = NeuronSignal::forward(
         "codegen-api",
         "codegen-test-designer",
         "API",
@@ -333,11 +332,11 @@ pub async fn review_code(
 
 /// Refactor code
 pub async fn refactor_code(
-    State(state): State<Arc<CodegenApiState>>,
+    State(_state): State<Arc<CodegenApiState>>,
     Json(request): Json<RefactorRequest>,
 ) -> Result<impl IntoResponse, ServerError> {
     // Determine appropriate neuron based on file type
-    let target_neuron = match request.file_path.split('.').last() {
+    let target_neuron = match request.file_path.split('.').next_back() {
         Some("rs") => "codegen-rust-impl",
         Some("py") => "codegen-python-impl",
         Some("ts") | Some("tsx") => "codegen-typescript-impl",
@@ -366,7 +365,7 @@ pub async fn refactor_code(
         format!("{} in {}", refactor_instruction, request.file_path)
     };
     
-    let signal = NeuronSignal::forward(
+    let _signal = NeuronSignal::forward(
         "codegen-api",
         target_neuron,
         "API",
@@ -390,7 +389,7 @@ pub async fn refactor_code(
 
 /// Get project generation status
 pub async fn get_project_status(
-    State(state): State<Arc<CodegenApiState>>,
+    State(_state): State<Arc<CodegenApiState>>,
     Path(project_id): Path<String>,
 ) -> Result<impl IntoResponse, ServerError> {
     // In production, this would check actual generation status
@@ -405,7 +404,7 @@ pub async fn get_project_status(
 
 /// List available project templates
 pub async fn list_templates(
-    State(state): State<Arc<CodegenApiState>>,
+    State(_state): State<Arc<CodegenApiState>>,
 ) -> Result<impl IntoResponse, ServerError> {
     Ok(Json(serde_json::json!({
         "templates": {
@@ -439,23 +438,20 @@ pub async fn list_templates(
 
 /// Health check for code generation service
 pub async fn codegen_health(
-    State(state): State<Arc<CodegenApiState>>,
+    State(_state): State<Arc<CodegenApiState>>,
 ) -> impl IntoResponse {
     // Check if code generation neurons are healthy
-    let neurons = vec![
-        "codegen-architect",
+    let neurons = ["codegen-architect",
         "codegen-api-designer",
         "codegen-db-designer",
         "codegen-frontend-designer",
-        "codegen-test-designer",
-    ];
+        "codegen-test-designer"];
     
-    let mut healthy_count = 0;
-    let mut total_count = neurons.len();
+    let total_count = neurons.len();
     
     // In production, check actual neuron health
     // For now, assume all healthy
-    healthy_count = total_count;
+    let healthy_count = total_count;
     
     Json(serde_json::json!({
         "status": if healthy_count == total_count { "healthy" } else { "degraded" },

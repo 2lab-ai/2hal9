@@ -1,7 +1,6 @@
 //! Memory management for neurons
 
 use std::sync::Arc;
-use std::path::Path;
 use tracing::{info, error};
 
 use hal9_core::{

@@ -1,12 +1,14 @@
 //! Health checking for distributed HAL9 system
 
-use anyhow::Result;
+use anyhow::{Result, Error};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use std::future::Future;
+use std::pin::Pin;
 
 /// Health status levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -75,7 +77,7 @@ impl Default for HealthCheckConfig {
 }
 
 /// Component health state
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct ComponentHealth {
     pub status: HealthStatus,
     pub consecutive_failures: u32,
@@ -83,6 +85,19 @@ struct ComponentHealth {
     pub last_check: Option<Instant>,
     pub last_result: Option<HealthCheckResult>,
     pub check_function: Arc<dyn Fn() -> futures::future::BoxFuture<'static, Result<HealthCheckResult>> + Send + Sync>,
+}
+
+impl std::fmt::Debug for ComponentHealth {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ComponentHealth")
+            .field("status", &self.status)
+            .field("consecutive_failures", &self.consecutive_failures)
+            .field("consecutive_successes", &self.consecutive_successes)
+            .field("last_check", &self.last_check)
+            .field("last_result", &self.last_result)
+            .field("check_function", &"<function>")
+            .finish()
+    }
 }
 
 /// Health checker for distributed system
@@ -128,7 +143,7 @@ impl HealthChecker {
     pub async fn register_component<F>(
         &self,
         name: String,
-        component_type: ComponentType,
+        _component_type: ComponentType,
         check_fn: F,
     ) where
         F: Fn() -> futures::future::BoxFuture<'static, Result<HealthCheckResult>> + Send + Sync + 'static,
@@ -149,9 +164,10 @@ impl HealthChecker {
     
     /// Register standard database health check
     pub async fn register_database(&self, name: String, pool: sqlx::PgPool) {
-        let check_fn = move || {
+        let component_name = name.clone();
+        let check_fn = move || -> Pin<Box<dyn Future<Output = Result<HealthCheckResult, Error>> + Send>> {
             let pool = pool.clone();
-            let component_name = name.clone();
+            let component_name = component_name.clone();
             Box::pin(async move {
                 let start = Instant::now();
                 
@@ -188,13 +204,14 @@ impl HealthChecker {
     
     /// Register Redis health check
     pub async fn register_redis(&self, name: String, pool: crate::cache::RedisPool) {
-        let check_fn = move || {
+        let component_name = name.clone();
+        let check_fn = move || -> Pin<Box<dyn Future<Output = Result<HealthCheckResult, Error>> + Send>> {
             let pool = pool.clone();
-            let component_name = name.clone();
+            let component_name = component_name.clone();
             Box::pin(async move {
                 let start = Instant::now();
                 
-                match pool.get().await {
+                match pool.get_connection().await {
                     Ok(mut conn) => {
                         match redis::cmd("PING").query_async::<_, String>(&mut conn).await {
                             Ok(pong) if pong == "PONG" => {

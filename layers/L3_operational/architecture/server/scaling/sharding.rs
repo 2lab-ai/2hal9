@@ -1,7 +1,7 @@
 //! Database sharding for horizontal scaling
 
 use anyhow::Result;
-use sqlx::{PgPool, Pool, Postgres};
+use sqlx::{PgPool, Postgres};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
@@ -284,14 +284,14 @@ mod tests {
                     name: "shard1".to_string(),
                     primary_url: "postgres://localhost/shard1".to_string(),
                     replica_urls: vec![],
-                    key_range: KeyRange { start: u64::MAX / 3, end: 2 * u64::MAX / 3 },
+                    key_range: KeyRange { start: u64::MAX / 3, end: (u64::MAX / 3) * 2 },
                 },
                 ShardConfig {
                     id: 2,
                     name: "shard2".to_string(),
                     primary_url: "postgres://localhost/shard2".to_string(),
                     replica_urls: vec![],
-                    key_range: KeyRange { start: 2 * u64::MAX / 3, end: u64::MAX },
+                    key_range: KeyRange { start: (u64::MAX / 3) * 2, end: u64::MAX },
                 },
             ],
             replication_factor: 1,

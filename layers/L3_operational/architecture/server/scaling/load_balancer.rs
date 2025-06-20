@@ -355,7 +355,7 @@ impl LoadBalancer {
     }
     
     /// Check individual server health
-    async fn check_server_health(&self, server: &ServerInstance) -> bool {
+    async fn check_server_health(&self, _server: &ServerInstance) -> bool {
         // In production, would make HTTP request to health endpoint
         // For now, simulate with random success
         rand::random::<f32>() > 0.05 // 95% success rate

@@ -20,9 +20,9 @@ use crate::{
     api_auth,
     api_codegen,
     middleware::logging_middleware,
-    rate_limiter::{RateLimiter, RateLimitConfig, rate_limit_middleware},
+    rate_limiter::{RateLimiter, RateLimitConfig},
     health::{health_check_simple, health_check_detailed, liveness_probe, readiness_probe},
-    error_recovery::{error_recovery_middleware, ErrorStore, setup_panic_handler},
+    error_recovery::{error_recovery_middleware, ErrorStore},
 };
 use hal9_core::NeuronSignal;
 
@@ -331,7 +331,7 @@ async fn submit_signal(
     
     // Create signal
     let signal = NeuronSignal::forward(
-        &"api-client",
+        "api-client",
         &req.neuron_id.unwrap_or_else(|| format!("neuron-{}", layer_str.to_lowercase())),
         "API",
         layer_str,
@@ -512,27 +512,6 @@ impl IntoResponse for ServerError {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_api_response_serialization() {
-        let response = ApiResponse::success("test data");
-        let json = serde_json::to_string(&response).unwrap();
-        assert!(json.contains("\"success\":true"));
-        assert!(json.contains("\"data\":\"test data\""));
-    }
-    
-    #[test]
-    fn test_error_response() {
-        let response = ApiResponse::<String>::error("Something went wrong");
-        let json = serde_json::to_string(&response).unwrap();
-        assert!(json.contains("\"success\":false"));
-        assert!(json.contains("\"error\":\"Something went wrong\""));
-    }
-}
-
 // Error debugging endpoints
 
 async fn get_recent_errors(
@@ -573,5 +552,26 @@ fn calculate_average_latency(metrics: &crate::metrics::MetricsSnapshot) -> f64 {
         weighted_sum / total_count as f64
     } else {
         0.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_api_response_serialization() {
+        let response = ApiResponse::success("test data");
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("\"success\":true"));
+        assert!(json.contains("\"data\":\"test data\""));
+    }
+    
+    #[test]
+    fn test_error_response() {
+        let response = ApiResponse::<String>::error("Something went wrong");
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("\"success\":false"));
+        assert!(json.contains("\"error\":\"Something went wrong\""));
     }
 }

@@ -14,6 +14,12 @@ pub struct RoutingTable {
     routes: Arc<DashMap<String, Vec<String>>>,
 }
 
+impl Default for RoutingTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RoutingTable {
     /// Create a new routing table
     pub fn new() -> Self {
@@ -51,6 +57,7 @@ impl RoutingTable {
 }
 
 /// Signal router for processing and distributing signals
+#[allow(dead_code)]
 pub struct SignalRouter {
     registry: Arc<NeuronRegistry>,
     routing_table: Arc<RoutingTable>,

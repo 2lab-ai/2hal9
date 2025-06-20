@@ -1,9 +1,9 @@
 //! HTTP middleware for request/response logging and monitoring
 
 use axum::{
-    body::{Body, Bytes},
+    body::Body,
     extract::Request,
-    http::{HeaderMap, StatusCode},
+    http::StatusCode,
     middleware::Next,
     response::{IntoResponse, Response},
 };
@@ -162,52 +162,98 @@ pub fn extract_trace_id(req: &Request) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{body::Body, http::Request};
-    use tower::ServiceBuilder;
+    use axum::{body::Body, http::Request, routing::get, Router};
     use tower::ServiceExt;
     
     #[tokio::test]
     async fn test_trace_id_generation() {
+        // Create a test app with the middleware
+        let app = Router::new()
+            .route("/test", get(|| async move { 
+                "OK" 
+            }))
+            .layer(axum::middleware::from_fn(logging_middleware));
+            
+        // Create request without trace ID
         let req = Request::builder()
             .uri("/test")
             .body(Body::empty())
             .unwrap();
             
-        // Mock next middleware
-        let next = Next::new(|req: Request| async move {
-            // Check that trace ID was added to extensions
-            assert!(req.extensions().get::<String>().is_some());
-            Ok::<_, StatusCode>(Response::new(Body::empty()))
-        });
-        
-        let response = logging_middleware(req, next).await.unwrap();
+        let response = app.oneshot(req).await.unwrap();
         
         // Check that trace ID was added to response headers
         assert!(response.headers().contains_key(TRACE_ID_HEADER));
+        
+        // Verify it's a valid UUID-like format
+        let trace_id = response.headers().get(TRACE_ID_HEADER).unwrap();
+        assert!(trace_id.to_str().unwrap().contains('-'));
     }
     
     #[tokio::test]
     async fn test_existing_trace_id_preserved() {
         let existing_trace_id = "test-trace-id-123";
+        let expected_trace_id = existing_trace_id.to_string();
+        
+        // Create a test app that can check the trace ID in extensions
+        let app = Router::new()
+            .route("/test", get(move |req: Request<Body>| {
+                let expected = expected_trace_id.clone();
+                async move {
+                    // Verify trace ID was added to extensions
+                    let trace_id = req.extensions().get::<String>()
+                        .expect("Trace ID should be in extensions");
+                    assert_eq!(trace_id, &expected);
+                    "OK"
+                }
+            }))
+            .layer(axum::middleware::from_fn(logging_middleware));
+            
+        // Create request with existing trace ID
         let req = Request::builder()
             .uri("/test")
             .header(TRACE_ID_HEADER, existing_trace_id)
             .body(Body::empty())
             .unwrap();
             
-        let next = Next::new(|req: Request| async move {
-            // Check that existing trace ID was preserved
-            let trace_id = req.extensions().get::<String>().unwrap();
-            assert_eq!(trace_id, existing_trace_id);
-            Ok::<_, StatusCode>(Response::new(Body::empty()))
-        });
+        let response = app.oneshot(req).await.unwrap();
         
-        let response = logging_middleware(req, next).await.unwrap();
-        
-        // Check response header matches
+        // Check response header matches the original trace ID
         assert_eq!(
-            response.headers().get(TRACE_ID_HEADER).unwrap(),
+            response.headers().get(TRACE_ID_HEADER).unwrap().to_str().unwrap(),
             existing_trace_id
         );
+    }
+    
+    #[tokio::test]
+    async fn test_body_logging_middleware() {
+        // Create a test app that echoes the request body
+        let app = Router::new()
+            .route("/test", axum::routing::post(|body: String| async move {
+                body
+            }))
+            .layer(axum::middleware::from_fn(body_logging_middleware));
+            
+        let test_body = "test request body";
+        let req = Request::builder()
+            .method("POST")
+            .uri("/test")
+            .header("content-type", "text/plain")
+            .body(Body::from(test_body))
+            .unwrap();
+            
+        let response = app.oneshot(req).await.unwrap();
+        
+        // Verify response is successful
+        assert_eq!(response.status(), StatusCode::OK);
+        
+        // Read response body
+        let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let response_body = String::from_utf8(body_bytes.to_vec()).unwrap();
+        
+        // Verify the body was processed correctly
+        assert_eq!(response_body, test_body);
     }
 }
