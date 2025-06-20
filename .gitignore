@@ -63,3 +63,8 @@ target-remote/
 CLAUDE.LOCAL.md
 
 **/node_modules/***
+
+# Test artifacts
+test-results*.md
+*.db
+test_*.db
