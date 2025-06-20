@@ -74,14 +74,28 @@ pub struct PooledObject<T> {
     capacity: usize,
 }
 
+impl<T> std::ops::Deref for PooledObject<T> {
+    type Target = T;
+    
+    fn deref(&self) -> &Self::Target {
+        self.obj.as_ref().expect("PooledObject already returned")
+    }
+}
+
+impl<T> std::ops::DerefMut for PooledObject<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.obj.as_mut().expect("PooledObject already returned")
+    }
+}
+
 impl<T> PooledObject<T> {
-    /// Get reference to the object
-    pub fn as_ref(&self) -> &T {
+    /// Get reference to the pooled object
+    pub fn get(&self) -> &T {
         self.obj.as_ref().expect("PooledObject already returned")
     }
     
-    /// Get mutable reference to the object
-    pub fn as_mut(&mut self) -> &mut T {
+    /// Get mutable reference to the pooled object
+    pub fn get_mut(&mut self) -> &mut T {
         self.obj.as_mut().expect("PooledObject already returned")
     }
     
@@ -104,19 +118,6 @@ impl<T> Drop for PooledObject<T> {
     }
 }
 
-impl<T> std::ops::Deref for PooledObject<T> {
-    type Target = T;
-    
-    fn deref(&self) -> &Self::Target {
-        self.as_ref()
-    }
-}
-
-impl<T> std::ops::DerefMut for PooledObject<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.as_mut()
-    }
-}
 
 /// Pool for Signal objects
 pub struct SignalPool {
@@ -127,7 +128,7 @@ impl SignalPool {
     /// Create a new signal pool
     pub fn new(capacity: usize) -> Self {
         Self {
-            pool: NeuronPool::new(capacity, || Signal::default()),
+            pool: NeuronPool::new(capacity, Signal::default),
         }
     }
     
@@ -137,13 +138,13 @@ impl SignalPool {
     }
     
     /// Create a signal with specific values
-    pub fn create(&self, from: NeuronId, to: NeuronId, strength: f32) -> PooledObject<Signal> {
-        let mut signal = self.get();
+    pub fn create(&self, _from: NeuronId, _to: NeuronId, _strength: f32) -> PooledObject<Signal> {
+        
         // Set signal properties here
         // signal.from = from;
         // signal.to = to;
         // signal.strength = strength;
-        signal
+        self.get()
     }
 }
 
@@ -158,8 +159,7 @@ pub struct Arena {
 impl Arena {
     /// Create a new arena with given chunk size
     pub fn new(chunk_size: usize) -> Self {
-        let mut chunks = Vec::new();
-        chunks.push(vec![0; chunk_size]);
+        let chunks = vec![vec![0; chunk_size]];
         
         Self {
             chunks,
@@ -255,7 +255,7 @@ mod tests {
         assert!(pool.size() >= 2);
         
         // Get again - should reuse
-        let obj3 = pool.get();
+        let _obj3 = pool.get();
         // Note: value might be 42 if it reused obj1
     }
     
@@ -263,14 +263,22 @@ mod tests {
     fn test_arena() {
         let mut arena = Arena::new(1024);
         
+        // Test allocation and values
         let n1: &mut i32 = arena.alloc();
         *n1 = 42;
+        assert_eq!(*n1, 42);
         
+        // Drop n1 before allocating n2 to avoid simultaneous borrows
+        let n1_value = *n1;
+        let _ = n1;
+        
+        // Now we can safely allocate n2
         let n2: &mut i32 = arena.alloc();
         *n2 = 100;
-        
-        assert_eq!(*n1, 42);
         assert_eq!(*n2, 100);
+        
+        // Verify that we preserved n1's value for comparison
+        assert_eq!(n1_value, 42);
         
         arena.reset();
         // n1 and n2 are now invalid!

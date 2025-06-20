@@ -318,7 +318,7 @@ impl FeatureEvaluator {
     fn matches_target_condition(&self, condition: &TargetCondition, context: &RequestContext) -> bool {
         match condition {
             TargetCondition::UserAttribute(key, value) => {
-                context.attributes.get(key).map_or(false, |v| v == value)
+                context.attributes.get(key) == Some(value)
             }
             TargetCondition::RequestPath(pattern) => {
                 context.path.contains(pattern)
@@ -338,16 +338,16 @@ impl FeatureEvaluator {
             FeatureCondition::After(time) => chrono::Utc::now() >= *time,
             FeatureCondition::Before(time) => chrono::Utc::now() <= *time,
             FeatureCondition::UserInList(users) => {
-                context.user_id.map_or(false, |id| users.contains(&id))
+                context.user_id.is_some_and(|id| users.contains(&id))
             }
             FeatureCondition::UserMatchesPattern(pattern) => {
-                context.user_id.map_or(false, |id| id.to_string().contains(pattern))
+                context.user_id.is_some_and(|id| id.to_string().contains(pattern))
             }
             FeatureCondition::HeaderPresent(key, value) => {
-                context.headers.get(key).map_or(false, |v| v == value)
+                context.headers.get(key) == Some(value)
             }
             FeatureCondition::QueryParamPresent(key, value) => {
-                context.query_params.get(key).map_or(false, |v| v == value)
+                context.query_params.get(key) == Some(value)
             }
             FeatureCondition::LoadBelow(_) => true, // Would check actual system load
             FeatureCondition::ErrorRateBelow(_) => true, // Would check actual error rate
@@ -552,7 +552,7 @@ mod tests {
         let mut hierarchical_count = 0;
         let total_requests = 1000;
         
-        for i in 0..total_requests {
+        for _i in 0..total_requests {
             let context = RequestContext {
                 user_id: None,
                 request_id: Uuid::new_v4(),

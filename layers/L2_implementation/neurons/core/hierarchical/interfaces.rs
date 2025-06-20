@@ -192,7 +192,6 @@ pub trait LayerFactory: Send + Sync {
 }
 
 /// Standard layer implementations
-
 /// Substrate layer interface
 #[async_trait]
 pub trait SubstrateInterface: LayerInterface {
@@ -269,7 +268,6 @@ pub trait IntelligenceInterface: LayerInterface {
 }
 
 /// Migration support for transitioning between architectures
-
 /// Migration strategy from old to new architecture
 #[async_trait]
 pub trait MigrationStrategy: Send + Sync {
@@ -334,7 +332,6 @@ pub enum IssueSeverity {
 }
 
 /// Compatibility layer for legacy support
-
 /// Adapter for legacy neuron interface to work with hierarchical architecture
 pub struct LegacyNeuronAdapter {
     legacy_neuron: Box<dyn crate::neuron::NeuronInterface>,
@@ -346,7 +343,7 @@ pub struct LegacyNeuronAdapter {
 }
 
 #[derive(Debug, Default, Clone)]
-struct AdapterMetrics {
+pub struct AdapterMetrics {
     signals_adapted: u64,
     messages_converted: u64,
     errors: u64,
@@ -456,7 +453,7 @@ impl LegacyNeuronAdapter {
     
     /// Run the adapter as a bidirectional bridge
     pub async fn run_bridge(self) -> Result<()> {
-        let (signal_tx, mut signal_rx) = tokio::sync::mpsc::channel::<crate::NeuronSignal>(100);
+        let (_signal_tx, mut signal_rx) = tokio::sync::mpsc::channel::<crate::NeuronSignal>(100);
         let adapter = Arc::new(tokio::sync::Mutex::new(self));
         let adapter1 = adapter.clone();
         let adapter2 = adapter.clone();
@@ -464,9 +461,9 @@ impl LegacyNeuronAdapter {
         // Task to process legacy signals
         let signal_task = tokio::spawn(async move {
             while let Some(signal) = signal_rx.recv().await {
-                let mut adapter = adapter1.lock().await;
+                let adapter = adapter1.lock().await;
                 match adapter.adapt_signal(&signal).await {
-                    Ok(message) => {
+                    Ok(_message) => {
                         // Send to hierarchical system
                         tracing::debug!("Adapted signal {} to message", signal.signal_id);
                     }
@@ -756,7 +753,6 @@ impl MigrationCoordinator {
 }
 
 /// Testing support for hierarchical architecture
-
 /// Mock layer for testing
 pub struct MockLayer {
     layer_id: LayerId,
@@ -840,24 +836,43 @@ mod tests {
     async fn test_legacy_adapter_signal_conversion() {
         // Create a mock neuron
         struct MockNeuron {
+            #[allow(dead_code)]
             id: Uuid,
+            id_str: String,
         }
         
         #[async_trait]
         impl crate::neuron::NeuronInterface for MockNeuron {
-            fn id(&self) -> Uuid { self.id }
-            fn kind(&self) -> &str { "mock" }
-            fn layer(&self) -> &str { "L4" }
-            
-            async fn process(&mut self, signal: crate::NeuronSignal) -> Result<crate::NeuronSignal> {
-                Ok(signal)
+            fn id(&self) -> &str { 
+                &self.id_str
             }
             
-            async fn initialize(&mut self) -> Result<()> { Ok(()) }
-            async fn shutdown(&mut self) -> Result<()> { Ok(()) }
+            fn layer(&self) -> crate::neuron::Layer { 
+                crate::neuron::Layer::L4 
+            }
+            
+            async fn process_signal(&self, signal: &crate::NeuronSignal) -> Result<String> {
+                Ok(format!("Processed signal: {}", signal.signal_id))
+            }
+            
+            async fn health(&self) -> Result<crate::neuron::NeuronHealth> {
+                Ok(crate::neuron::NeuronHealth {
+                    state: crate::neuron::NeuronState::Running,
+                    last_signal: Some(chrono::Utc::now()),
+                    signals_processed: 0,
+                    errors_count: 0,
+                    uptime_seconds: 0,
+                })
+            }
+            
+            async fn shutdown(&self) -> Result<()> { Ok(()) }
         }
         
-        let neuron = Box::new(MockNeuron { id: Uuid::new_v4() });
+        let id = Uuid::new_v4();
+        let neuron = Box::new(MockNeuron { 
+            id,
+            id_str: id.to_string(),
+        });
         let adapter = LegacyNeuronAdapter::new(neuron, LayerId::Orchestration);
         
         // Test signal adaptation
@@ -895,30 +910,69 @@ mod tests {
     #[tokio::test]
     async fn test_migration_coordinator() {
         struct MockNeuron {
+            #[allow(dead_code)]
             id: Uuid,
-            layer: String,
+            id_str: String,
+            layer: crate::neuron::Layer,
         }
         
         #[async_trait]
         impl crate::neuron::NeuronInterface for MockNeuron {
-            fn id(&self) -> Uuid { self.id }
-            fn kind(&self) -> &str { "mock" }
-            fn layer(&self) -> &str { &self.layer }
+            fn id(&self) -> &str { &self.id_str }
             
-            async fn process(&mut self, signal: crate::NeuronSignal) -> Result<crate::NeuronSignal> {
-                Ok(signal)
+            fn layer(&self) -> crate::neuron::Layer { self.layer }
+            
+            async fn process_signal(&self, signal: &crate::NeuronSignal) -> Result<String> {
+                Ok(format!("Processed signal: {}", signal.signal_id))
             }
             
-            async fn initialize(&mut self) -> Result<()> { Ok(()) }
-            async fn shutdown(&mut self) -> Result<()> { Ok(()) }
+            async fn health(&self) -> Result<crate::neuron::NeuronHealth> {
+                Ok(crate::neuron::NeuronHealth {
+                    state: crate::neuron::NeuronState::Running,
+                    last_signal: Some(chrono::Utc::now()),
+                    signals_processed: 0,
+                    errors_count: 0,
+                    uptime_seconds: 0,
+                })
+            }
+            
+            async fn shutdown(&self) -> Result<()> { Ok(()) }
         }
         
         // Create test neurons
         let neurons: Vec<Box<dyn crate::neuron::NeuronInterface>> = vec![
-            Box::new(MockNeuron { id: Uuid::new_v4(), layer: "L1".to_string() }),
-            Box::new(MockNeuron { id: Uuid::new_v4(), layer: "L2".to_string() }),
-            Box::new(MockNeuron { id: Uuid::new_v4(), layer: "L4".to_string() }),
-            Box::new(MockNeuron { id: Uuid::new_v4(), layer: "L5".to_string() }),
+            {
+                let id = Uuid::new_v4();
+                Box::new(MockNeuron { 
+                    id, 
+                    id_str: id.to_string(),
+                    layer: crate::neuron::Layer::L1
+                })
+            },
+            {
+                let id = Uuid::new_v4();
+                Box::new(MockNeuron { 
+                    id, 
+                    id_str: id.to_string(),
+                    layer: crate::neuron::Layer::L2
+                })
+            },
+            {
+                let id = Uuid::new_v4();
+                Box::new(MockNeuron { 
+                    id, 
+                    id_str: id.to_string(),
+                    layer: crate::neuron::Layer::L4
+                })
+            },
+            {
+                let id = Uuid::new_v4();
+                Box::new(MockNeuron { 
+                    id, 
+                    id_str: id.to_string(),
+                    layer: crate::neuron::Layer::L5
+                })
+            },
         ];
         
         let mut coordinator = MigrationCoordinator::new(neurons);

@@ -14,7 +14,7 @@ mod tests {
     
     #[async_trait]
     impl MetaLearner for MockMetaLearner {
-        async fn learn_to_learn(&mut self, experience: Experience) -> Result<LearningStrategy> {
+        async fn learn_to_learn(&mut self, _experience: Experience) -> Result<LearningStrategy> {
             self.learning_efficiency += 0.01;
             Ok(LearningStrategy {
                 name: "adaptive_gradient".to_string(),
@@ -45,7 +45,7 @@ mod tests {
             })
         }
         
-        async fn transfer_knowledge(&self, source_domain: &str, target_domain: &str) -> Result<Knowledge> {
+        async fn transfer_knowledge(&self, source_domain: &str, _target_domain: &str) -> Result<Knowledge> {
             Ok(Knowledge {
                 concepts: vec![
                     Concept {
@@ -162,7 +162,7 @@ mod tests {
     
     #[async_trait]
     impl CreativityEngine for MockCreativityEngine {
-        async fn generate_ideas(&self, constraints: &[Constraint]) -> Result<Vec<Idea>> {
+        async fn generate_ideas(&self, _constraints: &[Constraint]) -> Result<Vec<Idea>> {
             Ok(vec![
                 Idea {
                     id: Uuid::new_v4(),

@@ -54,6 +54,7 @@ struct PerformanceHistory {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct StrategyPerformance {
     pub task_id: Uuid,
     pub outcome: LearningOutcome,
@@ -62,12 +63,14 @@ struct StrategyPerformance {
 }
 
 /// Architecture optimizer for neural architecture search
+#[allow(dead_code)]
 struct ArchitectureOptimizer {
     search_space: ArchitectureSearchSpace,
     evaluator: ArchitectureEvaluator,
     optimizer: EvolutionaryOptimizer,
 }
 
+#[allow(dead_code)]
 struct ArchitectureSearchSpace {
     layer_types: Vec<LayerType>,
     connection_patterns: Vec<ConnectionPattern>,
@@ -76,6 +79,7 @@ struct ArchitectureSearchSpace {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum LayerType {
     Dense { units: usize },
     Convolutional { filters: usize, kernel_size: usize },
@@ -84,13 +88,15 @@ enum LayerType {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum RecurrentCellType {
-    LSTM,
-    GRU,
+    Lstm,
+    Gru,
     Vanilla,
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum ConnectionPattern {
     Sequential,
     Residual,
@@ -99,19 +105,22 @@ enum ConnectionPattern {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum ActivationFunction {
     ReLU,
     Tanh,
     Sigmoid,
-    GELU,
+    Gelu,
     Swish,
 }
 
+#[allow(dead_code)]
 struct ArchitectureEvaluator {
     evaluation_budget: usize,
     early_stopping: bool,
 }
 
+#[allow(dead_code)]
 struct EvolutionaryOptimizer {
     population_size: usize,
     mutation_rate: f32,
@@ -120,6 +129,7 @@ struct EvolutionaryOptimizer {
 }
 
 /// Hyperparameter tuner using Bayesian optimization
+#[allow(dead_code)]
 struct HyperparameterTuner {
     search_space: HashMap<String, ParameterRange>,
     gaussian_process: GaussianProcess,
@@ -127,6 +137,7 @@ struct HyperparameterTuner {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum ParameterRange {
     Continuous { min: f32, max: f32, scale: Scale },
     Discrete { values: Vec<f32> },
@@ -134,27 +145,37 @@ enum ParameterRange {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum Scale {
     Linear,
     Log,
     Exponential,
 }
 
+#[allow(dead_code)]
 struct GaussianProcess {
     kernel: Kernel,
     observations: Vec<(Vec<f32>, f32)>,
 }
 
+#[allow(dead_code)]
 enum Kernel {
-    RBF { length_scale: f32 },
+    Rbf { length_scale: f32 },
     Matern { nu: f32, length_scale: f32 },
     Polynomial { degree: usize, variance: f32 },
 }
 
+#[allow(dead_code)]
 enum AcquisitionFunction {
     ExpectedImprovement,
     UpperConfidenceBound { beta: f32 },
     ProbabilityOfImprovement,
+}
+
+impl Default for MetaLearningSystem {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MetaLearningSystem {
@@ -178,7 +199,7 @@ impl MetaLearningSystem {
                     ],
                     activation_functions: vec![
                         ActivationFunction::ReLU,
-                        ActivationFunction::GELU,
+                        ActivationFunction::Gelu,
                     ],
                     max_depth: 10,
                 },
@@ -196,7 +217,7 @@ impl MetaLearningSystem {
             hyperparameter_tuner: HyperparameterTuner {
                 search_space: HashMap::new(),
                 gaussian_process: GaussianProcess {
-                    kernel: Kernel::RBF { length_scale: 1.0 },
+                    kernel: Kernel::Rbf { length_scale: 1.0 },
                     observations: Vec::new(),
                 },
                 acquisition_function: AcquisitionFunction::ExpectedImprovement,
@@ -285,7 +306,7 @@ impl MetaLearner for MetaLearningSystem {
     
     async fn optimize_architecture(&mut self) -> Result<ArchitectureUpdate> {
         // Run architecture search
-        let best_architecture = self.architecture_optimizer.search()?;
+        let _best_architecture = self.architecture_optimizer.search()?;
         
         // Convert to architecture update
         let changes = vec![
@@ -302,7 +323,7 @@ impl MetaLearner for MetaLearningSystem {
         })
     }
     
-    async fn transfer_knowledge(&self, source_domain: &str, target_domain: &str) -> Result<Knowledge> {
+    async fn transfer_knowledge(&self, _source_domain: &str, _target_domain: &str) -> Result<Knowledge> {
         // Extract transferable knowledge from source domain
         let concepts = vec![
             Concept {
@@ -330,7 +351,7 @@ impl MetaLearner for MetaLearningSystem {
 }
 
 impl HyperparameterTuner {
-    fn optimize(&self, strategy: &str, meta_features: &MetaFeatures) -> Result<HashMap<String, f32>> {
+    fn optimize(&self, _strategy: &str, _meta_features: &MetaFeatures) -> Result<HashMap<String, f32>> {
         // Simplified Bayesian optimization
         let mut params = HashMap::new();
         params.insert("learning_rate".to_string(), 0.001);
@@ -355,6 +376,7 @@ impl ArchitectureOptimizer {
     }
 }
 
+#[allow(dead_code)]
 struct Architecture {
     layers: Vec<LayerType>,
     connections: ConnectionPattern,
@@ -362,17 +384,20 @@ struct Architecture {
 }
 
 /// Continual learning strategy to avoid catastrophic forgetting
+#[allow(dead_code)]
 pub struct ContinualLearningStrategy {
     memory_buffer: ExperienceReplayBuffer,
     regularization: ElasticWeightConsolidation,
 }
 
+#[allow(dead_code)]
 struct ExperienceReplayBuffer {
     capacity: usize,
     importance_sampling: bool,
     experiences: Vec<(Experience, f32)>, // (experience, importance)
 }
 
+#[allow(dead_code)]
 struct ElasticWeightConsolidation {
     fisher_information: HashMap<String, f32>,
     importance_weight: f32,
@@ -380,22 +405,26 @@ struct ElasticWeightConsolidation {
 }
 
 /// Few-shot learning for rapid adaptation
+#[allow(dead_code)]
 pub struct FewShotLearner {
     prototype_network: PrototypeNetwork,
     metric_learning: MetricLearning,
 }
 
+#[allow(dead_code)]
 struct PrototypeNetwork {
     embedding_dim: usize,
     distance_metric: DistanceMetric,
 }
 
+#[allow(dead_code)]
 enum DistanceMetric {
     Euclidean,
     Cosine,
     Mahalanobis,
 }
 
+#[allow(dead_code)]
 struct MetricLearning {
     margin: f32,
     embedding_network: String,
