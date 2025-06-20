@@ -7,6 +7,7 @@ use crate::Result;
 use super::*;
 
 /// L5: Strategic Neuron - Long-term vision and goals
+#[allow(dead_code)]
 pub struct StrategicNeuron {
     id: Uuid,
     state: StrategicState,
@@ -93,7 +94,7 @@ impl CognitiveUnit for StrategicNeuron {
         Ok(output)
     }
     
-    async fn learn(&mut self, gradient: LearningGradient) -> Result<()> {
+    async fn learn(&mut self, _gradient: LearningGradient) -> Result<()> {
         // Adjust vision and goals based on feedback
         self.state.basic.metrics.learning_iterations += 1;
         Ok(())
@@ -125,6 +126,7 @@ impl CognitiveState for StrategicState {
 }
 
 /// L4: Tactical Neuron - Planning and strategy execution
+#[allow(dead_code)]
 pub struct TacticalNeuron {
     id: Uuid,
     state: TacticalState,
@@ -169,6 +171,7 @@ pub struct StrategyExecutor {
 }
 
 /// L3: Operational Neuron - Design and task coordination
+#[allow(dead_code)]
 pub struct OperationalNeuron {
     id: Uuid,
     state: OperationalState,
@@ -219,6 +222,7 @@ pub struct TaskCoordinator {
 }
 
 /// L2: Implementation Neuron - Direct code execution
+#[allow(dead_code)]
 pub struct ImplementationNeuron {
     id: Uuid,
     state: ImplementationState,
@@ -262,6 +266,7 @@ pub struct CodeExecutor {
 }
 
 /// L1: Reflexive Neuron - Immediate response
+#[allow(dead_code)]
 pub struct ReflexiveNeuron {
     id: Uuid,
     state: ReflexiveState,
@@ -290,10 +295,12 @@ pub struct CacheStats {
     pub evictions: u64,
 }
 
+#[allow(dead_code)]
 pub struct PatternMatcher {
     patterns: Vec<Pattern>,
 }
 
+#[allow(dead_code)]
 pub struct ResponseCache {
     cache: lru::LruCache<String, String>,
 }

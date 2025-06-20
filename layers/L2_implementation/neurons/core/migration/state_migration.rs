@@ -54,7 +54,7 @@ impl StateMigrationEngine {
         {
             let mut progress = self.progress.write();
             progress.total_neurons = total_neurons;
-            progress.total_batches = (total_neurons + self.batch_size - 1) / self.batch_size;
+            progress.total_batches = total_neurons.div_ceil(self.batch_size);
         }
         
         // Process in batches
@@ -110,7 +110,7 @@ impl StateMigrationEngine {
         
         // Convert states in parallel
         let mut handles = Vec::new();
-        let chunk_size = (batch_size + self.parallel_workers - 1) / self.parallel_workers;
+        let chunk_size = batch_size.div_ceil(self.parallel_workers);
         
         for chunk in flat_states.chunks(chunk_size) {
             let chunk = chunk.to_vec();
@@ -321,7 +321,7 @@ impl StateMigrationEngine {
     }
     
     /// Verify integrity of migrated states
-    pub async fn verify_integrity(&self, check_all: bool) -> Result<bool> {
+    pub async fn verify_integrity(&self, _check_all: bool) -> Result<bool> {
         // TODO: Implement integrity verification
         Ok(true)
     }

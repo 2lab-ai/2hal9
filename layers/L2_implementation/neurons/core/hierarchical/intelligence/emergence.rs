@@ -14,6 +14,7 @@ pub struct EmergenceAnalyzer {
     observation_window: ObservationWindow,
 }
 
+#[allow(dead_code)]
 struct PatternDetector {
     known_patterns: HashMap<Uuid, EmergentPattern>,
     pattern_library: PatternLibrary,
@@ -35,6 +36,7 @@ struct PatternTemplate {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum Scale {
     Micro,   // Individual unit level
     Meso,    // Cluster level
@@ -42,24 +44,28 @@ enum Scale {
     Multi,   // Cross-scale
 }
 
+#[allow(dead_code)]
 enum SimilarityMetric {
     Cosine,
     Correlation,
     DynamicTimeWarping,
 }
 
+#[allow(dead_code)]
 struct PhaseAnalyzer {
     state_space: StateSpace,
     transition_detector: TransitionDetector,
     critical_points: Vec<CriticalPoint>,
 }
 
+#[allow(dead_code)]
 struct StateSpace {
     dimensions: Vec<StateDimension>,
     trajectories: Vec<Trajectory>,
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct StateDimension {
     name: String,
     range: (f32, f32),
@@ -67,22 +73,26 @@ struct StateDimension {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct Trajectory {
     points: Vec<StatePoint>,
     duration: std::time::Duration,
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct StatePoint {
     coordinates: Vec<f32>,
     timestamp: chrono::DateTime<chrono::Utc>,
 }
 
+#[allow(dead_code)]
 struct TransitionDetector {
     methods: Vec<DetectionMethod>,
     sensitivity: f32,
 }
 
+#[allow(dead_code)]
 enum DetectionMethod {
     Bifurcation,
     Catastrophe,
@@ -91,6 +101,7 @@ enum DetectionMethod {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct CriticalPoint {
     location: Vec<f32>,
     critical_type: CriticalType,
@@ -98,6 +109,7 @@ struct CriticalPoint {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum CriticalType {
     Saddle,
     Node,
@@ -106,17 +118,20 @@ enum CriticalType {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum Stability {
     Stable,
     Unstable,
     Marginally,
 }
 
+#[allow(dead_code)]
 struct ComplexityCalculator {
     methods: Vec<ComplexityMethod>,
     time_series: TimeSeries,
 }
 
+#[allow(dead_code)]
 enum ComplexityMethod {
     Kolmogorov,
     Fractal,
@@ -124,11 +139,13 @@ enum ComplexityMethod {
     LempelZiv,
 }
 
+#[allow(dead_code)]
 struct TimeSeries {
     data: Vec<Vec<f32>>,
     sampling_rate: f32,
 }
 
+#[allow(dead_code)]
 struct ObservationWindow {
     duration: std::time::Duration,
     observations: Vec<Observation>,
@@ -136,23 +153,32 @@ struct ObservationWindow {
 }
 
 #[derive(Debug, Clone)]
-struct Observation {
+#[allow(dead_code)]
+pub struct Observation {
     timestamp: chrono::DateTime<chrono::Utc>,
     state: SystemState,
     metrics: HashMap<String, f32>,
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct SystemState {
     unit_states: HashMap<Uuid, serde_json::Value>,
     global_properties: HashMap<String, f32>,
     active_patterns: Vec<Uuid>,
 }
 
+#[allow(dead_code)]
 enum AggregationLevel {
     Raw,
     Smoothed { window: usize },
     Hierarchical { levels: usize },
+}
+
+impl Default for EmergenceAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl EmergenceAnalyzer {
@@ -308,7 +334,7 @@ impl EmergenceDetector for EmergenceAnalyzer {
                     pattern_id: template.id,
                     description: template.name.clone(),
                     frequency: similarity,
-                    significance: self.calculate_significance(&template, similarity),
+                    significance: self.calculate_significance(template, similarity),
                 });
             }
         }
@@ -327,7 +353,7 @@ impl EmergenceDetector for EmergenceAnalyzer {
             
             // Detect bifurcations
             let bifurcations = self.detect_bifurcations(&trajectory.points);
-            for (idx, bifurcation_type) in bifurcations {
+            for (idx, _bifurcation_type) in bifurcations {
                 if idx > 0 && idx < trajectory.points.len() - 1 {
                     transitions.push(PhaseTransition {
                         from_state: format!("state_{}", idx - 1),
@@ -474,7 +500,7 @@ impl EmergenceAnalyzer {
         bifurcations
     }
     
-    fn detect_synchronization_transitions(&self, trajectory: &[StatePoint]) -> Vec<PhaseTransition> {
+    fn detect_synchronization_transitions(&self, _trajectory: &[StatePoint]) -> Vec<PhaseTransition> {
         // Placeholder for synchronization detection
         Vec::new()
     }

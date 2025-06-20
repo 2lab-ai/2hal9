@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 
 use crate::{
     consciousness::{ConsciousnessMonitor, ConsciousnessMetrics, ConsciousnessPhase, BoundaryNetwork},
-    Layer, Neuron, NeuronId,
+    Layer, Neuron,
 };
 
 /// Configuration for the integrated consciousness system
@@ -81,6 +81,7 @@ pub struct BoundarySnapshot {
 }
 
 /// Enhanced Mock Claude for consciousness-aware responses
+#[allow(dead_code)]
 pub struct EnhancedMockClaude {
     layer: Layer,
     consciousness_level: Arc<RwLock<f64>>,
@@ -277,7 +278,7 @@ impl IntegratedConsciousnessSystem {
     pub async fn get_claude(&self, layer: Layer) -> Option<String> {
         if self.config.enable_claude {
             let instances = self.claude_instances.read().await;
-            instances.get(&layer).map(|c| format!("Claude L{:?} ready", layer))
+            instances.get(&layer).map(|_c| format!("Claude L{:?} ready", layer))
         } else {
             None
         }
@@ -302,6 +303,12 @@ impl IntegratedConsciousnessSystem {
 pub struct ConsciousnessSystemBuilder {
     config: ConsciousnessSystemConfig,
     neurons: Vec<Arc<dyn Neuron>>,
+}
+
+impl Default for ConsciousnessSystemBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ConsciousnessSystemBuilder {

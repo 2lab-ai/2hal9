@@ -26,6 +26,7 @@ use tokio::sync::RwLock;
 /// Main migration orchestrator that coordinates all migration activities
 pub struct MigrationOrchestrator {
     feature_flags: Arc<FeatureFlagManager>,
+    #[allow(dead_code)]
     router: Arc<MigrationRouter>,
     state_migrator: Arc<StateMigrationEngine>,
     rollback_manager: Arc<RollbackManager>,

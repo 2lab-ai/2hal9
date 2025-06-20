@@ -193,6 +193,7 @@ impl MetricsTracker {
         self.errors.fetch_add(1, Ordering::Relaxed);
     }
     
+    #[allow(dead_code)]
     fn record_latency(&self, ms: u64) {
         self.latency_sum.fetch_add(ms, Ordering::Relaxed);
         self.latency_count.fetch_add(1, Ordering::Relaxed);
@@ -238,10 +239,17 @@ impl RawReceiverTrait for ChannelReceiver {
 }
 
 /// Local channel-based transport for single process
+#[derive(Clone)]
 pub struct ChannelTransport {
     endpoints: Arc<dashmap::DashMap<String, mpsc::UnboundedSender<Vec<u8>>>>,
     topics: Arc<dashmap::DashMap<String, Vec<mpsc::UnboundedSender<Vec<u8>>>>>,
     metrics: Arc<MetricsTracker>,
+}
+
+impl Default for ChannelTransport {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ChannelTransport {
@@ -280,7 +288,7 @@ impl MessageTransport for ChannelTransport {
         let (tx, rx) = mpsc::unbounded_channel();
         
         self.topics.entry(topic.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(tx);
         
         Ok(RawTransportReceiver {
@@ -320,6 +328,7 @@ impl MessageTransport for ChannelTransport {
 }
 
 /// TCP connection wrapper
+#[allow(dead_code)]
 struct TcpConnection {
     stream: Arc<tokio::sync::Mutex<tokio::net::TcpStream>>,
     rx: mpsc::UnboundedReceiver<Vec<u8>>,
@@ -349,6 +358,12 @@ pub struct TcpTransport {
     connections: Arc<dashmap::DashMap<String, TcpConnection>>,
     listeners: Arc<dashmap::DashMap<String, mpsc::UnboundedSender<Vec<u8>>>>,
     metrics: Arc<MetricsTracker>,
+}
+
+impl Default for TcpTransport {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TcpTransport {
@@ -406,7 +421,7 @@ impl TcpTransport {
         listeners: Arc<dashmap::DashMap<String, mpsc::UnboundedSender<Vec<u8>>>>,
         metrics: Arc<MetricsTracker>,
     ) -> Result<()> {
-        let (rx_half, tx_half) = stream.split();
+        let (rx_half, _tx_half) = stream.split();
         let mut reader = tokio::io::BufReader::new(rx_half);
         
         loop {
@@ -501,7 +516,7 @@ impl MessageTransport for TcpTransport {
         let stream = tokio::net::TcpStream::connect(endpoint).await
             .map_err(|e| Error::Transport(format!("Failed to connect: {}", e)))?;
         
-        let (tx, rx) = mpsc::unbounded_channel();
+        let (_tx, rx) = mpsc::unbounded_channel();
         
         let conn = TcpConnection {
             stream: Arc::new(tokio::sync::Mutex::new(stream)),
@@ -523,9 +538,16 @@ impl MessageTransport for TcpTransport {
 }
 
 /// gRPC transport for cloud deployment
+#[allow(dead_code)]
 pub struct GrpcTransport {
     // Would use tonic or similar
     metrics: std::sync::Arc<parking_lot::Mutex<TransportMetrics>>,
+}
+
+impl Default for GrpcTransport {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GrpcTransport {

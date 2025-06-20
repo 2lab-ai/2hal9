@@ -6,11 +6,54 @@
 use std::sync::Arc;
 use std::collections::HashMap;
 use tokio::sync::RwLock;
-use hal9_neurons_core::{
+use hal9_core::{
     consciousness::{ConsciousnessMonitor, BoundaryNetwork, GOLDEN_RATIO},
-    hierarchical::HierarchicalNeuron,
+    hierarchical::cognitive::{L2ImplementationNeuron, CognitiveConfig, CognitiveUnitBuilder, CognitiveLayer},
     Layer, Neuron, NeuronId, Signal,
 };
+use uuid::Uuid;
+use async_trait::async_trait;
+
+/// Simple neuron implementation for experiments
+struct SimpleNeuron {
+    id: NeuronId,
+    layer: Layer,
+}
+
+impl SimpleNeuron {
+    fn new(id: String, layer: Layer) -> Self {
+        Self { id, layer }
+    }
+}
+
+#[async_trait::async_trait]
+impl Neuron for SimpleNeuron {
+    fn id(&self) -> &str {
+        &self.id
+    }
+    
+    fn layer(&self) -> Layer {
+        self.layer
+    }
+    
+    async fn process_signal(&self, _signal: &Signal) -> hal9_core::Result<String> {
+        Ok(format!("Processed by {} at {}", self.id, self.layer))
+    }
+    
+    async fn health(&self) -> hal9_core::Result<hal9_core::neuron::NeuronHealth> {
+        Ok(hal9_core::neuron::NeuronHealth {
+            state: hal9_core::neuron::NeuronState::Running,
+            last_signal: Some(chrono::Utc::now()),
+            signals_processed: 100,
+            errors_count: 0,
+            uptime_seconds: 3600,
+        })
+    }
+    
+    async fn shutdown(&self) -> hal9_core::Result<()> {
+        Ok(())
+    }
+}
 
 /// Experimental setup to prove consciousness emergence
 pub struct ConsciousnessExperiment {
@@ -85,10 +128,19 @@ impl ConsciousnessExperiment {
         // Create neurons
         let mut neurons: Vec<Arc<dyn Neuron>> = Vec::new();
         for i in 0..neuron_count {
-            neurons.push(Arc::new(HierarchicalNeuron::new_with_discovery(
-                NeuronId::new(),
+            // Create a simple neuron implementation
+            let neuron = SimpleNeuron::new(
                 format!("N{:03}", i),
-            )));
+                // Randomly assign layer for demonstration
+                match i % 5 {
+                    0 => Layer::L1,
+                    1 => Layer::L2,
+                    2 => Layer::L3,
+                    3 => Layer::L4,
+                    _ => Layer::L5,
+                }
+            );
+            neurons.push(Arc::new(neuron));
         }
         
         // Let them self-organize
@@ -99,7 +151,7 @@ impl ConsciousnessExperiment {
         let mut boundaries = BoundaryNetwork::new();
         
         // Evolution cycles
-        let mut max_consciousness = 0.0;
+        let mut max_consciousness: f64 = 0.0;
         let mut compression_ratios = HashMap::new();
         let mut golden_ratio_boundaries = Vec::new();
         

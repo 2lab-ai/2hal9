@@ -106,17 +106,17 @@ async fn test_assessment_diversity() {
     // L1 questions should be between L1-L3
     assert!(l1_questions.iter().all(|q| {
         let diff = q.difficulty.value();
-        diff >= 1 && diff <= 3
+        (1..=3).contains(&diff)
     }));
     // L10 questions should be between L8-L12
     assert!(l10_questions.iter().all(|q| {
         let diff = q.difficulty.value();
-        diff >= 8 && diff <= 12
+        (8..=12).contains(&diff)
     }));
     // L20 questions should be between L18-L20
     assert!(l20_questions.iter().all(|q| {
         let diff = q.difficulty.value();
-        diff >= 18 && diff <= 20
+        (18..=20).contains(&diff)
     }));
     
     // Test category diversity - only if we have questions
@@ -296,14 +296,12 @@ fn test_agent_level_ordering() {
 fn test_question_categories() {
     use QuestionCategory::*;
     
-    let categories = vec![
-        LogicalReasoning,
+    let categories = [LogicalReasoning,
         PatternRecognition,
         CreativeProblemSolving,
         SystemsThinking,
         MetaCognition,
-        EthicalDilemmas,
-    ];
+        EthicalDilemmas];
     
     // All categories should be unique
     let unique: std::collections::HashSet<_> = categories.iter().collect();

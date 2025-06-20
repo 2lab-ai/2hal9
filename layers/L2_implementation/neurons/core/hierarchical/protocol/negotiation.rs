@@ -79,7 +79,7 @@ impl ProtocolNegotiator for SessionNegotiator {
     
     async fn finalize(&self, agreement: &NegotiationAgreement) -> Result<()> {
         // Update session
-        if let Some(mut session) = self.sessions.write().get_mut(&agreement.session_id) {
+        if let Some(session) = self.sessions.write().get_mut(&agreement.session_id) {
             session.state = NegotiationState::Agreed;
             session.completed_at = Some(chrono::Utc::now());
             session.agreement = Some(agreement.clone());

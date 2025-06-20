@@ -187,6 +187,12 @@ pub struct ToolRegistry {
     tools: HashMap<String, Box<dyn Tool>>,
 }
 
+impl Default for ToolRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ToolRegistry {
     /// Create a new tool registry
     pub fn new() -> Self {

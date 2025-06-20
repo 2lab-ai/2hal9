@@ -10,6 +10,12 @@ pub struct DefaultCognitiveFactory {
     protocol_manager: Option<Arc<crate::hierarchical::protocol::ProtocolManager>>,
 }
 
+impl Default for DefaultCognitiveFactory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DefaultCognitiveFactory {
     pub fn new() -> Self {
         Self {
@@ -31,13 +37,13 @@ impl CognitiveFactory for DefaultCognitiveFactory {
     ) -> Result<Box<dyn CognitiveUnit<Input = CognitiveInput, Output = CognitiveOutput, State = BasicCognitiveState>>> {
         match layer {
             CognitiveLayer::Reflexive => {
-                let mut neuron = Box::new(CognitiveUnitAdapter::new(
+                let neuron = Box::new(CognitiveUnitAdapter::new(
                     L1ReflexiveNeuron::new(config)
                 ));
                 
                 // Set protocols if available
                 if let Some(manager) = &self.protocol_manager {
-                    if let Some(signal_proto) = manager.get_protocol("signal-protocol") {
+                    if let Some(_signal_proto) = manager.get_protocol("signal-protocol") {
                         // neuron.inner.set_signal_protocol(signal_proto);
                     }
                 }
@@ -46,13 +52,13 @@ impl CognitiveFactory for DefaultCognitiveFactory {
             }
             
             CognitiveLayer::Implementation => {
-                let mut neuron = Box::new(CognitiveUnitAdapter::new(
+                let neuron = Box::new(CognitiveUnitAdapter::new(
                     L2ImplementationNeuron::new(config)
                 ));
                 
                 // Set protocols if available
                 if let Some(manager) = &self.protocol_manager {
-                    if let Some(gradient_proto) = manager.get_protocol("gradient-protocol") {
+                    if let Some(_gradient_proto) = manager.get_protocol("gradient-protocol") {
                         // neuron.inner.set_gradient_protocol(gradient_proto);
                     }
                 }
@@ -73,13 +79,13 @@ impl CognitiveFactory for DefaultCognitiveFactory {
             }
             
             CognitiveLayer::Strategic => {
-                let mut neuron = Box::new(CognitiveUnitAdapter::new(
+                let neuron = Box::new(CognitiveUnitAdapter::new(
                     L5StrategicNeuron::new(config)
                 ));
                 
                 // Set protocols if available
                 if let Some(manager) = &self.protocol_manager {
-                    if let Some(consensus_proto) = manager.get_protocol("consensus-protocol") {
+                    if let Some(_consensus_proto) = manager.get_protocol("consensus-protocol") {
                         // neuron.inner.set_consensus_protocol(consensus_proto);
                     }
                 }
@@ -219,7 +225,7 @@ mod tests {
                 .with_parameter("learning_rate", 0.01)
                 .build();
             
-            let unit = factory.create_unit(layer, config).unwrap();
+            let mut unit = factory.create_unit(layer, config).unwrap();
             assert_eq!(unit.layer(), layer);
             
             // Test basic processing

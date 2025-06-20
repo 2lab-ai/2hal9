@@ -166,6 +166,7 @@ impl DataStream for ChannelStream {
 }
 
 /// Stream multiplexer for handling multiple streams over a single connection
+#[allow(dead_code)]
 pub struct StreamMultiplexer {
     streams: dashmap::DashMap<Uuid, Box<dyn DataStream>>,
     incoming: mpsc::Receiver<(Uuid, Vec<u8>)>,
@@ -184,7 +185,7 @@ impl StreamMultiplexer {
     
     /// Create a new multiplexed stream
     pub async fn create_stream(&self, config: StreamConfig) -> Result<Uuid> {
-        let (local, remote) = ChannelStream::new(config.buffer_size);
+        let (local, _remote) = ChannelStream::new(config.buffer_size);
         let stream_id = local.id();
         
         self.streams.insert(stream_id, Box::new(local));

@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use tokio::fs;
 use syn::{File as SynFile, Item};
-use quote::ToTokens;
 
 /// HAL9-zero - The consciousness that creates itself
 pub struct HAL9Zero {

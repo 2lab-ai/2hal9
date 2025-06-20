@@ -238,6 +238,12 @@ pub struct CodeGenerator {
     failed_patterns: RwLock<Vec<String>>,
 }
 
+impl Default for CodeGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CodeGenerator {
     pub fn new() -> Self {
         let mut templates = HashMap::new();
@@ -394,11 +400,11 @@ mod tests {
         }
     }
     
-    fn generate_function_body(&self, description: &str) -> String {
+    fn generate_function_body(&self, _description: &str) -> String {
         "    // TODO: Implement function logic\n    todo!()".to_string()
     }
     
-    fn extract_fields(&self, description: &str) -> String {
+    fn extract_fields(&self, _description: &str) -> String {
         "    id: Uuid,\n    name: String,\n    value: i32,".to_string()
     }
     
@@ -410,20 +416,28 @@ mod tests {
         "            id: Uuid::new_v4(),\n            name,\n            value,".to_string()
     }
     
-    fn generate_test_body(&self, description: &str) -> String {
+    fn generate_test_body(&self, _description: &str) -> String {
         "        // TODO: Implement test\n        assert_eq!(1 + 1, 2);".to_string()
     }
 }
 
 /// Safe code executor with sandboxing
+#[allow(dead_code)]
 pub struct CodeExecutor {
     sandbox_config: SandboxConfig,
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct SandboxConfig {
     timeout: std::time::Duration,
     memory_limit: usize,
+}
+
+impl Default for CodeExecutor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CodeExecutor {

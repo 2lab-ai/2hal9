@@ -103,6 +103,7 @@ pub enum VoteType {
 }
 
 /// Distributed lock
+#[allow(dead_code)]
 pub struct DistributedLock {
     resource_id: ResourceId,
     lock_id: Uuid,
@@ -117,7 +118,7 @@ impl DistributedLock {
     }
     
     /// Extend lock duration
-    pub async fn extend(&self, duration: std::time::Duration) -> Result<()> {
+    pub async fn extend(&self, _duration: std::time::Duration) -> Result<()> {
         // Implementation would extend the lock
         Ok(())
     }
@@ -192,6 +193,7 @@ pub struct StateEvent {
 }
 
 /// Raft-based state coordinator
+#[allow(dead_code)]
 pub struct RaftCoordinator {
     node_id: Uuid,
     nodes: Arc<RwLock<HashMap<Uuid, NodeInfo>>>,
@@ -202,6 +204,7 @@ pub struct RaftCoordinator {
     event_sender: broadcast::Sender<StateEvent>,
 }
 
+#[allow(dead_code)]
 struct NodeInfo {
     id: Uuid,
     endpoint: String,
@@ -209,6 +212,7 @@ struct NodeInfo {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct LogEntry {
     term: u64,
     index: u64,
@@ -216,6 +220,7 @@ struct LogEntry {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum StateCommand {
     Set { key: String, value: serde_json::Value },
     Delete { key: String },
@@ -363,7 +368,7 @@ impl VectorClock {
     
     pub fn happens_before(&self, other: &VectorClock) -> bool {
         self.clocks.iter().all(|(k, v)| {
-            other.clocks.get(k).map_or(false, |other_v| v <= other_v)
+            other.clocks.get(k).is_some_and(|other_v| v <= other_v)
         })
     }
 }

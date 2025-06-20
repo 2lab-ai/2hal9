@@ -7,7 +7,7 @@ use crate::{Result, Error};
 /// Version migration for protocol messages
 pub trait VersionMigration: Send + Sync {
     /// Source version
-    fn from_version(&self) -> &ProtocolVersion;
+    fn source_version(&self) -> &ProtocolVersion;
     
     /// Target version
     fn to_version(&self) -> &ProtocolVersion;
@@ -34,7 +34,7 @@ impl VersionRegistry {
     
     /// Register a migration between versions
     pub fn register_migration(&mut self, migration: Box<dyn VersionMigration>) {
-        let key = (migration.from_version().clone(), migration.to_version().clone());
+        let key = (migration.source_version().clone(), migration.to_version().clone());
         self.migrations.insert(key, migration);
     }
     
@@ -99,7 +99,7 @@ impl Default for V1_0ToV1_1Migration {
 }
 
 impl VersionMigration for V1_0ToV1_1Migration {
-    fn from_version(&self) -> &ProtocolVersion {
+    fn source_version(&self) -> &ProtocolVersion {
         &self.from
     }
     

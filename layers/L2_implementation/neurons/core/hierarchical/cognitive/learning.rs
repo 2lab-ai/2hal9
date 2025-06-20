@@ -104,6 +104,7 @@ impl HebbianLearning {
 }
 
 /// Reinforcement learning for decision making
+#[allow(dead_code)]
 pub struct ReinforcementLearning {
     q_table: HashMap<(State, Action), f32>,
     learning_rate: f32,
@@ -182,6 +183,12 @@ pub struct StrategyMetrics {
     pub success_rate: f32,
 }
 
+impl Default for MetaLearning {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MetaLearning {
     pub fn new() -> Self {
         Self {
@@ -190,7 +197,7 @@ impl MetaLearning {
         }
     }
     
-    pub async fn select_best_strategy(&self, data_characteristics: &DataCharacteristics) -> Option<&dyn LearningStrategy> {
+    pub async fn select_best_strategy(&self, _data_characteristics: &DataCharacteristics) -> Option<&dyn LearningStrategy> {
         // Select strategy based on past performance and data characteristics
         self.learning_strategies.iter()
             .max_by_key(|s| {
@@ -210,6 +217,7 @@ pub struct DataCharacteristics {
 }
 
 /// Continual learning to avoid catastrophic forgetting
+#[allow(dead_code)]
 pub struct ContinualLearning {
     memory_buffer: ExperienceReplay,
     regularization_strength: f32,

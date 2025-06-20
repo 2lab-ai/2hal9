@@ -87,6 +87,7 @@ impl PatternFormation {
 }
 
 /// Emergent behavior detection
+#[allow(dead_code)]
 pub struct EmergentBehaviorDetector {
     behaviors: Vec<EmergentBehavior>,
     detection_window: std::time::Duration,
@@ -134,10 +135,20 @@ pub struct ClusterCenter {
     pub purpose: String,
 }
 
+// Type alias for organization rule functions
+type ClusterConditionFn = Box<dyn Fn(&CognitiveCluster) -> bool + Send + Sync>;
+type ClusterActionFn = Box<dyn Fn(&mut Vec<CognitiveCluster>) + Send + Sync>;
+
 pub struct OrganizationRule {
     pub name: String,
-    pub condition: Box<dyn Fn(&CognitiveCluster) -> bool + Send + Sync>,
-    pub action: Box<dyn Fn(&mut Vec<CognitiveCluster>) + Send + Sync>,
+    pub condition: ClusterConditionFn,
+    pub action: ClusterActionFn,
+}
+
+impl Default for SelfOrganization {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SelfOrganization {
@@ -178,9 +189,12 @@ pub struct InspirationSource {
     pub activation_level: f32,
 }
 
+// Type alias for combination method
+type CombineFn = Box<dyn Fn(&[InspirationSource]) -> Option<NovelIdea> + Send + Sync>;
+
 pub struct CombinationMethod {
     pub name: String,
-    pub combine: Box<dyn Fn(&[InspirationSource]) -> Option<NovelIdea> + Send + Sync>,
+    pub combine: CombineFn,
 }
 
 #[derive(Debug, Clone)]

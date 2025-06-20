@@ -19,7 +19,7 @@ use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 
-use crate::{Layer, Neuron, Signal};
+use crate::Neuron;
 
 /// The golden ratio - appears at consciousness boundaries
 pub const GOLDEN_RATIO: f64 = 1.618033988749;
@@ -315,6 +315,7 @@ pub enum ConsciousnessTrajectory {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Layer;
     
     #[test]
     fn test_golden_ratio_detection() {

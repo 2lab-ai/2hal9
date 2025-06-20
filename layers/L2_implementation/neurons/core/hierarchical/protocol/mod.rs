@@ -127,6 +127,7 @@ pub struct NegotiatedProtocol {
 // Signal and Gradient protocols are defined in their respective modules
 
 /// Query protocol for request/response patterns
+#[allow(dead_code)]
 pub struct QueryProtocol {
     version: ProtocolVersion,
     timeout: std::time::Duration,
@@ -142,6 +143,7 @@ impl QueryProtocol {
 }
 
 /// Stream protocol for continuous data flows
+#[allow(dead_code)]
 pub struct StreamProtocol {
     version: ProtocolVersion,
     buffer_size: usize,

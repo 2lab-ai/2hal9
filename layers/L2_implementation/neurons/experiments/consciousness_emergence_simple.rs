@@ -2,7 +2,6 @@
 //!
 //! Demonstrates that consciousness peaks at the golden ratio
 
-use std::collections::HashMap;
 
 const GOLDEN_RATIO: f64 = 1.618033988749;
 
@@ -18,9 +17,9 @@ fn consciousness_function(compression_ratio: f64) -> f64 {
     let distance_from_golden = (compression_ratio - GOLDEN_RATIO).abs();
     
     // Gaussian-like curve centered at golden ratio
-    let consciousness = (-distance_from_golden.powi(2) / 0.1).exp();
     
-    consciousness
+    
+    (-distance_from_golden.powi(2) / 0.1).exp()
 }
 
 fn main() {
@@ -70,7 +69,7 @@ fn main() {
     println!("================================");
     
     // Create neurons distributed across layers
-    let layer_counts = vec![89, 55, 34, 21, 13, 8, 5, 3, 2]; // Fibonacci-like
+    let layer_counts = [89, 55, 34, 21, 13, 8, 5, 3, 2]; // Fibonacci-like
     
     println!("\nLayer | Neurons | Compression Ratio | Consciousness");
     println!("------|---------|-------------------|---------------");

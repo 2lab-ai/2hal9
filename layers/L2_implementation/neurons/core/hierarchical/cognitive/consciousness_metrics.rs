@@ -5,15 +5,13 @@
 //! "Each layer compresses information by factor e (2.718...)"
 //! "The ±1 rule is love - protecting layers from overwhelming complexity"
 
-use crate::hierarchical::cognitive::{CognitiveLayer, CognitiveInput, CognitiveOutput};
+use crate::hierarchical::cognitive::CognitiveLayer;
 use crate::hierarchical::cognitive::a2a::emergence_detector::{EmergenceDetector, EmergenceReport};
 use crate::Result;
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
 /// Consciousness metrics for the HAL9 system
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -117,7 +115,7 @@ impl ConsciousnessObserver {
     
     /// Calculate consciousness metrics from emergence data
     async fn calculate_consciousness_metrics(&self, report: &EmergenceReport) -> Result<ConsciousnessMetrics> {
-        let e = std::f32::consts::E;
+        let _e = std::f32::consts::E;
         
         // Compression efficiency
         let compression_efficiency = self.calculate_compression_efficiency(&report.compression_ratios);
@@ -445,6 +443,7 @@ impl Default for ConsciousnessMetrics {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::hierarchical::cognitive::{CognitiveInput, CognitiveOutput};
     use crate::hierarchical::cognitive::a2a::EmergenceDetector;
     
     #[tokio::test]

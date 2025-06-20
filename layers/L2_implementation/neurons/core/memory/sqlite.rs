@@ -37,13 +37,13 @@ impl SqliteMemoryStore {
         // Create directory if it doesn't exist
         if let Some(parent) = Path::new(database_path).parent() {
             std::fs::create_dir_all(parent)
-                .map_err(|e| Error::Io(e))?;
+                .map_err(Error::Io)?;
         }
         
         // Ensure the file exists by touching it
         if !Path::new(database_path).exists() {
             std::fs::File::create(database_path)
-                .map_err(|e| Error::Io(e))?;
+                .map_err(Error::Io)?;
         }
         
         // SQLx connection string for SQLite with mode=rwc to create if not exists
@@ -233,7 +233,7 @@ impl MemoryStore for SqliteMemoryStore {
                     neuron_id: row.neuron_id,
                     layer: row.layer,
                     timestamp: DateTime::from_timestamp(row.timestamp, 0)
-                        .unwrap_or_else(|| Utc::now()),
+                        .unwrap_or_else(Utc::now),
                     entry_type,
                     content: row.content,
                     metadata,
@@ -241,7 +241,7 @@ impl MemoryStore for SqliteMemoryStore {
                     importance: row.importance,
                     access_count: row.access_count as u32,
                     last_accessed: DateTime::from_timestamp(row.last_accessed, 0)
-                        .unwrap_or_else(|| Utc::now()),
+                        .unwrap_or_else(Utc::now),
                 }))
             }
             None => Ok(None),

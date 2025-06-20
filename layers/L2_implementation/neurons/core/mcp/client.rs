@@ -39,6 +39,12 @@ pub struct WrapperMCPClient {
     capabilities: Option<NeuronCapability>,
 }
 
+impl Default for WrapperMCPClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WrapperMCPClient {
     pub fn new() -> Self {
         Self {
@@ -195,6 +201,12 @@ impl WrapperMCPClient {
 /// Connection manager for multiple neuron connections
 pub struct MCPConnectionManager {
     connections: HashMap<String, Box<dyn MCPClient>>,
+}
+
+impl Default for MCPConnectionManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MCPConnectionManager {

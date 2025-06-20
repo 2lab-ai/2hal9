@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet, BinaryHeap};
 use std::cmp::Ordering;
 use uuid::Uuid;
 use crate::Result;
+pub use super::{TopologyChange, RoutingHints};
 
 /// Signal router for intelligent message routing
 #[async_trait]
@@ -40,13 +41,7 @@ pub enum SignalType {
     Data { content_type: String },
 }
 
-#[derive(Debug, Clone)]
-pub struct RoutingHints {
-    pub target_layers: Option<Vec<u8>>,
-    pub target_capabilities: Option<Vec<String>>,
-    pub preferred_paths: Option<Vec<Vec<Uuid>>>,
-    pub qos_requirements: QosRequirements,
-}
+// RoutingHints is imported from mod.rs
 
 #[derive(Debug, Clone)]
 pub struct QosRequirements {
@@ -55,14 +50,7 @@ pub struct QosRequirements {
     pub reliability: Option<f32>,
 }
 
-#[derive(Debug, Clone)]
-pub enum TopologyChange {
-    NodeAdded { id: Uuid, properties: NodeProperties },
-    NodeRemoved { id: Uuid },
-    LinkAdded { from: Uuid, to: Uuid, properties: LinkProperties },
-    LinkRemoved { from: Uuid, to: Uuid },
-    LinkUpdated { from: Uuid, to: Uuid, properties: LinkProperties },
-}
+// TopologyChange is imported from mod.rs
 
 #[derive(Debug, Clone)]
 pub struct NodeProperties {
@@ -71,11 +59,31 @@ pub struct NodeProperties {
     pub capacity: f32,
 }
 
+impl Default for NodeProperties {
+    fn default() -> Self {
+        Self {
+            layer: 0,
+            capabilities: HashSet::new(),
+            capacity: 100.0,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct LinkProperties {
     pub latency_ms: f32,
     pub bandwidth_mbps: f32,
     pub reliability: f32,
+}
+
+impl Default for LinkProperties {
+    fn default() -> Self {
+        Self {
+            latency_ms: 1.0,
+            bandwidth_mbps: 1000.0,
+            reliability: 0.99,
+        }
+    }
 }
 
 /// Routing path with metadata
@@ -246,24 +254,19 @@ impl DijkstraRouter {
     fn get_target_nodes(&self, hints: &RoutingHints) -> Vec<Uuid> {
         let mut targets = Vec::new();
         
-        // Filter by layer
-        if let Some(target_layers) = &hints.target_layers {
-            for (node_id, props) in &self.graph.nodes {
-                if target_layers.contains(&props.layer) {
-                    targets.push(*node_id);
-                }
+        // If preferred path is specified, use the last node as target
+        if let Some(ref path) = hints.preferred_path {
+            if let Some(target) = path.last() {
+                targets.push(*target);
+                return targets;
             }
         }
         
-        // Filter by capabilities
-        if let Some(required_caps) = &hints.target_capabilities {
-            targets.retain(|node_id| {
-                if let Some(props) = self.graph.nodes.get(node_id) {
-                    required_caps.iter().all(|cap| props.capabilities.contains(cap))
-                } else {
-                    false
-                }
-            });
+        // Otherwise return all nodes except those to avoid
+        for node_id in self.graph.nodes.keys() {
+            if !hints.avoid_units.contains(node_id) {
+                targets.push(*node_id);
+            }
         }
         
         targets
@@ -282,14 +285,16 @@ impl SignalRouter for DijkstraRouter {
             
             if let Some(cached_path) = self.cache.paths.get(&cache_key) {
                 paths.push(cached_path.clone());
-            } else {
-                if let Some(path) = self.find_shortest_path(
-                    signal.source, 
-                    &[target], 
-                    &signal.routing_hints.qos_requirements
-                ) {
-                    paths.push(path);
+            } else if let Some(path) = self.find_shortest_path(
+                signal.source, 
+                &[target], 
+                &QosRequirements {
+                    max_latency_ms: None,
+                    min_bandwidth_mbps: None,
+                    reliability: None,
                 }
+            ) {
+                paths.push(path);
             }
         }
         
@@ -298,11 +303,12 @@ impl SignalRouter for DijkstraRouter {
     
     async fn update_topology(&mut self, change: TopologyChange) -> Result<()> {
         match change {
-            TopologyChange::NodeAdded { id, properties } => {
-                self.graph.nodes.insert(id, properties);
+            TopologyChange::UnitAdded { id } => {
+                // Create default properties for the unit
+                self.graph.nodes.insert(id, NodeProperties::default());
                 self.graph.adjacency.insert(id, HashMap::new());
             }
-            TopologyChange::NodeRemoved { id } => {
+            TopologyChange::UnitRemoved { id } => {
                 self.graph.nodes.remove(&id);
                 self.graph.adjacency.remove(&id);
                 // Remove all edges to this node
@@ -312,26 +318,30 @@ impl SignalRouter for DijkstraRouter {
                 // Clear cache entries involving this node
                 self.cache.paths.retain(|(from, to), _| *from != id && *to != id);
             }
-            TopologyChange::LinkAdded { from, to, properties } => {
+            TopologyChange::ConnectionAdded { from, to } => {
+                // Create default link properties
                 self.graph.adjacency.entry(from)
-                    .or_insert_with(HashMap::new)
-                    .insert(to, properties);
+                    .or_default()
+                    .insert(to, LinkProperties::default());
             }
-            TopologyChange::LinkRemoved { from, to } => {
+            TopologyChange::ConnectionRemoved { from, to } => {
                 if let Some(neighbors) = self.graph.adjacency.get_mut(&from) {
                     neighbors.remove(&to);
                 }
                 // Clear cache entries using this link
-                self.cache.paths.retain(|(f, t), path| {
+                self.cache.paths.retain(|(_f, _t), path| {
                     !path.path.windows(2).any(|w| w[0] == from && w[1] == to)
                 });
             }
-            TopologyChange::LinkUpdated { from, to, properties } => {
+            TopologyChange::ConnectionWeightChanged { from, to, old: _, new: weight } => {
                 if let Some(neighbors) = self.graph.adjacency.get_mut(&from) {
-                    neighbors.insert(to, properties);
+                    if let Some(link) = neighbors.get_mut(&to) {
+                        // Update the weight/bandwidth based on the new weight
+                        link.bandwidth_mbps = weight * 100.0; // Convert weight to bandwidth
+                    }
                 }
                 // Clear cache entries using this link
-                self.cache.paths.retain(|(f, t), path| {
+                self.cache.paths.retain(|(_f, _t), path| {
                     !path.path.windows(2).any(|w| w[0] == from && w[1] == to)
                 });
             }
@@ -381,9 +391,16 @@ impl PartialOrd for OrderedFloat {
 }
 
 /// Hierarchical router for multi-level routing
+#[allow(dead_code)]
 pub struct HierarchicalRouter {
     level_routers: HashMap<u8, Box<dyn SignalRouter>>,
     inter_level_links: HashMap<(u8, u8), Vec<(Uuid, Uuid)>>,
+}
+
+impl Default for HierarchicalRouter {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl HierarchicalRouter {

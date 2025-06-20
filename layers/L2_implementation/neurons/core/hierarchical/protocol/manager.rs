@@ -56,6 +56,7 @@ pub struct ProtocolManager {
 
 /// Connection state tracking
 #[derive(Clone)]
+#[allow(dead_code)]
 struct ConnectionState {
     peer_id: String,
     negotiated_protocols: HashMap<String, NegotiatedProtocol>,
@@ -245,7 +246,7 @@ impl ProtocolManager {
         ).await?;
         
         // Update last activity
-        if let Some(mut conn) = self.active_connections.write().get_mut(peer_id) {
+        if let Some(conn) = self.active_connections.write().get_mut(peer_id) {
             conn.last_activity = chrono::Utc::now();
         }
         

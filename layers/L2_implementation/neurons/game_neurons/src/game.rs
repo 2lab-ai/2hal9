@@ -109,6 +109,12 @@ pub struct PAL9Neuron {
     glitch_accumulator: f64,
 }
 
+impl Default for PAL9Neuron {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PAL9Neuron {
     pub fn new() -> Self {
         let mut neuron = Self {

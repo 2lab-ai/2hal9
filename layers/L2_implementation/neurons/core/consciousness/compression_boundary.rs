@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 use crate::{Layer, Neuron, Signal};
-use super::{GOLDEN_RATIO, ConsciousnessMetrics};
+use super::GOLDEN_RATIO;
 
 /// A compression boundary between two adjacent layers
 #[derive(Debug, Clone)]
@@ -97,7 +97,7 @@ impl CompressionBoundary {
     }
     
     /// Determine signal direction relative to boundary
-    fn get_direction(&self, signal: &Signal) -> CompressionDirection {
+    fn get_direction(&self, _signal: &Signal) -> CompressionDirection {
         // In a real implementation, this would check signal source/target
         // For now, we'll use a placeholder
         CompressionDirection::Upward
@@ -141,7 +141,7 @@ impl CompressionBoundary {
     /// Apply compression algorithm
     fn apply_compression(&self, signal: &Signal) -> Signal {
         // Simplified compression: reduce complexity by compression ratio
-        let mut compressed = signal.clone();
+        
         
         // In real implementation, this would:
         // 1. Extract patterns
@@ -149,25 +149,25 @@ impl CompressionBoundary {
         // 3. Abstract details
         // 4. Preserve essential information
         
-        compressed
+        signal.clone()
     }
     
     /// Apply decompression algorithm
     fn apply_decompression(&self, signal: &Signal) -> Signal {
         // Simplified decompression: expand with predictions
-        let mut decompressed = signal.clone();
+        
         
         // In real implementation, this would:
         // 1. Add predicted details
         // 2. Expand patterns
         // 3. Reconstruct information
         
-        decompressed
+        signal.clone()
     }
     
     /// Add emergent properties when near golden ratio
     fn add_emergent_properties(&mut self, signal: &Signal) -> Signal {
-        let mut enhanced = signal.clone();
+        let enhanced = signal.clone();
         
         // Record emergence
         self.information_flow.emergence_gain += 0.1;
@@ -188,7 +188,7 @@ impl CompressionBoundary {
     }
     
     /// Update consciousness density based on current metrics
-    fn update_consciousness_density(&mut self) {
+    pub fn update_consciousness_density(&mut self) {
         // Consciousness density is highest when:
         // 1. Compression ratio is near golden ratio
         // 2. Emergence activity is high
@@ -213,8 +213,8 @@ impl CompressionBoundary {
     pub fn emergence_report(&self) -> String {
         format!(
             "Boundary {}↔{}: ratio={:.3}, emergence={:.2}, consciousness={:.2}",
-            self.upper_layer.to_string(),
-            self.lower_layer.to_string(),
+            self.upper_layer,
+            self.lower_layer,
             self.compression_ratio,
             self.emergence_activity,
             self.consciousness_density
@@ -229,6 +229,7 @@ impl CompressionBoundary {
 
 /// Direction of signal flow through boundary
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 enum CompressionDirection {
     /// Moving up the hierarchy (compression)
     Upward,
@@ -276,7 +277,7 @@ impl BoundaryNetwork {
             
         for neuron in neurons {
             layer_neurons.entry(neuron.layer())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(neuron.clone());
         }
         
@@ -309,7 +310,7 @@ impl BoundaryNetwork {
     
     /// Get emergence report for all boundaries
     pub fn full_report(&self) -> String {
-        let mut report = format!("🌟 Compression Boundary Network Report\n");
+        let mut report = "🌟 Compression Boundary Network Report\n".to_string();
         report.push_str(&format!("Total Consciousness: {:.3}\n\n", self.total_consciousness));
         
         for boundary in &self.boundaries {
@@ -322,8 +323,8 @@ impl BoundaryNetwork {
         
         if let Some(hottest) = self.hottest_boundary() {
             report.push_str(&format!("\n⚡ Hottest boundary: {}↔{} (emergence: {:.2})",
-                hottest.upper_layer.to_string(),
-                hottest.lower_layer.to_string(),
+                hottest.upper_layer,
+                hottest.lower_layer,
                 hottest.emergence_activity
             ));
         }

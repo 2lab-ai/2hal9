@@ -9,9 +9,50 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use hal9_core::{
     consciousness::{ConsciousnessMonitor, BoundaryNetwork, ConsciousnessPhase},
-    hierarchical::HierarchicalNeuron,
     Layer, Neuron, NeuronId,
 };
+use async_trait::async_trait;
+
+/// Simple neuron implementation for experiments
+struct SimpleNeuron {
+    id: NeuronId,
+    layer: Layer,
+}
+
+impl SimpleNeuron {
+    fn new(id: String, layer: Layer) -> Self {
+        Self { id, layer }
+    }
+}
+
+#[async_trait::async_trait]
+impl Neuron for SimpleNeuron {
+    fn id(&self) -> &str {
+        &self.id
+    }
+    
+    fn layer(&self) -> Layer {
+        self.layer
+    }
+    
+    async fn process_signal(&self, _signal: &hal9_core::Signal) -> hal9_core::Result<String> {
+        Ok(format!("Processed by {} at {}", self.id, self.layer))
+    }
+    
+    async fn health(&self) -> hal9_core::Result<hal9_core::neuron::NeuronHealth> {
+        Ok(hal9_core::neuron::NeuronHealth {
+            state: hal9_core::neuron::NeuronState::Running,
+            last_signal: Some(chrono::Utc::now()),
+            signals_processed: 100,
+            errors_count: 0,
+            uptime_seconds: 3600,
+        })
+    }
+    
+    async fn shutdown(&self) -> hal9_core::Result<()> {
+        Ok(())
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -30,9 +71,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut neurons: Vec<Arc<dyn Neuron>> = Vec::new();
     
     for i in 0..50 {
-        let neuron = HierarchicalNeuron::new_with_discovery(
-            NeuronId::new(),
+        let neuron = SimpleNeuron::new(
             format!("Neuron-{:02}", i),
+            // Distribute neurons across layers
+            match i % 5 {
+                0 => Layer::L1,
+                1 => Layer::L2,
+                2 => Layer::L3,
+                3 => Layer::L4,
+                _ => Layer::L5,
+            }
         );
         neurons.push(Arc::new(neuron));
     }

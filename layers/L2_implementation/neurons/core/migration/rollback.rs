@@ -96,15 +96,16 @@ impl RollbackManager {
         self.rollback_history.write().push(event.clone());
         
         // Execute based on strategy
-        match &*self.strategy.read() {
+        let strategy = self.strategy.read().clone();
+        match strategy {
             RollbackStrategy::Immediate => {
                 self.execute_immediate_rollback(&snapshot).await?;
             }
             RollbackStrategy::Gradual { duration } => {
-                self.execute_gradual_rollback(&snapshot, *duration).await?;
+                self.execute_gradual_rollback(&snapshot, duration).await?;
             }
             RollbackStrategy::Partial { components } => {
-                self.execute_partial_rollback(&snapshot, components).await?;
+                self.execute_partial_rollback(&snapshot, &components).await?;
             }
         }
         
@@ -205,7 +206,7 @@ impl RollbackManager {
         sys.refresh_all();
         
         // Get memory usage
-        let memory_usage_mb = (sys.used_memory() / 1024 / 1024) as u64;
+        let memory_usage_mb = sys.used_memory() / 1024 / 1024;
         
         // Get CPU usage
         let cpu_usage_percent = sys.global_cpu_info().cpu_usage();
@@ -589,7 +590,7 @@ impl RollbackManager {
         // Fallback: count connections to our port
         use std::process::Command;
         let output = Command::new("lsof")
-            .args(&["-i", ":8080", "-sTCP:ESTABLISHED"])
+            .args(["-i", ":8080", "-sTCP:ESTABLISHED"])
             .output()
             .map_err(|e| Error::Migration(format!("Failed to run lsof: {}", e)))?;
         

@@ -19,6 +19,7 @@ pub trait ProcessingPattern: Send + Sync {
 }
 
 /// Sequential processing pattern
+#[allow(dead_code)]
 pub struct SequentialPattern {
     steps: Vec<Box<dyn ProcessingStep>>,
 }
@@ -29,6 +30,7 @@ pub trait ProcessingStep: Send + Sync {
 }
 
 /// Parallel processing pattern
+#[allow(dead_code)]
 pub struct ParallelPattern {
     branches: Vec<Box<dyn ProcessingBranch>>,
     aggregator: Box<dyn ResultAggregator>,
@@ -52,6 +54,7 @@ pub struct BranchResult {
 }
 
 /// Recursive processing pattern
+#[allow(dead_code)]
 pub struct RecursivePattern {
     max_depth: usize,
     decomposer: Box<dyn TaskDecomposer>,
@@ -69,14 +72,19 @@ pub trait ResultComposer: Send + Sync {
 }
 
 /// Emergent processing pattern
+// Type aliases for complex function types
+type ConditionFn = Box<dyn Fn(&ProcessingState) -> bool + Send + Sync>;
+type ActionFn = Box<dyn Fn(&mut ProcessingState) -> Result<()> + Send + Sync>;
+
+#[allow(dead_code)]
 pub struct EmergentPattern {
     activation_threshold: f32,
     interaction_rules: Vec<InteractionRule>,
 }
 
 pub struct InteractionRule {
-    pub condition: Box<dyn Fn(&ProcessingState) -> bool + Send + Sync>,
-    pub action: Box<dyn Fn(&mut ProcessingState) -> Result<()> + Send + Sync>,
+    pub condition: ConditionFn,
+    pub action: ActionFn,
 }
 
 /// Processing state for pattern execution
@@ -95,6 +103,7 @@ pub struct PartialResult {
 }
 
 /// Quantum-inspired superposition processing
+#[allow(dead_code)]
 pub struct QuantumPattern {
     superposition_states: Vec<SuperpositionState>,
     collapse_function: Box<dyn CollapseFunction>,
@@ -115,6 +124,12 @@ pub struct ProcessingStrategySelector {
     strategies: HashMap<CognitiveLayer, Vec<Box<dyn ProcessingPattern>>>,
 }
 
+impl Default for ProcessingStrategySelector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ProcessingStrategySelector {
     pub fn new() -> Self {
         Self {
@@ -124,7 +139,7 @@ impl ProcessingStrategySelector {
     
     pub fn register_strategy(&mut self, layer: CognitiveLayer, pattern: Box<dyn ProcessingPattern>) {
         self.strategies.entry(layer)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(pattern);
     }
     

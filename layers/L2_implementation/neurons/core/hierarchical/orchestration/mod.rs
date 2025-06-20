@@ -217,14 +217,7 @@ impl Orchestrator for DefaultOrchestrator {
         self.topology_manager.add_node(unit.clone()).await?;
         
         // Update router topology
-        self.router.update_topology(routing::TopologyChange::NodeAdded { 
-            id: unit_id,
-            properties: routing::NodeProperties {
-                layer: unit.layer as u8,
-                capabilities: unit.capabilities.iter().map(|c| c.name.clone()).collect(),
-                capacity: unit.resource_requirements.cpu_cores * 100.0,
-            }
-        }).await?;
+        self.router.update_topology(TopologyChange::UnitAdded { id: unit_id }).await?;
         
         Ok(unit_id)
     }
@@ -234,7 +227,7 @@ impl Orchestrator for DefaultOrchestrator {
         self.topology_manager.remove_node(unit_id).await?;
         
         // Update router
-        self.router.update_topology(routing::TopologyChange::NodeRemoved { id: unit_id }).await?;
+        self.router.update_topology(TopologyChange::UnitRemoved { id: unit_id }).await?;
         
         Ok(())
     }
@@ -244,15 +237,7 @@ impl Orchestrator for DefaultOrchestrator {
         self.topology_manager.add_edge(from, to, connection.clone()).await?;
         
         // Update router
-        self.router.update_topology(routing::TopologyChange::LinkAdded { 
-            from, 
-            to,
-            properties: routing::LinkProperties {
-                latency_ms: connection.latency_ms,
-                bandwidth_mbps: connection.bandwidth_limit.unwrap_or(1000.0),
-                reliability: 0.99,
-            }
-        }).await?;
+        self.router.update_topology(TopologyChange::ConnectionAdded { from, to }).await?;
         
         Ok(())
     }
@@ -262,7 +247,7 @@ impl Orchestrator for DefaultOrchestrator {
         self.topology_manager.remove_edge(from, to).await?;
         
         // Update router
-        self.router.update_topology(routing::TopologyChange::LinkRemoved { from, to }).await?;
+        self.router.update_topology(TopologyChange::ConnectionRemoved { from, to }).await?;
         
         Ok(())
     }
@@ -279,16 +264,7 @@ impl Orchestrator for DefaultOrchestrator {
                 SignalType::Data => routing::SignalType::Data { content_type: "json".to_string() },
             },
             payload_size: signal.payload.to_string().len(),
-            routing_hints: routing::RoutingHints {
-                target_layers: None,
-                target_capabilities: None,
-                preferred_paths: signal.routing_hints.preferred_path.map(|p| vec![p]),
-                qos_requirements: routing::QosRequirements {
-                    max_latency_ms: None,
-                    min_bandwidth_mbps: None,
-                    reliability: None,
-                },
-            },
+            routing_hints: signal.routing_hints.clone(),
         };
         
         // Get routing paths
@@ -308,8 +284,7 @@ impl Orchestrator for DefaultOrchestrator {
         // Get all units and connections from state
         let state_snapshot = self.state_coordinator.snapshot().await?;
         
-        let units: HashMap<Uuid, UnitDescriptor> = state_snapshot.units.into_iter()
-            .map(|(id, unit_state)| {
+        let units: HashMap<Uuid, UnitDescriptor> = state_snapshot.units.into_keys().map(|id| {
                 (id, UnitDescriptor {
                     id,
                     unit_type: UnitType::Neuron,

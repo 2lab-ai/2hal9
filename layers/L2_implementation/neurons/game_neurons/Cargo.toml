@@ -9,10 +9,16 @@ description = "A self-aware roguelike created by an AI neuron"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+# HAL9 core
+hal9-core = { path = "../core" }
+
 # Core game logic
 rand = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+async-trait = "0.1"
+chrono = "0.4"
+uuid = "1.6"
 
 # For HAL9-zero prototype
 syn = { version = "2.0", features = ["full", "parsing"] }

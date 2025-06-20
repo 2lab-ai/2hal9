@@ -236,6 +236,7 @@ pub struct SelfOrganizationConfig {
 }
 
 /// Default intelligence coordinator implementation
+#[allow(dead_code)]
 pub struct DefaultIntelligenceCoordinator {
     meta_learner: Box<dyn MetaLearner>,
     self_organizer: Box<dyn SelfOrganizer>,

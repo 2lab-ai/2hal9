@@ -168,6 +168,12 @@ pub struct LocalResources {
     allocated_memory: AtomicU64,
 }
 
+impl Default for LocalResources {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LocalResources {
     pub fn new() -> Self {
         let resources = Self {
@@ -190,7 +196,7 @@ impl LocalResources {
         let allocations = Arc::clone(&self.allocations);
         let monitors = Arc::clone(&self.monitors);
         let system_tracker = Arc::clone(&self.system_tracker);
-        let neuron_usage = Arc::clone(&self.neuron_usage);
+        let _neuron_usage = Arc::clone(&self.neuron_usage);
         
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(1));
@@ -224,7 +230,7 @@ impl LocalResources {
                 // Clean up expired allocations
                 let now = chrono::Utc::now();
                 allocations.retain(|_, alloc| {
-                    alloc.expires_at.map_or(true, |exp| exp > now)
+                    alloc.expires_at.is_none_or(|exp| exp > now)
                 });
             }
         });
@@ -383,6 +389,7 @@ struct ClusterScheduler {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 enum SchedulingStrategy {
     BestFit,
     FirstFit,
@@ -443,6 +450,12 @@ impl NodeResources {
         let cpu_load = self.allocated_cpu / self.cpu_cores;
         let memory_load = self.allocated_memory as f32 / self.memory_mb as f32;
         (cpu_load + memory_load) / 2.0
+    }
+}
+
+impl Default for ClusterResources {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -514,13 +527,12 @@ impl ComputeResource for ClusterResources {
         if let Some((_id, alloc)) = self.allocations.remove(&allocation.allocation_id) {
             // Find which node had this allocation
             // In real implementation, would track this mapping
-            for mut entry in self.node_resources.iter_mut() {
+            if let Some(mut entry) = self.node_resources.iter_mut().next() {
                 let node = entry.value_mut();
                 // Assume we can identify the node somehow
                 node.allocated_cpu -= alloc.cpu_cores;
                 node.allocated_memory -= alloc.memory_mb;
                 node.allocated_gpu -= alloc.gpu_ids.len() as u32;
-                break;
             }
             Ok(())
         } else {
@@ -602,6 +614,7 @@ impl ComputeResource for ClusterResources {
 }
 
 /// Kubernetes resource manager
+#[allow(dead_code)]
 pub struct K8sResources {
     namespace: String,
     // Would integrate with K8s API

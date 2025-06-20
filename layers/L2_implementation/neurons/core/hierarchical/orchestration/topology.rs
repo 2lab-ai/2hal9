@@ -1,7 +1,7 @@
 //! Topology management for dynamic graph structures
 
 use async_trait::async_trait;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use uuid::Uuid;
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
@@ -148,8 +148,8 @@ impl GraphTopology {
         let mut distances = vec![vec![usize::MAX; n]; n];
         
         // Initialize distances
-        for i in 0..n {
-            distances[i][i] = 0;
+        for (i, row) in distances.iter_mut().enumerate() {
+            row[i] = 0;
         }
         
         for edge in self.graph.edge_indices() {
@@ -171,10 +171,10 @@ impl GraphTopology {
         
         // Find maximum distance
         let mut diameter = 0;
-        for i in 0..n {
-            for j in 0..n {
-                if distances[i][j] != usize::MAX {
-                    diameter = diameter.max(distances[i][j]);
+        for row in &distances {
+            for &distance in row {
+                if distance != usize::MAX {
+                    diameter = diameter.max(distance);
                 }
             }
         }
@@ -258,8 +258,8 @@ impl TopologyManager for GraphTopology {
         
         if path.contains_key(to_idx) {
             // Reconstruct path
-            let mut current = *to_idx;
-            let mut path_nodes = vec![to];
+            let _current = *to_idx;
+            let path_nodes = vec![to];
             
             // This is simplified - proper path reconstruction would require parent tracking
             Ok(Some(path_nodes))
@@ -312,6 +312,12 @@ pub struct HierarchicalTopology {
     inter_level_connections: HashMap<(u8, u8), Vec<(NodeId, NodeId)>>,
 }
 
+impl Default for HierarchicalTopology {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HierarchicalTopology {
     pub fn new() -> Self {
         Self {
@@ -327,7 +333,7 @@ impl HierarchicalTopology {
     pub async fn add_inter_level_connection(&mut self, from_level: u8, from_node: NodeId, to_level: u8, to_node: NodeId) -> Result<()> {
         let key = (from_level, to_level);
         self.inter_level_connections.entry(key)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push((from_node, to_node));
         Ok(())
     }

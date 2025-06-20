@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use crate::hierarchical::substrate::transport::{ChannelTransport, DefaultTransport, TypedTransport};
+    use crate::hierarchical::substrate::transport::ChannelTransport;
     use std::sync::Arc;
     use tokio::time::{timeout, Duration};
     use uuid::Uuid;
@@ -48,7 +48,7 @@ mod tests {
         let negotiator_a = DefaultNegotiator::new(protocols_a.clone(), capabilities_a.clone());
         
         // Peer B with slightly different capabilities
-        let protocols_b = vec![
+        let _protocols_b = vec![
             ProtocolDescriptor {
                 id: "test-protocol".to_string(),
                 versions: vec![ProtocolVersion::new(1, 0, 0)],
@@ -56,7 +56,7 @@ mod tests {
             }
         ];
         
-        let capabilities_b = ProtocolCapabilities {
+        let _capabilities_b = ProtocolCapabilities {
             compression: vec![CompressionType::None, CompressionType::Gzip],
             encryption: vec![EncryptionType::None],
             max_message_size: 500_000,
@@ -363,7 +363,7 @@ mod tests {
                     target_neuron: Uuid::new_v4(),
                     timestamp: chrono::Utc::now(),
                     gradient: Gradient::new(0.1 * i as f32, vec![1.0, 2.0, 3.0]),
-                    learning_context: LearningContext {
+                    learning_context: gradient::LearningContext {
                         learning_rate: 0.01,
                         momentum: 0.9,
                         batch_size: 32,
@@ -388,7 +388,7 @@ mod tests {
         let mut registry = VersionRegistry::new(ProtocolVersion::new(1, 1, 0));
         
         // Register a migration
-        registry.register_migration(Box::new(V1_0ToV1_1Migration));
+        registry.register_migration(Box::new(V1_0ToV1_1Migration::default()));
         
         // Test migration
         let old_message = serde_json::json!({

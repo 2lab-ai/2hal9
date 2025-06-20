@@ -104,34 +104,24 @@ impl NeuronSignal {
 
 /// Direction of signal propagation
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default)]
 pub enum PropagationType {
     /// Forward propagation (task distribution)
+    #[default]
     Forward,
     /// Backward propagation (error/gradient flow)
     Backward,
 }
 
-impl Default for PropagationType {
-    fn default() -> Self {
-        PropagationType::Forward
-    }
-}
 
 /// Signal payload containing activation and optional gradient
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct SignalPayload {
     pub activation: Activation,
     pub gradient: Option<Gradient>,
 }
 
-impl Default for SignalPayload {
-    fn default() -> Self {
-        Self {
-            activation: Activation::default(),
-            gradient: None,
-        }
-    }
-}
 
 /// Forward activation data
 #[derive(Debug, Clone, Serialize, Deserialize)]

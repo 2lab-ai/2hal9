@@ -921,6 +921,7 @@ impl StorageTransaction for PostgresTransaction {
 }
 
 /// S3 storage for cloud deployment
+#[allow(dead_code)]
 pub struct S3Storage {
     bucket: String,
     // Would use AWS SDK
@@ -939,6 +940,12 @@ impl S3Storage {
 /// Storage key builder for hierarchical organization
 pub struct StorageKey {
     parts: Vec<String>,
+}
+
+impl Default for StorageKey {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StorageKey {
@@ -1036,8 +1043,8 @@ mod tests {
         let mut tx = storage.transaction().await.unwrap();
         
         // Add operations
-        tx.put("key1", "value1".to_string()).await.unwrap();
-        tx.put("key2", "value2".to_string()).await.unwrap();
+        tx.put("key1", "value1".as_bytes().to_vec()).await.unwrap();
+        tx.put("key2", "value2".as_bytes().to_vec()).await.unwrap();
         
         // Commit
         tx.commit().await.unwrap();

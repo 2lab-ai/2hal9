@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use parking_lot::RwLock;
 use uuid::Uuid;
-use crate::{Result, Error};
+use crate::Result;
 use super::feature_flags::{FeatureFlagManager, RequestContext};
 
 /// Decision on which system should handle a request

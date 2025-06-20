@@ -6,7 +6,6 @@ use uuid::Uuid;
 use tokio::sync::RwLock;
 use std::sync::Arc;
 use crate::{Result, Error};
-use super::*;
 
 /// Flow controller for managing signal routing
 #[async_trait]
@@ -61,7 +60,7 @@ pub struct RoutingTarget {
     pub priority: f32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RoutingStrategy {
     ShortestPath,
     LoadBalanced,
@@ -127,6 +126,7 @@ pub struct PathPerformance {
 }
 
 /// Adaptive flow controller implementation
+#[allow(dead_code)]
 pub struct AdaptiveFlowController {
     routing_table: Arc<RwLock<RoutingTable>>,
     load_tracker: Arc<RwLock<LoadTracker>>,
@@ -146,11 +146,13 @@ struct Route {
     reliability: f32,
 }
 
+#[allow(dead_code)]
 struct LoadTracker {
     unit_loads: HashMap<Uuid, LoadInfo>,
     update_interval: std::time::Duration,
 }
 
+#[allow(dead_code)]
 struct LoadInfo {
     current_load: f32,
     capacity: f32,
@@ -158,6 +160,7 @@ struct LoadInfo {
     last_update: std::time::Instant,
 }
 
+#[allow(dead_code)]
 struct PerformanceHistory {
     window_size: usize,
     unit_history: HashMap<Uuid, Vec<UnitPerformance>>,
@@ -230,7 +233,7 @@ impl AdaptiveFlowController {
             .ok_or_else(|| Error::Routing("No viable route found".to_string()))
     }
     
-    fn meets_constraints(&self, route: &Route, constraints: &RoutingConstraints, loads: &LoadTracker) -> bool {
+    fn meets_constraints(&self, route: &Route, constraints: &RoutingConstraints, _loads: &LoadTracker) -> bool {
         // Check if route avoids specified units
         for unit in &constraints.avoid_units {
             if route.path.contains(unit) {
@@ -306,7 +309,7 @@ impl FlowController for AdaptiveFlowController {
     }
     
     async fn balance_load(&mut self) -> Result<LoadBalanceReport> {
-        let mut loads = self.load_tracker.write().await;
+        let loads = self.load_tracker.write().await;
         
         // Calculate load variance
         let load_values: Vec<f32> = loads.unit_loads.values()

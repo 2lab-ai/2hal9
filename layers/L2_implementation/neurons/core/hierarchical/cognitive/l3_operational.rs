@@ -5,10 +5,9 @@
 
 use async_trait::async_trait;
 use uuid::Uuid;
-use std::collections::HashMap;
 use std::sync::Arc;
 use parking_lot::RwLock;
-use crate::{Result, Error};
+use crate::Result;
 use super::*;
 
 /// L3: Operational Neuron - System design and coordination
@@ -248,10 +247,17 @@ pub struct SystemDesigner {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct DesignPattern {
     name: String,
     components: Vec<String>,
     applicable_to: Vec<String>,
+}
+
+impl Default for SystemDesigner {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SystemDesigner {

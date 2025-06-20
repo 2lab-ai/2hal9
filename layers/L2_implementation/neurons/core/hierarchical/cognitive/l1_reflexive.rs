@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use uuid::Uuid;
 use std::sync::Arc;
 use parking_lot::RwLock;
-use crate::{Result, Error};
+use crate::Result;
 use crate::hierarchical::protocol::{SignalProtocol, SignalMessage, Activation};
 use super::*;
 
@@ -222,6 +222,12 @@ impl CognitiveUnit for L1ReflexiveNeuron {
 /// Pattern matcher for reflexive responses
 pub struct PatternMatcher {
     patterns: RwLock<Vec<Pattern>>,
+}
+
+impl Default for PatternMatcher {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PatternMatcher {

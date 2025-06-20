@@ -150,14 +150,14 @@ impl EmbeddingGenerator {
         
         impl PartialOrd for SimilarityScore {
             fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-                // Reverse order for min-heap behavior
-                other.score.partial_cmp(&self.score)
+                Some(self.cmp(other))
             }
         }
         
         impl Ord for SimilarityScore {
             fn cmp(&self, other: &Self) -> Ordering {
-                self.partial_cmp(other).unwrap_or(Ordering::Equal)
+                // Reverse order for min-heap behavior
+                other.score.partial_cmp(&self.score).unwrap_or(Ordering::Equal)
             }
         }
         

@@ -8,7 +8,7 @@ use uuid::Uuid;
 use std::collections::HashMap;
 use std::sync::Arc;
 use parking_lot::RwLock;
-use crate::{Result, Error};
+use crate::Result;
 use super::*;
 
 /// L4: Tactical Neuron - Strategic planning and execution
@@ -64,6 +64,7 @@ impl L4TacticalNeuron {
     }
     
     /// Decompose plan into operational tasks
+    #[allow(dead_code)]
     fn decompose_plan(&self, plan: &Plan) -> Vec<CognitiveOutput> {
         plan.steps.iter().map(|step| {
             CognitiveOutput {
@@ -306,10 +307,17 @@ pub struct TaskPlanner {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct PlanTemplate {
     name: String,
     typical_steps: Vec<String>,
     applicable_to: Vec<String>,
+}
+
+impl Default for TaskPlanner {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TaskPlanner {
@@ -455,6 +463,12 @@ pub struct StrategyExecutor {
 struct StrategyTemplate {
     name: String,
     tactics: Vec<String>,
+}
+
+impl Default for StrategyExecutor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StrategyExecutor {

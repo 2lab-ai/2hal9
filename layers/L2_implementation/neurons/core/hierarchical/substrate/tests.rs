@@ -5,7 +5,7 @@ mod tests {
     use super::super::*;
     use crate::hierarchical::substrate::{
         runtime::{AsyncRuntime, TokioRuntime, TaskPriority},
-        transport::{MessageTransport, ChannelTransport, TcpTransport},
+        transport::{MessageTransport, ChannelTransport},
         storage::{PersistentStorage, SqliteStorage, StorageKey},
         resources::{ComputeResource, LocalResources, ResourceRequest, ResourcePriority},
     };
@@ -312,7 +312,8 @@ mod tests {
         });
         
         // 5. Wait for result
-        let result = tokio::time::timeout(Duration::from_secs(1), receiver.recv()).await?;
+        let result = tokio::time::timeout(Duration::from_secs(1), receiver.recv()).await
+            .map_err(|_| crate::Error::Timeout(1))?;
         assert!(result.is_some());
         
         let result_value = result.unwrap();

@@ -26,6 +26,7 @@ pub enum Layer {
 
 impl Layer {
     /// Parse layer from string
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "L9" => Some(Layer::L9),

@@ -89,7 +89,7 @@ impl TaskHandle {
     
     /// Check if task is finished
     pub fn is_finished(&self) -> bool {
-        self.abort_handle.as_ref().map_or(true, |h| h.is_finished())
+        self.abort_handle.as_ref().is_none_or(|h| h.is_finished())
     }
 }
 
@@ -120,6 +120,12 @@ pub struct TokioRuntime {
     shutdown_token: CancellationToken,
 }
 
+impl Default for TokioRuntime {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TokioRuntime {
     pub fn new() -> Self {
         Self {
@@ -137,6 +143,7 @@ impl TokioRuntime {
         }
     }
     
+    #[allow(dead_code)]
     fn track_task_completion(&self, duration: Duration) {
         self.stats.total_completed.fetch_add(1, Ordering::Relaxed);
         
