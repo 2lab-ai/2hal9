@@ -1,0 +1,68 @@
+# Tarpaulin configuration for test coverage
+
+[default]
+# Exclude test files and generated code from coverage
+exclude-files = [
+    "*/tests/*",
+    "*/examples/*",
+    "*/benches/*",
+    "*/build.rs",
+    "target/*"
+]
+
+# Enable all features for complete coverage
+all-features = true
+
+# Run tests for all workspace members
+workspace = true
+
+# Timeout for each test (5 minutes)
+timeout = "300s"
+
+# Number of test threads
+test-threads = 4
+
+# Ignore panic branches in coverage
+ignore-panics = true
+
+# Generate both HTML and LCOV reports
+out = ["Html", "Lcov"]
+
+# Output directory
+output-dir = "target/coverage"
+
+# Follow test execution order
+follow-exec = true
+
+# Clean build before running
+force-clean = true
+
+# Show all uncovered lines
+print-summary = true
+
+# Fail if coverage is below threshold
+# fail-under = 80
+
+[coverage]
+# Branches to include in coverage
+branches = ["main", "dev"]
+
+# Minimum coverage threshold
+threshold = 80
+
+[report]
+# Skip files with no coverage
+skip-clean = false
+
+# Include inline tests
+include-tests = false
+
+[ignore]
+# Patterns to ignore
+patterns = [
+    "*/migrations/*",
+    "*/target/*",
+    "*_test.rs",
+    "*_tests.rs",
+    "*/mocks/*"
+]
