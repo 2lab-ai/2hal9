@@ -294,28 +294,48 @@ async fn test_vector_clock() {
     let node1 = Uuid::new_v4();
     let node2 = Uuid::new_v4();
     
-    // Test increment
-    clock1.increment(node1);
-    // TODO: clocks field is private
-    // assert_eq!(*clock1.clocks.get(&node1).unwrap(), 1);
-    
-    clock2.increment(node2);
-    // assert_eq!(*clock2.clocks.get(&node2).unwrap(), 1);
-    
-    // Test update
-    clock1.update(&clock2);
-    // assert_eq!(*clock1.clocks.get(&node2).unwrap(), 1);
-    
-    // Test happens-before
-    clock2.increment(node2);
-    assert!(clock1.happens_before(&clock2));
-    assert!(!clock2.happens_before(&clock1));
-    
-    // Test concurrent events
+    // Test increment - we can't directly check values since clocks field is private,
+    // but we can verify behavior through happens_before
     clock1.increment(node1);
     clock2.increment(node2);
+    
+    // Initially, neither happens before the other (concurrent)
     assert!(!clock1.happens_before(&clock2));
     assert!(!clock2.happens_before(&clock1));
+    
+    // Test update - clock1 gets clock2's state
+    clock1.update(&clock2);
+    
+    // Now clock2 happens before clock1 (clock1 has all of clock2's info)
+    assert!(clock2.happens_before(&clock1));
+    assert!(!clock1.happens_before(&clock2));
+    
+    // Test happens-before after another increment
+    clock2.increment(node2);
+    // Now neither happens before the other again (clock2 advanced)
+    assert!(!clock1.happens_before(&clock2));
+    assert!(!clock2.happens_before(&clock1));
+    
+    // Test proper happens-before relationship
+    let mut clock3 = VectorClock::new();
+    let mut clock4 = VectorClock::new();
+    
+    // Make clock3 have some events
+    clock3.increment(node1);
+    clock3.increment(node1);
+    
+    // clock4 starts from clock3's state
+    clock4.update(&clock3);
+    
+    // clock3 happens before clock4
+    assert!(clock3.happens_before(&clock4));
+    
+    // clock4 advances
+    clock4.increment(node2);
+    
+    // Now clock3 still happens before clock4 (clock4 has all of clock3 plus more)
+    assert!(clock3.happens_before(&clock4));
+    assert!(!clock4.happens_before(&clock3));
 }
 
 #[tokio::test]

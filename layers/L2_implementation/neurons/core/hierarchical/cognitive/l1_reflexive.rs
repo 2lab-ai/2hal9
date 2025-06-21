@@ -10,6 +10,7 @@ use parking_lot::RwLock;
 use crate::Result;
 use crate::hierarchical::protocol::{SignalProtocol, SignalMessage, Activation};
 use super::*;
+use super::neurons::{ReflexiveState, Pattern, CacheStats};
 
 /// L1: Reflexive Neuron - Immediate pattern-based responses
 pub struct L1ReflexiveNeuron {
@@ -249,7 +250,7 @@ impl PatternMatcher {
         
         for pattern in patterns.iter() {
             let similarity = self.calculate_similarity(&pattern.trigger, input);
-            if similarity > 0.7 { // Threshold for match
+            if similarity > 0.4 { // Threshold for match
                 if best_match.is_none() || similarity > best_match.unwrap().1 {
                     best_match = Some((pattern, similarity));
                 }

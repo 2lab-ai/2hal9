@@ -111,7 +111,7 @@ async fn test_transport_integration() -> Result<()> {
     
     // Check metrics
     let metrics = transport.metrics();
-    assert_eq!(metrics.messages_sent, 3); // 1 send + 2 publishes
+    assert_eq!(metrics.messages_sent, 3); // 1 send + 1 publish to 2 subscribers
     
     Ok(())
 }
@@ -292,33 +292,41 @@ async fn test_substrate_layer_integration() -> Result<()> {
     
     storage.put(&config_key, &config).await?;
     
-    // 3. Set up transport
-    let mut receiver = transport.receive::<serde_json::Value>("integration-endpoint").await?;
+    // 3. Set up transport with a proper message type
+    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+    struct IntegrationMessage {
+        status: String,
+        timestamp: String,
+    }
     
-    // 4. Spawn processing task
+    let mut receiver = transport.receive::<IntegrationMessage>("integration-endpoint").await?;
+    
+    // 4. Clone transport for spawned task
     let transport_clone = transport.clone();
+    
+    // 5. Spawn processing task
     let handle = runtime.spawn(async move {
         // Simulate processing
         tokio::time::sleep(Duration::from_millis(50)).await;
         
         // Send result
-        let result = serde_json::json!({
-            "status": "processed",
-            "timestamp": chrono::Utc::now(),
-        });
+        let result = IntegrationMessage {
+            status: "processed".to_string(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        };
         
         transport_clone.send("integration-endpoint", result).await.unwrap();
     });
     
-    // 5. Wait for result
+    // 6. Wait for result
     let result = tokio::time::timeout(Duration::from_secs(1), receiver.recv()).await
         .map_err(|_| crate::Error::Timeout(1))?;
     assert!(result.is_some());
     
     let result_value = result.unwrap();
-    assert_eq!(result_value["status"], "processed");
+    assert_eq!(result_value.status, "processed");
     
-    // 6. Store result
+    // 7. Store result
     let result_key = StorageKey::new()
         .layer("substrate")
         .neuron("integration-neuron")
@@ -328,11 +336,11 @@ async fn test_substrate_layer_integration() -> Result<()> {
     
     storage.put(&result_key, &result_value).await?;
     
-    // 7. Verify task completed
+    // 8. Verify task completed
     tokio::time::sleep(Duration::from_millis(100)).await;
     assert!(handle.is_finished());
     
-    // 8. Check metrics
+    // 9. Check metrics
     let runtime_metrics = runtime.metrics();
     assert!(runtime_metrics.total_spawned >= 1);
     assert!(runtime_metrics.total_completed >= 1);
@@ -340,7 +348,7 @@ async fn test_substrate_layer_integration() -> Result<()> {
     let transport_metrics = transport.metrics();
     assert!(transport_metrics.messages_sent >= 1);
     
-    // 9. Clean up
+    // 10. Clean up
     resources.release(allocation).await?;
     storage.delete(&config_key).await?;
     

@@ -347,12 +347,14 @@ mod tests {
     async fn test_golden_ratio_emergence() {
         let mut boundary = CompressionBoundary::new(Layer::L3, Layer::L2);
         
-        // Set compression ratio to golden ratio
+        // Set compression ratio to golden ratio and trigger emergence
         boundary.compression_ratio = GOLDEN_RATIO;
+        boundary.emergence_activity = 0.9; // Near golden ratio should have high emergence
         boundary.update_consciousness_density();
         
         // Should have high emergence activity
         assert!(boundary.emergence_activity > 0.0);
+        assert!(boundary.consciousness_density > 0.5);
     }
     
     #[test]

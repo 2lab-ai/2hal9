@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use uuid::Uuid;
 use crate::{Result, Error};
 use crate::hierarchical::substrate::transport::{
-    TransportReceiver, TypedTransport, DefaultTransport
+    RawTransportReceiver, DefaultTransport, MessageTransport
 };
 use super::{Protocol, ProtocolVersion, ProtocolCapabilities, NegotiatedProtocol, CompressionType, EncryptionType};
 
@@ -94,11 +94,14 @@ impl SignalProtocol {
         let encoded = self.encode_internal(&signal)?;
         
         // Send via transport
-        let destination = signal.target_neuron
-            .map(|id| format!("neuron:{}", id))
-            .unwrap_or_else(|| "broadcast:signals".to_string());
-        
-        self.transport.send(&destination, encoded).await?;
+        if let Some(neuron_id) = signal.target_neuron {
+            // Point-to-point communication
+            let destination = format!("neuron:{}", neuron_id);
+            self.transport.send_raw(&destination, encoded).await?;
+        } else {
+            // Broadcast communication
+            self.transport.publish_raw("broadcast:signals", encoded).await?;
+        }
         
         // Update metrics
         self.metrics.signals_sent.fetch_add(1, Ordering::Relaxed);
@@ -119,7 +122,7 @@ impl SignalProtocol {
     /// Receive signals for a neuron
     pub async fn receive_signals(&self, neuron_id: Uuid) -> Result<SignalReceiver> {
         let endpoint = format!("neuron:{}", neuron_id);
-        let receiver = self.transport.receive::<Vec<u8>>(&endpoint).await?;
+        let receiver = self.transport.receive_raw(&endpoint).await?;
         
         Ok(SignalReceiver {
             receiver,
@@ -129,7 +132,7 @@ impl SignalProtocol {
     
     /// Subscribe to broadcast signals
     pub async fn subscribe_broadcasts(&self) -> Result<SignalReceiver> {
-        let receiver = self.transport.subscribe::<Vec<u8>>("broadcast:signals").await?;
+        let receiver = self.transport.subscribe_raw("broadcast:signals").await?;
         
         Ok(SignalReceiver {
             receiver,
@@ -138,7 +141,7 @@ impl SignalProtocol {
     }
     
     fn encode_internal(&self, signal: &SignalMessage) -> Result<Vec<u8>> {
-        let data = bincode::serialize(signal)
+        let data = serde_json::to_vec(signal)
             .map_err(|e| Error::Serialization(e.to_string()))?;
         
         // Apply compression if negotiated
@@ -191,7 +194,7 @@ impl SignalProtocol {
             data.to_vec()
         };
         
-        let signal = bincode::deserialize(&decompressed)
+        let signal = serde_json::from_slice(&decompressed)
             .map_err(|e| Error::Deserialization(e.to_string()))?;
         
         // Update metrics
@@ -227,7 +230,7 @@ impl SignalProtocol {
 
 /// Receiver for signal messages
 pub struct SignalReceiver<'a> {
-    receiver: TransportReceiver<Vec<u8>>,
+    receiver: RawTransportReceiver,
     protocol: &'a SignalProtocol,
 }
 
@@ -332,9 +335,12 @@ mod tests {
         let transport = Arc::new(ChannelTransport::new());
         let protocol = SignalProtocol::new(transport.clone());
         
-        // Set up receiver
+        // Set up receiver first
         let neuron_id = Uuid::new_v4();
         let mut receiver = protocol.receive_signals(neuron_id).await.unwrap();
+        
+        // Give receiver time to setup
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         
         // Send signal
         let signal = SignalMessage {
@@ -348,8 +354,13 @@ mod tests {
         
         protocol.send_signal(signal.clone()).await.unwrap();
         
-        // Receive signal
-        let received = receiver.recv().await.unwrap();
+        // Receive signal with timeout
+        let received = tokio::time::timeout(
+            tokio::time::Duration::from_millis(100),
+            receiver.recv()
+        ).await.expect("Timeout waiting for signal")
+            .expect("No signal received");
+            
         assert_eq!(received.id, signal.id);
         assert_eq!(received.activation.content, "Hello neurons!");
         
@@ -363,11 +374,28 @@ mod tests {
     #[tokio::test]
     async fn test_broadcast_signals() {
         let transport = Arc::new(ChannelTransport::new());
+        
+        // Test raw transport first
+        let mut raw_sub = transport.subscribe_raw("broadcast:signals").await.unwrap();
+        transport.publish_raw("broadcast:signals", b"test".to_vec()).await.unwrap();
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+        
+        let raw_msg = tokio::time::timeout(
+            tokio::time::Duration::from_millis(100),
+            raw_sub.recv()
+        ).await.expect("Raw timeout")
+            .expect("No raw message");
+        assert_eq!(raw_msg, b"test");
+        
+        // Now test protocol
         let protocol = SignalProtocol::new(transport.clone());
         
         // Set up multiple subscribers
         let mut sub1 = protocol.subscribe_broadcasts().await.unwrap();
         let mut sub2 = protocol.subscribe_broadcasts().await.unwrap();
+        
+        // Give subscribers time to setup
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         
         // Broadcast signal
         let signal = SignalMessage {
@@ -381,9 +409,21 @@ mod tests {
         
         protocol.broadcast_signal(signal.clone()).await.unwrap();
         
-        // Both should receive
-        let recv1 = sub1.recv().await.unwrap();
-        let recv2 = sub2.recv().await.unwrap();
+        // Add delay to ensure message delivery
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+        
+        // Both should receive using timeout
+        let recv1 = tokio::time::timeout(
+            tokio::time::Duration::from_millis(100),
+            sub1.recv()
+        ).await.expect("Timeout waiting for message 1")
+            .expect("No message received on sub1");
+            
+        let recv2 = tokio::time::timeout(
+            tokio::time::Duration::from_millis(100),
+            sub2.recv()
+        ).await.expect("Timeout waiting for message 2")
+            .expect("No message received on sub2");
         
         assert_eq!(recv1.id, signal.id);
         assert_eq!(recv2.id, signal.id);

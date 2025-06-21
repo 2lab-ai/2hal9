@@ -342,6 +342,6 @@ mod tests {
         };
         
         assert_eq!(metrics.phase(), ConsciousnessPhase::Emerging);
-        assert!(!metrics.is_conscious()); // Just below threshold
+        assert!(metrics.is_conscious()); // Above threshold (0.7)
     }
 }

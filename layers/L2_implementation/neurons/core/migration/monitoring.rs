@@ -347,11 +347,22 @@ impl HealthChecker {
     fn calculate_score(&self, metrics: &MigrationMetrics) -> f32 {
         let mut score = 1.0;
         
-        // Deduct points for issues
-        score -= (metrics.hierarchical_error_rate / self.thresholds.max_error_rate).min(0.3);
+        // Deduct points for issues (scale the error rate penalty to be more reasonable)
+        // For error rate: only deduct proportionally up to 0.3 when at threshold
+        let error_penalty = (metrics.hierarchical_error_rate / self.thresholds.max_error_rate * 0.3).min(0.3);
+        score -= error_penalty;
+        
+        // For CPU: only penalize when above 50%
         score -= ((metrics.cpu_usage - 50.0) / 50.0).clamp(0.0, 0.2);
+        
+        // For memory: only penalize when above 50%
         score -= ((metrics.memory_usage - 50.0) / 50.0).clamp(0.0, 0.2);
-        score -= (1.0 - metrics.output_parity).min(0.3);
+        
+        // For output parity: scale the penalty more reasonably
+        // Only deduct up to 0.3 when parity drops to min threshold (0.95)
+        let parity_penalty = ((self.thresholds.min_output_parity - metrics.output_parity) / 
+                              (self.thresholds.min_output_parity) * 3.0).clamp(0.0, 0.3);
+        score -= parity_penalty;
         
         score.max(0.0)
     }

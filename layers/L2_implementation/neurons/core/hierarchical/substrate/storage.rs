@@ -379,8 +379,7 @@ impl PersistentStorage for SqliteStorage {
             r#"
             SELECT value FROM kv_storage
             WHERE key = ?1
-            AND (expires_at IS NULL OR expires_at > strftime('%s', 'now'))
-            FOR UPDATE;
+            AND (expires_at IS NULL OR expires_at > strftime('%s', 'now'));
             "#
         )
         .bind(key)

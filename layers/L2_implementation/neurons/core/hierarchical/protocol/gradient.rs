@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::collections::HashMap;
 use uuid::Uuid;
 use crate::{Result, Error};
-use crate::hierarchical::substrate::transport::{DefaultTransport, TypedTransport};
+use crate::hierarchical::substrate::transport::{DefaultTransport, MessageTransport};
 use super::{Protocol, ProtocolVersion, ProtocolCapabilities, NegotiatedProtocol, CompressionType, EncryptionType};
 
 /// Gradient message for backward propagation
@@ -130,8 +130,10 @@ impl GradientAccumulator {
             }
             
             // Average the accumulated gradient
-            if accumulated.accumulated_steps > 0 {
-                let factor = 1.0 / accumulated.accumulated_steps as f32;
+            // The total number of gradients is accumulated_steps + 1 (the initial gradient)
+            let total_gradients = accumulated.accumulated_steps + 1;
+            if total_gradients > 0 {
+                let factor = 1.0 / total_gradients as f32;
                 accumulated.error *= factor;
                 for val in &mut accumulated.direction {
                     *val *= factor;
@@ -191,7 +193,7 @@ impl GradientProtocol {
         let encoded = self.encode_internal(&gradient)?;
         let destination = format!("neuron:{}:gradient", gradient.target_neuron);
         
-        self.transport.send(&destination, encoded).await?;
+        self.transport.send_raw(&destination, encoded).await?;
         
         // Update metrics
         self.metrics.gradients_sent.fetch_add(1, Ordering::Relaxed);
@@ -266,7 +268,7 @@ impl GradientProtocol {
     /// Receive gradients for a neuron
     pub async fn receive_gradients(&self, neuron_id: Uuid) -> Result<GradientReceiver> {
         let endpoint = format!("neuron:{}:gradient", neuron_id);
-        let receiver = self.transport.receive::<Vec<u8>>(&endpoint).await?;
+        let receiver = self.transport.receive_raw(&endpoint).await?;
         
         Ok(GradientReceiver {
             receiver,
@@ -377,7 +379,7 @@ impl GradientProtocol {
 
 /// Receiver for gradient messages
 pub struct GradientReceiver<'a> {
-    receiver: crate::hierarchical::substrate::TransportReceiver<Vec<u8>>,
+    receiver: crate::hierarchical::substrate::transport::RawTransportReceiver,
     protocol: &'a GradientProtocol,
 }
 
@@ -462,7 +464,8 @@ mod tests {
     #[tokio::test]
     async fn test_gradient_operations() {
         let gradient = Gradient::new(0.5, vec![0.1, -0.2, 0.3]);
-        assert_eq!(gradient.magnitude, (0.01 + 0.04 + 0.09_f32).sqrt());
+        let expected_magnitude = (0.01 + 0.04 + 0.09_f32).sqrt();
+        assert!((gradient.magnitude - expected_magnitude).abs() < 1e-6);
         assert!(gradient.is_significant());
         
         // Test accumulation
@@ -497,9 +500,9 @@ mod tests {
         let flushed = accumulator.add(neuron_id, g3).unwrap();
         
         // Check averaged gradient
-        assert_eq!(flushed.error, 0.2); // (0.1 + 0.2 + 0.3) / 3
-        assert_eq!(flushed.direction[0], 2.0 / 3.0); // (1 + 0 + 1) / 3
-        assert_eq!(flushed.direction[1], 2.0 / 3.0); // (0 + 1 + 1) / 3
+        assert!((flushed.error - 0.2).abs() < 1e-6); // (0.1 + 0.2 + 0.3) / 3
+        assert!((flushed.direction[0] - 2.0 / 3.0).abs() < 1e-6); // (1 + 0 + 1) / 3
+        assert!((flushed.direction[1] - 2.0 / 3.0).abs() < 1e-6); // (0 + 1 + 1) / 3
     }
     
     #[tokio::test]

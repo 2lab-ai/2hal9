@@ -304,9 +304,9 @@ impl MessageTransport for ChannelTransport {
             // Send to all subscribers
             for tx in subscribers.iter() {
                 let _ = tx.send(data.clone());
+                // Record each delivery as a separate message
+                self.metrics.record_sent(data.len());
             }
-            
-            self.metrics.record_sent(data.len() * subscribers.len());
         }
         
         Ok(())

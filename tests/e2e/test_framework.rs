@@ -233,6 +233,7 @@ impl WebSocketTestClient {
 
 /// Test server runner
 pub struct TestServer {
+    #[allow(dead_code)]
     port: u16,
     handle: Option<tokio::task::JoinHandle<()>>,
 }
