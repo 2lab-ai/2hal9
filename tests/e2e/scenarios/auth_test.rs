@@ -141,7 +141,7 @@ async fn test_authorization() -> Result<()> {
     println!("✅ Admin can trigger self-organization");
     
     // Admin should see all neurons
-    let neurons: Value = admin_client.get("/api/neurons").await?;
+    let _neurons: Value = admin_client.get("/api/neurons").await?;
     println!("✅ Admin can list all neurons");
     
     // Test regular user permissions

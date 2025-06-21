@@ -67,7 +67,7 @@ async fn test_performance_under_load() -> Result<()> {
     }
     
     // Send signals through the chain
-    for i in 0..10 {
+    for _i in 0..10 {
         let signal_data = serde_json::json!({
             "pattern": vec![0.1; 20],
             "intensity": 0.8

@@ -5,7 +5,6 @@ use anyhow::{Context, Result};
 use reqwest::{Client, StatusCode};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
@@ -36,9 +35,9 @@ impl Default for TestConfig {
 
 /// E2E Test Client with HTTP and WebSocket support
 pub struct E2ETestClient {
-    http_client: Client,
-    config: TestConfig,
-    auth_token: Arc<Mutex<Option<String>>>,
+    pub http_client: Client,
+    pub config: TestConfig,
+    pub auth_token: Arc<Mutex<Option<String>>>,
 }
 
 impl E2ETestClient {

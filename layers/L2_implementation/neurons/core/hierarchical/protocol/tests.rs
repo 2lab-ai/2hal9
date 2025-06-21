@@ -404,4 +404,3 @@ fn test_version_migration() {
     assert_eq!(migrated_value["existing_field"], "value");
     assert_eq!(migrated_value["new_field"], "default");
 }
-}

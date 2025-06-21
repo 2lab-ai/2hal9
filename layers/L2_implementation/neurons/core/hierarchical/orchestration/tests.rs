@@ -334,4 +334,3 @@ async fn test_orchestration_integration() {
     // Test would continue with full integration testing...
     // This is a placeholder for now as DefaultOrchestrator needs implementation
 }
-}

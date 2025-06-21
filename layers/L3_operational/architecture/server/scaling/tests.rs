@@ -325,4 +325,3 @@ async fn test_session_lookup_performance() {
     // Should complete in under 10ms
     assert!(duration.as_millis() < 10);
 }
-}

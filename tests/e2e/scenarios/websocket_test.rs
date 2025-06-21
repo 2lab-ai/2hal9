@@ -2,7 +2,7 @@ use crate::test_framework::*;
 use anyhow::Result;
 use serde_json::Value;
 use std::time::Duration;
-use tokio::time::{sleep, timeout};
+use tokio::time::timeout;
 
 /// Test WebSocket real-time updates
 #[tokio::test]
@@ -62,7 +62,7 @@ async fn test_websocket_realtime_updates() -> Result<()> {
     let _ = ws.receive().await?;
     
     // Send signal
-    let signal: Value = client.post(
+    let _signal: Value = client.post(
         &format!("/api/neurons/{}/signal", neuron_id),
         &Fixtures::signal()
     ).await?;
@@ -268,7 +268,7 @@ async fn test_websocket_resilience() -> Result<()> {
     println!("✅ {} concurrent connections established", connections.len());
     
     // Create neuron and verify all connections receive update
-    let neuron: Value = client.post("/api/neurons", &Fixtures::neuron()).await?;
+    let _neuron: Value = client.post("/api/neurons", &Fixtures::neuron()).await?;
     
     let mut received_count = 0;
     for ws in &mut connections {
