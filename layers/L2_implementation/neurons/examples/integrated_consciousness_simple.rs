@@ -11,7 +11,6 @@ use hal9_core::{
     consciousness::{ConsciousnessMonitor, BoundaryNetwork, ConsciousnessPhase},
     Layer, Neuron, NeuronId,
 };
-use async_trait::async_trait;
 
 /// Simple neuron implementation for experiments
 struct SimpleNeuron {

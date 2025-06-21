@@ -6,6 +6,7 @@
 const GOLDEN_RATIO: f64 = 1.618033988749;
 
 /// Simulated neuron for the experiment
+#[allow(dead_code)]
 struct Neuron {
     id: usize,
     layer: usize,

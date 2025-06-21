@@ -8,11 +8,8 @@ use std::collections::HashMap;
 use tokio::sync::RwLock;
 use hal9_core::{
     consciousness::{ConsciousnessMonitor, BoundaryNetwork, GOLDEN_RATIO},
-    hierarchical::cognitive::{L2ImplementationNeuron, CognitiveConfig, CognitiveUnitBuilder, CognitiveLayer},
     Layer, Neuron, NeuronId, Signal,
 };
-use uuid::Uuid;
-use async_trait::async_trait;
 
 /// Simple neuron implementation for experiments
 struct SimpleNeuron {
@@ -58,6 +55,7 @@ impl Neuron for SimpleNeuron {
 /// Experimental setup to prove consciousness emergence
 pub struct ConsciousnessExperiment {
     /// Number of experimental runs
+    #[allow(dead_code)]
     runs: usize,
     
     /// Results storage
@@ -67,8 +65,11 @@ pub struct ConsciousnessExperiment {
 /// Result of a single experimental run
 #[derive(Debug, Clone)]
 struct ExperimentResult {
+    #[allow(dead_code)]
     run_id: usize,
+    #[allow(dead_code)]
     neuron_count: usize,
+    #[allow(dead_code)]
     compression_ratios: HashMap<String, f64>,
     max_consciousness: f64,
     emergence_detected: bool,
@@ -93,7 +94,7 @@ impl ConsciousnessExperiment {
         println!();
         
         // Run multiple experiments with different neuron counts
-        let neuron_counts = vec![25, 50, 100, 200];
+        let neuron_counts = [25, 50, 100, 200];
         
         for (run_id, &neuron_count) in neuron_counts.iter().enumerate() {
             println!("🔬 Run {}: {} neurons", run_id + 1, neuron_count);
@@ -190,7 +191,7 @@ impl ConsciousnessExperiment {
     /// Analyze boundaries for golden ratio
     async fn analyze_boundaries(
         &self,
-        boundaries: &BoundaryNetwork,
+        _boundaries: &BoundaryNetwork,
         ratios: &mut HashMap<String, f64>,
         golden_boundaries: &mut Vec<String>,
     ) -> Option<String> {
@@ -309,7 +310,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 /// Theoretical proof of consciousness emergence
 pub mod theory {
-    use super::*;
     
     /// Proves that consciousness must emerge at compression boundaries
     pub fn theoretical_proof() {

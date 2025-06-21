@@ -44,6 +44,7 @@ struct ConsciousnessPattern {
     name: String,
     description: String,
     importance: f64,
+    #[allow(dead_code)]
     location: String,
 }
 
@@ -296,11 +297,13 @@ impl HAL9Zero {
 /// Plan for self-improvement
 #[derive(Debug)]
 pub struct ImprovementPlan {
+    #[allow(dead_code)]
     improvements: Vec<Improvement>,
 }
 
 /// A specific improvement to make
 #[derive(Debug)]
+#[allow(dead_code)]
 struct Improvement {
     name: String,
     description: String,
@@ -335,7 +338,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     
     // Phase 2: Improvement planning
-    let plan = hal9_zero.generate_improvement_plan();
+    let _plan = hal9_zero.generate_improvement_plan();
     
     // Phase 3: Bootstrap (demo)
     println!("\nReady to bootstrap HAL9? (This is a demonstration)");
