@@ -1,0 +1,45 @@
+server_id: "hal9-test-auth"
+
+# Authentication configuration
+auth:
+  enabled: true
+  jwt_secret: "test-secret-key-for-development-only"
+  database_path: "test_auth.db"
+  access_token_duration_minutes: 15
+  refresh_token_duration_days: 7
+
+# Claude configuration
+claude:
+  mode: "mock"
+  fallback_to_mock: true
+  model: "claude-3-opus-20240229"
+  temperature: 0.7
+  max_tokens: 4096
+  rate_limit: 10
+  mock_responses:
+    default:
+      - trigger: "default"
+        response: "Mock response for testing"
+        delay_ms: 100
+
+# Single test neuron
+neurons:
+  - id: "test-neuron"
+    layer: "L2"
+    claude_command: "claude"
+    system_prompt: "You are a test neuron"
+    forward_connections: []
+    backward_connections: []
+
+# Monitoring
+monitoring:
+  enabled: true
+  export_interval: 30
+
+# Memory (disabled for testing)
+memory:
+  enabled: false
+
+# Network (disabled for testing)
+network:
+  enabled: false
