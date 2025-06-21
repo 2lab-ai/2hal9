@@ -220,8 +220,8 @@ async fn test_metrics_collection() {
     let metrics = server.metrics().snapshot();
     assert_eq!(metrics.signals_sent, 5);
     assert!(metrics.signals_processed > 0);
-    assert!(metrics.layer_latencies.len() > 0);
-    assert!(metrics.processing_times.len() > 0);
+    assert!(!metrics.layer_latencies.is_empty());
+    assert!(!metrics.processing_times.is_empty());
     
     server.shutdown().await.expect("Failed to shutdown server");
 }
@@ -280,7 +280,7 @@ async fn test_neuron_health_monitoring() {
     let health_map = registry.health_check().await;
     
     assert_eq!(health_map.len(), 3);
-    for (_, health) in &health_map {
+    for health in health_map.values() {
         assert_eq!(health.signals_processed, 0);
         assert_eq!(health.errors_count, 0);
     }

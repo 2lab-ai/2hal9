@@ -398,13 +398,6 @@ mod tests {
     use super::*;
     use std::net::{IpAddr, Ipv4Addr};
 
-    fn create_test_client_info() -> ClientInfo {
-        ClientInfo {
-            ip_address: IpAddr::V4(Ipv4Addr::new(192, 168, 1, 100)),
-            user_agent: "Mozilla/5.0".to_string(),
-            preferred_region: Some("us-west".to_string()),
-        }
-    }
 
     #[test]
     fn test_session_encryption() {

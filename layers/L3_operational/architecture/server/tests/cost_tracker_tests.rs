@@ -1,6 +1,6 @@
 //! Cost tracker unit tests
 
-use hal9_server::cost_tracker::{CostTracker, CostStats};
+use hal9_server::cost_tracker::CostTracker;
 use hal9_core::config::CostControls;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -92,7 +92,7 @@ async fn test_alert_callback() {
     tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
     
     let alert_messages = alerts.lock().await;
-    assert!(alert_messages.len() > 0);
+    assert!(!alert_messages.is_empty());
     assert!(alert_messages[0].contains("Hourly cost alert"));
 }
 
