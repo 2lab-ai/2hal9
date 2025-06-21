@@ -49,6 +49,21 @@ test:
 	@echo "🧪 Running all tests..."
 	cargo test --all
 
+# Run E2E tests with server
+test-e2e:
+	@echo "🌐 Running E2E tests..."
+	@./tests/e2e/run_e2e_tests.sh
+
+# Run E2E tests with authentication enabled
+test-e2e-auth:
+	@echo "🔐 Running E2E tests with authentication..."
+	@./tests/e2e/run_e2e_tests.sh --auth
+
+# Run only E2E test binary
+test-e2e-only:
+	@echo "🧪 Running E2E test binary..."
+	cd layers/L3_operational/architecture/server && cargo test --test e2e -- --nocapture
+
 # Clean build artifacts
 clean:
 	@echo "🧹 Cleaning build artifacts..."
