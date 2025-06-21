@@ -662,11 +662,8 @@ mod tests {
         // Check events
         let mut event_count = 0;
         while let Ok(event) = event_rx.try_recv() {
-            match event {
-                EmergenceEvent::LayerEmerged { name, neurons, .. } => {
-                    println!("Layer emerged: {} with {} neurons", name, neurons);
-                }
-                _ => {}
+            if let EmergenceEvent::LayerEmerged { name, neurons, .. } = event {
+                println!("Layer emerged: {} with {} neurons", name, neurons);
             }
             event_count += 1;
         }

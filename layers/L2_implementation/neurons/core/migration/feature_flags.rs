@@ -574,9 +574,11 @@ mod tests {
     
     #[test]
     fn test_targeting_rules() {
-        let mut flags = FeatureFlags::default();
-        flags.hierarchical_enabled = true;
-        flags.hierarchical_traffic_percentage = 0.0; // Default to flat
+        let mut flags = FeatureFlags {
+            hierarchical_enabled: true,
+            hierarchical_traffic_percentage: 0.0, // Default to flat
+            ..Default::default()
+        };
         
         // Add targeting rule for specific users
         let user_id = Uuid::new_v4();
